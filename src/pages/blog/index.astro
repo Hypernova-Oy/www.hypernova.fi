@@ -15,7 +15,7 @@ posts.sort((a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf());
 // Resolve authors for all posts
 const postsWithAuthors = await Promise.all(posts.map(async (post) => {
   const author = await getEntry(post.data.author);
-  const authorName = author?.data.name ?? 'Zenix Author';
+  const authorName = author?.data.name ?? 'Hypernova';
   const authorInitials = authorName
     .split(/\s+/)
     .filter(Boolean)
@@ -28,20 +28,24 @@ const postsWithAuthors = await Promise.all(posts.map(async (post) => {
 }));
 ---
 
-<BaseLayout title="Blog" description="Latest updates, thoughts, and tutorials from the Zenix team.">
-  <div class="bg-zinc-50 dark:bg-[#0c0c0f] border-b border-zinc-200 dark:border-zinc-800 py-16 md:py-24">
+<BaseLayout title="Blog" description="News, guides and updates from the Hypernova team.">
+  <div class="bg-zinc-50 dark:bg-night-soft border-b border-zinc-200 dark:border-night-line py-16 md:py-24">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl text-center">
-      <h1 class="text-4xl md:text-5xl font-heading font-extrabold text-zinc-900 dark:text-white mb-4">The Zenix Blog</h1>
+      <h1 class="text-4xl md:text-5xl font-heading font-extrabold text-zinc-900 dark:text-white mb-4">Hypernova Blog</h1>
       <p class="text-xl text-zinc-600 dark:text-zinc-400">
-        Insights, updates, and resources for SaaS founders and indie hackers.
+        Articles about Free and Open Source software and our services.
       </p>
     </div>
   </div>
 
   <div class="container mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24 max-w-5xl">
+    {postsWithAuthors.length === 0 && (
+      <p class="text-center text-lg text-zinc-600 dark:text-zinc-400">No articles have been published yet.</p>
+    )}
+    {postsWithAuthors.length > 0 && (
     <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
       {postsWithAuthors.map(post => (
-        <article class="bg-white dark:bg-zinc-900 border border-zinc-200 dark:border-zinc-800 rounded-3xl overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col hover-glow">
+        <article class="bg-white dark:bg-night-card border border-zinc-200 dark:border-night-line rounded-3xl overflow-hidden hover:shadow-xl transition-all duration-300 flex flex-col hover-glow">
           <div class="p-8 flex-grow flex flex-col">
             <div class="flex flex-wrap items-center gap-x-3 gap-y-2 mb-4 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
               <time datetime={post.data.pubDate.toISOString()}>
@@ -80,5 +84,6 @@ const postsWithAuthors = await Promise.all(posts.map(async (post) => {
         </article>
       ))}
     </div>
+    )}
   </div>
 </BaseLayout>

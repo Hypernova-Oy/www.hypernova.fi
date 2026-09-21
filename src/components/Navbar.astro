@@ -1,5 +1,4 @@
 ---
-import Button from './Button.astro';
 import hypernovaLogo from '../images/hypernova-logo.png';
 import LanguagePicker from '../components/LanguagePicker.astro';
 
@@ -7,20 +6,19 @@ import { Font } from "astro:assets";
 import { Image } from 'astro:assets';
 import { NAV_LINKS, BRAND_NAME } from '../config';
 import { useTranslations } from '../i18n/utils';
-import type i18n from '../i18n/utils';
 import { resolvePath } from '../utils/navigation';
 
 const i18n = {
   fi: {
-      'Why FOSS': 'Miksi vapaa koodi',
+      'Why FOSS': 'Miksi avoin koodi',
       'Services': 'Palvelut',
       'Koha Cloud Hosting': 'Koha-pilvipalvelu',
       'Contact': 'Yhteystiedot',
       'Search': 'Haku',
       'Open main menu': 'Avaa päävalikko',
   }
-} as i18n;
-const t = useTranslations(i18n);
+};
+const t = useTranslations(i18n, Astro);
 ---
 
 <header class="sticky top-0 z-[90] w-full transition-colors duration-300 glass-panel border-x-0 border-t-0 rounded-none shadow-sm pointer-events-auto">
@@ -52,18 +50,18 @@ const t = useTranslations(i18n);
         <!-- Search Button -->
         <button 
           onclick="window.toggleCommandPalette()"
-          class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-zinc-800 rounded-lg border border-zinc-200 dark:border-zinc-700 transition-colors"
+          class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-night-raise rounded-lg border border-zinc-200 dark:border-night-line-strong transition-colors"
           aria-label="Search"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
           <span>{t('Search')}</span>
-          <kbd class="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-zinc-900 px-1.5 font-mono text-[10px] font-medium text-zinc-400">
-            <span class="text-xs">...</span>
+          <kbd class="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-night-card px-1.5 font-mono text-[10px] font-medium text-zinc-400">
+            <span data-search-shortcut>Ctrl K</span>
           </kbd>
         </button>
 
         <!-- Theme Toggle -->
-        <button id="theme-toggle" data-theme-toggle type="button" class="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg text-sm transition-colors" aria-label="Toggle theme">
+        <button id="theme-toggle" data-theme-toggle type="button" class="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-night-raise focus:outline-none focus:ring-2 focus:ring-primary-500 rounded-lg text-sm transition-colors" aria-label="Toggle theme">
           <svg data-theme-dark-icon class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
           <svg data-theme-light-icon class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
         </button>
@@ -71,16 +69,16 @@ const t = useTranslations(i18n);
 
       <!-- Mobile menu button & Theme toggle -->
       <div class="md:hidden flex items-center gap-2">
-        <button onclick="window.toggleCommandPalette()" class="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none rounded-lg text-sm" aria-label="Search">
+        <button onclick="window.toggleCommandPalette()" aria-label={t('Search')} class="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-night-raise focus:outline-none rounded-lg text-sm" aria-label="Search">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
         </button>
 
-        <button id="mobile-theme-toggle" data-theme-toggle type="button" class="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none rounded-lg text-sm" aria-label="Toggle theme">
+        <button id="mobile-theme-toggle" data-theme-toggle type="button" class="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-night-raise focus:outline-none rounded-lg text-sm" aria-label="Toggle theme">
           <svg data-theme-dark-icon class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
           <svg data-theme-light-icon class="hidden w-5 h-5" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
         </button>
         
-        <button id="mobile-menu-btn" class="p-2 rounded-md text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-zinc-800 focus:outline-none">
+        <button id="mobile-menu-btn" class="p-2 rounded-md text-zinc-600 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white hover:bg-zinc-100 dark:hover:bg-night-raise focus:outline-none">
           <span class="sr-only">{t('Open main menu')}</span>
           <svg class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
@@ -91,14 +89,15 @@ const t = useTranslations(i18n);
   </div>
 
   <!-- Mobile menu -->
-  <div id="mobile-menu" class="hidden md:hidden border-t border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+  <div id="mobile-menu" class="hidden md:hidden border-t border-zinc-200 dark:border-night-line bg-white dark:bg-night-card">
     <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3">
       {NAV_LINKS.map(link => (
-        <a href={resolvePath(link.href)} class="block px-3 py-2 rounded-md text-base font-medium text-zinc-700 dark:text-zinc-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-zinc-50 dark:hover:bg-zinc-800">
-          {link.label}
+        <a href={resolvePath(link.href)} class="block px-3 py-2 rounded-md text-base font-medium text-zinc-700 dark:text-zinc-300 hover:text-primary-600 dark:hover:text-primary-400 hover:bg-zinc-50 dark:hover:bg-night-raise">
+          {t(link.label)}
         </a>
       ))}
     
+  </div>
   </div>
 </header>
 
@@ -126,7 +125,7 @@ const t = useTranslations(i18n);
 
     updateIcons();
 
-    document.querySelectorAll('[data-theme-toggle]').forEach((button) => {
+    document.querySelectorAll<HTMLElement>('[data-theme-toggle]').forEach((button) => {
       if (button.dataset.themeBound === 'true') return;
       button.dataset.themeBound = 'true';
       button.addEventListener('click', toggleTheme);
@@ -148,13 +147,24 @@ const t = useTranslations(i18n);
     }
   }
 
+  // Show the accelerator the current platform actually uses.
+  function setupSearchShortcutHint() {
+    const hint = document.querySelector('[data-search-shortcut]');
+    if (!hint) return;
+
+    const isApple = /Mac|iP(hone|ad|od)/.test(navigator.userAgent);
+    hint.textContent = isApple ? '⌘K' : 'Ctrl K';
+  }
+
   // Run on initial load
   setupTheme();
   setupMobileMenu();
+  setupSearchShortcutHint();
   
   // Run on View Transitions page changes
   document.addEventListener('astro:page-load', () => {
     setupTheme();
     setupMobileMenu();
+    setupSearchShortcutHint();
   });
 </script>

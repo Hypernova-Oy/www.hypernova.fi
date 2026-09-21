@@ -1,5 +1,19 @@
 ---
 import { resolvePath } from '../utils/navigation';
+import { useTranslations } from '../i18n/utils';
+
+const i18n = {
+  fi: {
+    'Search': 'Haku',
+    'Search pages and services': 'Hae sivuja ja palveluita',
+    'Search the site': 'Hae sivustolta',
+    'Type to find services and pages. Press Ctrl+K to open search from any page.':
+      'Kirjoita hakeaksesi palveluita ja sivuja. Avaa haku millä tahansa sivulla painamalla Ctrl+K.',
+    'No results found for that query.': 'Ei tuloksia haulla.',
+  },
+};
+
+const t = useTranslations(i18n, Astro);
 ---
 
 <div
@@ -7,12 +21,13 @@ import { resolvePath } from '../utils/navigation';
   class="fixed inset-0 z-[100] hidden isolate overflow-y-auto p-4 sm:p-6 md:p-20"
   role="dialog"
   aria-modal="true"
+  aria-label={t('Search')}
 >
   <!-- Backdrop -->
   <div data-command-backdrop class="fixed inset-0 z-0 bg-zinc-900/60 backdrop-blur-sm transition-opacity" aria-hidden="true"></div>
 
   <!-- Palette -->
-  <div class="relative z-10 mx-auto max-w-2xl transform divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-zinc-900/5 transition-all">
+  <div class="relative z-10 mx-auto max-w-2xl transform divide-y divide-zinc-100 dark:divide-night-line overflow-hidden rounded-2xl bg-white dark:bg-night-card shadow-2xl ring-1 ring-zinc-900/5 transition-all">
     <div class="relative">
       <svg
         class="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-zinc-400"
@@ -29,23 +44,25 @@ import { resolvePath } from '../utils/navigation';
         type="text"
         id="search-input"
         class="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:ring-0 sm:text-sm"
-        placeholder="Search for articles, updates, and more..."
+        placeholder={t('Search pages and services')}
         role="combobox"
         aria-expanded="false"
-        aria-controls="options"
+        aria-autocomplete="list"
+        aria-controls="search-results"
+        autocomplete="off"
+        spellcheck="false"
       />
     </div>
 
-    <!-- Results list -->
+    <!-- Results list (filled in by the script below) -->
     <ul
       class="max-h-96 scroll-py-3 overflow-y-auto p-3 hidden"
       id="search-results"
       role="listbox"
-    >
-      <!-- Results will be injected here -->
-    </ul>
+      aria-label={t('Search')}
+    ></ul>
 
-    <!-- Empty state / Help -->
+    <!-- Empty state / help -->
     <div id="search-help" class="px-6 py-14 text-center sm:px-14">
       <svg
         class="mx-auto h-6 w-6 text-zinc-400"
@@ -60,15 +77,54 @@ import { resolvePath } from '../utils/navigation';
           stroke-linejoin="round"
           d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path>
       </svg>
-      <p class="mt-4 text-sm text-zinc-900 dark:text-white font-medium">No recent searches</p>
-      <p class="mt-2 text-sm text-zinc-500">Quickly find blog posts and product updates by typing.</p>
+      <p class="mt-4 text-sm text-zinc-900 dark:text-white font-medium">{t('Search the site')}</p>
+      <p class="mt-2 text-sm text-zinc-500">{t('Type to find services and pages. Press Ctrl+K to open search from any page.')}</p>
     </div>
   </div>
 </div>
 
-<script is:inline define:vars={{ resolvePath: resolvePath('/') }}>
-  // We use define:vars to pass the base path resolution to the client-side script
-  
+<style is:global>
+  /*
+   * The rows are injected at runtime, so their highlight cannot use scoped
+   * styles. One rule covers both mouse hover and keyboard selection.
+   */
+  #search-results [role='option']:hover,
+  #search-results [role='option'][aria-selected='true'] {
+    background-color: var(--color-primary-600);
+  }
+
+  .dark #search-results [role='option']:hover,
+  .dark #search-results [role='option'][aria-selected='true'] {
+    background-color: var(--color-night-raise);
+  }
+
+  /* The selected row sits on a lifted surface, so its description needs more light. */
+  .dark #search-results [role='option']:hover .palette-description,
+  .dark #search-results [role='option'][aria-selected='true'] .palette-description {
+    color: var(--color-primary-200);
+  }
+
+  #search-results [role='option']:hover .palette-badge,
+  #search-results [role='option'][aria-selected='true'] .palette-badge {
+    background-color: rgb(255 255 255 / 0.2);
+  }
+
+  #search-results [role='option']:hover .palette-badge-text,
+  #search-results [role='option']:hover .palette-title,
+  #search-results [role='option'][aria-selected='true'] .palette-badge-text,
+  #search-results [role='option'][aria-selected='true'] .palette-title {
+    color: #fff;
+  }
+
+  #search-results [role='option']:hover .palette-description,
+  #search-results [role='option'][aria-selected='true'] .palette-description {
+    color: var(--color-primary-100);
+  }
+</style>
+
+<script is:inline define:vars={{ resolvePath: resolvePath('/'), noResultsMessage: t('No results found for that query.') }}>
+  // define:vars hands the base path and the localized messages to this inline script.
+
   function setupSearch() {
     const palette = document.getElementById('command-palette');
     const input = document.getElementById('search-input');
@@ -77,16 +133,27 @@ import { resolvePath } from '../utils/navigation';
     const backdrop = palette?.querySelector('[data-command-backdrop]');
 
     if (!palette || !input || !resultsList || !helpState) return;
-    
+
     window.__zenixSearchIndex = window.__zenixSearchIndex || [];
     window.__zenixSearchLoaded = window.__zenixSearchLoaded || false;
 
+    let activeIndex = -1;
+
     async function loadIndex() {
-      if (window.__zenixSearchLoaded) return;
+      // The index is localized, so it has to be refetched when the language
+      // changes without a full page load (view transitions).
+      const lang = document.documentElement.lang || 'any';
+      if (window.__zenixSearchLoaded && window.__zenixSearchLang === lang) return;
+
       try {
-        const response = await fetch(`${resolvePath}search-index.json`);
+        const response = await fetch(`${resolvePath}search-index.json`, {
+          headers: { Accept: 'application/json' }
+        });
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
         window.__zenixSearchIndex = await response.json();
         window.__zenixSearchLoaded = true;
+        window.__zenixSearchLang = lang;
 
         const query = input.value.toLowerCase().trim();
         if (query) {
@@ -98,10 +165,48 @@ import { resolvePath } from '../utils/navigation';
     }
 
     function getMatches(query) {
-      return window.__zenixSearchIndex.filter(item => 
-        item.title.toLowerCase().includes(query) || 
-        item.description.toLowerCase().includes(query)
-      );
+      const terms = query.split(/\s+/).filter(Boolean);
+      if (terms.length === 0) return [];
+
+      // `keywords` carries the searchable text of both languages.
+      return window.__zenixSearchIndex.filter((item) => {
+        const haystack = [item.title, item.description, item.keywords]
+          .filter(Boolean)
+          .join(' ')
+          .toLowerCase();
+        // Every word of the query has to appear in the entry.
+        return terms.every((term) => haystack.includes(term));
+      });
+    }
+
+    function getOptions() {
+      return Array.from(resultsList.querySelectorAll('[role="option"]'));
+    }
+
+    function setActive(index) {
+      const options = getOptions();
+      const next = index >= 0 && index < options.length ? index : -1;
+
+      options.forEach((option, optionIndex) => {
+        option.setAttribute('aria-selected', String(optionIndex === next));
+      });
+
+      activeIndex = next;
+      input.setAttribute('aria-activedescendant', next >= 0 ? options[next].id : '');
+      if (next >= 0) options[next].scrollIntoView({ block: 'nearest' });
+    }
+
+    function openResult() {
+      if (resultsList.classList.contains('hidden')) return false;
+
+      // An explicit selection wins; otherwise Enter opens the best match.
+      const option = getOptions()[activeIndex >= 0 ? activeIndex : 0];
+      const link = option?.querySelector('a');
+      if (!link) return false;
+
+      togglePalette();
+      link.click();
+      return true;
     }
 
     function togglePalette() {
@@ -123,11 +228,13 @@ import { resolvePath } from '../utils/navigation';
       window.__zenixSearchKeyBound = true;
       window.addEventListener('keydown', (e) => {
         const activePalette = document.getElementById('command-palette');
-        if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+
+        if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
           e.preventDefault();
           window.toggleCommandPalette?.();
+          return;
         }
-        
+
         if (e.key === 'Escape' && activePalette && !activePalette.classList.contains('hidden')) {
           window.toggleCommandPalette?.();
         }
@@ -137,7 +244,7 @@ import { resolvePath } from '../utils/navigation';
     if (palette.dataset.searchBound === 'true') return;
     palette.dataset.searchBound = 'true';
 
-    // Click backdrop to close
+    // Click the backdrop to close.
     palette.addEventListener('click', (e) => {
       if (e.target === palette || e.target === backdrop) {
         togglePalette();
@@ -146,46 +253,88 @@ import { resolvePath } from '../utils/navigation';
 
     input.addEventListener('input', (e) => {
       const query = e.target.value.toLowerCase().trim();
-      
+
       if (!query) {
         resultsList.classList.add('hidden');
         helpState.classList.remove('hidden');
+        input.setAttribute('aria-expanded', 'false');
+        setActive(-1);
+        resultsList.innerHTML = '';
         return;
       }
 
       renderResults(getMatches(query));
     });
 
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+        if (resultsList.classList.contains('hidden')) return;
+
+        const options = getOptions();
+        if (options.length === 0) return;
+
+        e.preventDefault();
+        const step = e.key === 'ArrowDown' ? 1 : -1;
+        const next = activeIndex === -1
+          ? (step === 1 ? 0 : options.length - 1)
+          : (activeIndex + step + options.length) % options.length;
+
+        setActive(next);
+        return;
+      }
+
+      if (e.key === 'Enter' && openResult()) {
+        e.preventDefault();
+      }
+    });
+
+    function escapeHtml(value) {
+      return String(value ?? '').replace(/[&<>"']/g, (char) => ({
+        '&': '&amp;',
+        '<': '&lt;',
+        '>': '&gt;',
+        '"': '&quot;',
+        "'": '&#39;'
+      })[char]);
+    }
+
     function renderResults(matches) {
       helpState.classList.add('hidden');
       resultsList.classList.remove('hidden');
-      
+      input.setAttribute('aria-expanded', 'true');
+      setActive(-1);
+
       if (matches.length === 0) {
         resultsList.innerHTML = `
           <li class="px-4 py-14 text-center sm:px-14">
-            <p class="text-sm text-zinc-500">No results found for that query.</p>
+            <p class="text-sm text-zinc-500">${escapeHtml(noResultsMessage)}</p>
           </li>
         `;
         return;
       }
 
-      resultsList.innerHTML = matches.map((item, idx) => `
+      resultsList.innerHTML = matches.map((item, index) => {
+        const target = `${resolvePath}${item.slug.startsWith('/') ? item.slug.slice(1) : item.slug}`;
+
+        return `
         <li
-          class="group cursor-pointer select-none rounded-xl p-3 hover:bg-primary-600 dark:hover:bg-primary-500 transition-colors"
+          id="search-option-${index}"
+          class="cursor-pointer select-none rounded-xl p-3 transition-colors"
           role="option"
-          tabindex="-1"
+          aria-selected="false"
         >
-          <a href="${resolvePath}${item.slug.startsWith('/') ? item.slug.slice(1) : item.slug}" class="flex items-center">
-            <div class="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 group-hover:bg-white/20">
-              <span class="text-xs font-bold text-zinc-500 dark:text-zinc-400 group-hover:text-white uppercase">${item.type.charAt(0)}</span>
+          <a href="${escapeHtml(target)}" class="flex items-center">
+            <div class="palette-badge flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-zinc-100 dark:bg-night-raise">
+              <span class="palette-badge-text text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase">${escapeHtml(item.type.charAt(0))}</span>
             </div>
             <div class="ml-4 flex-auto">
-              <p class="text-sm font-medium text-zinc-900 dark:text-white group-hover:text-white">${item.title}</p>
-              <p class="text-xs text-zinc-500 dark:text-zinc-400 group-hover:text-primary-100 line-clamp-1">${item.description}</p>
+              <p class="palette-title text-sm font-medium text-zinc-900 dark:text-white">${escapeHtml(item.title)}</p>
+              <p class="palette-description text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">${escapeHtml(item.description)}</p>
             </div>
           </a>
         </li>
-      `).join('');
+      `;
+      }).join('');
     }
 
   }

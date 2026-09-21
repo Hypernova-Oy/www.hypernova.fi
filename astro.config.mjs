@@ -4,7 +4,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { passthroughImageService } from 'astro/config';
 
 import mdx from '@astrojs/mdx';
-import { serverHelpers } from 'astro/runtime/client/dev-toolbar/helpers.js';
+import node from '@astrojs/node';
 
 // https://astro.build/config
 export default defineConfig({
@@ -26,6 +26,7 @@ export default defineConfig({
     plugins: [tailwindcss()]
   },
   output: 'server',
+  adapter: node({ mode: 'standalone' }),
   integrations: [mdx()],
   server: {
     allowedHosts: ['homepagenew.lxd']

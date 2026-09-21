@@ -7,19 +7,19 @@ import TableOfContents from '../../components/TableOfContents.astro';
 import Callout from '../../components/mdx/Callout.astro';
 import { resolvePath } from '../../utils/navigation';
 
-export async function getStaticPaths() {
-  const blogEntries = await getCollection('blog');
-  return blogEntries.map(entry => ({
-    params: { slug: entry.id }, props: { entry },
-  }));
-}
+// The site uses on-demand rendering (output: 'server'), so entries are looked up
+// per request instead of being prerendered with getStaticPaths().
+const slug = Astro.params.slug;
+const entry = slug ? await getEntry('blog', slug) : undefined;
 
-const { entry } = Astro.props;
+if (!entry || entry.data.draft) {
+  return new Response(null, { status: 404 });
+}
 const { Content, headings } = await render(entry);
 
 // Resolve the author reference
 const author = await getEntry(entry.data.author);
-const authorName = author?.data.name ?? 'Zenix Author';
+const authorName = author?.data.name ?? 'Hypernova';
 const authorRole = author?.data.role ?? 'Contributor';
 const authorAvatar = author?.data.avatar;
 const authorInitials = authorName
@@ -57,10 +57,10 @@ const mdxComponents = {
   modifiedDate={entry.data.updatedDate ?? entry.data.pubDate}
   author={authorName}
 >
-  <article class="py-24 md:py-32 bg-white dark:bg-[#09090b] relative overflow-hidden">
+  <article class="py-24 md:py-32 bg-white dark:bg-night relative overflow-hidden">
     
     <!-- Background Glow -->
-    <div class="absolute top-0 left-1/2 -tranzinc-x-1/2 w-full max-w-4xl h-[400px] bg-primary-500/10 dark:bg-primary-500/5 rounded-full blur-[100px] mix-blend-multiply dark:mix-blend-screen pointer-events-none -z-10"></div>
+    <div class="absolute top-0 left-1/2 -translate-x-1/2 w-full max-w-4xl h-[400px] bg-primary-500/10 dark:bg-primary-500/5 rounded-full blur-[64px] pointer-events-none -z-10"></div>
 
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-7xl">
       
@@ -97,7 +97,7 @@ const mdxComponents = {
         </div>
       </div>
 
-      <div class="border-t border-zinc-200 dark:border-zinc-800 my-16"></div>
+      <div class="border-t border-zinc-200 dark:border-night-line my-16"></div>
 
       <!-- Main Layout Grid (TOC + Content) -->
       <div class="grid grid-cols-1 lg:grid-cols-[1fr_minmax(auto,700px)_1fr] gap-12 items-start reveal-on-scroll" style="transition-delay: 100ms;">
@@ -149,7 +149,7 @@ const mdxComponents = {
 
       <!-- Related Posts Section -->
       {relatedPosts.length > 0 && (
-        <div class="mt-32 pt-16 border-t border-zinc-200 dark:border-zinc-800 reveal-on-scroll">
+        <div class="mt-32 pt-16 border-t border-zinc-200 dark:border-night-line reveal-on-scroll">
           <h3 class="text-2xl font-heading font-bold text-zinc-900 dark:text-white mb-8">Related Articles</h3>
           <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
             {relatedPosts.map(post => (

@@ -93,7 +93,7 @@ import Badge from './Badge.astro';
 
     if (toggle && thumb && monthlyLabel && annualLabel) {
       // Clean up previous event listeners by cloning
-      const newToggle = toggle.cloneNode(true);
+      const newToggle = toggle.cloneNode(true) as HTMLElement;
       toggle.parentNode?.replaceChild(newToggle, toggle);
 
       newToggle.addEventListener('click', () => {

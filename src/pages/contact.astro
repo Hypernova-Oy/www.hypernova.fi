@@ -2,10 +2,19 @@
 import Badge from '../components/Badge.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Button from '../components/Button.astro';
+import FormValidation from '../components/FormValidation.astro';
 
-import { Image } from 'astro:assets';
-import kohaLogo from "../images/koha.webp";
 import { useTranslations } from '../i18n/utils';
+import {
+  checkFormToken,
+  cleanValues,
+  clientId,
+  createFormToken,
+  detectSpam,
+  isRateLimited,
+  safeClientAddress,
+  MAX_MESSAGE_LENGTH,
+} from '../utils/form-protection';
 
 export const prerender = false;
 
@@ -31,15 +40,19 @@ const i18n = {
     'Please enter your name. ': 'Syötä nimesi. ',
     'Please enter an email address. ': 'Syötä sähköpostiosoitteesi. ',
     'Thank you for submitting your request.': 'Kiitos yhteydenotostasi.',
-    'We will be in contact to the email address you provided.': 'Olemme teihin yhteydessä pikimmiten.',
-    'Unfortunately an error occurred. Please contact us at': 'Valitettavasti lomakkeen lähetys epäonnistui. Ota yhteyttä osoitteeseen',
-    'and provide the following error message.': 'ja liitä seuraava virheviesti.',
+    'We will reply to the e-mail address you provided.': 'Olemme yhteydessä antamaasi sähköpostiosoitteeseen.',
+    'Unfortunately an error occurred. Please try again later or contact us by post (our address is above) and include the following error message.':
+      'Valitettavasti lomakkeen lähetys epäonnistui. Yritä myöhemmin uudelleen tai ota yhteyttä postitse (osoitteemme on yllä) ja liitä mukaan seuraava virheviesti.',
+    'Too many submissions from this connection. Please try again later or contact us by post (our address is above).':
+      'Tältä yhteydeltä on tullut liian monta lähetystä. Yritä myöhemmin uudelleen tai ota yhteyttä postitse (osoitteemme on yllä).',
   }
-} as i18n;
-const t = useTranslations(i18n);
+};
+const t = useTranslations(i18n, Astro);
 
+const formId = 'contact' as const;
 const errors = { name: "", email: "", organization: "", form: "" };
 let formSent = false;
+let rateLimited = false;
 let description = "";
 const formData = {
     name: "",
@@ -49,19 +62,30 @@ const formData = {
     content: "",
 };
 
+// A signed, timestamped token for this page load. It is re-used when the form is
+// rendered again after a validation error, so fixing a typo quickly is not
+// mistaken for an automated submission.
+let formToken = createFormToken(formId);
+
 if (Astro.request.method === "POST") {
   try {
     const data = await Astro.request.formData();
+    const raw: Record<string, string> = {};
     data.forEach(function(value, key){
-      if (typeof value === "string" && key in formData) {
-        formData[key] = value;
+      if (typeof value === "string") {
+        raw[key] = value;
       }
     });
-    const name = data.get("name");
-    const organization = data.get("organization");
-    const email = data.get("email");
-    const bot_test = data.get("website");
-    const content = data.get("content");
+    const fields = cleanValues(raw);
+    Object.keys(formData).forEach(function(key){
+      if (key in fields) {
+        (formData as Record<string, string>)[key] = fields[key];
+      }
+    });
+
+    const name = fields.name;
+    const email = fields.email;
+    const bot_test = fields.website;
 
     if (typeof name !== "string" || name.length < 1) {
       errors.name += t("Please enter your name. ");
@@ -70,24 +94,44 @@ if (Astro.request.method === "POST") {
       errors.email += t("Please enter an email address. ");
     }
     const hasErrors = Object.values(errors).some(msg => msg)
-    if (typeof bot_test === "string" && bot_test.length>0) {
-      console.error("Bot detected. " + JSON.stringify(formData));
+
+    const tokenReason = checkFormToken(raw.form_token, formId);
+    if (tokenReason === null || tokenReason === "too-fast") {
+      formToken = raw.form_token as string;
+    }
+
+    // Only submissions that pass validation are judged, so a visitor fixing a
+    // mistake still gets the field messages.
+    const spamReason = hasErrors
+      ? null
+      : detectSpam({ formId, request: Astro.request, host: Astro.url.host, raw, fields });
+
+    if (hasErrors) {
+      // Validation errors are rendered back to the visitor, nothing to log.
+    } else if ((typeof bot_test === "string" && bot_test.length > 0) || spamReason) {
+      // Bot signals are answered exactly like a real submission so scripts learn
+      // nothing, but Redmine is never contacted. The reason is safe to log: it
+      // carries no visitor data.
+      console.warn("Contact form submission dropped:", spamReason ?? "honeypot");
       formSent = true;
-    } else if (!hasErrors) {
+    } else if (isRateLimited(clientId(Astro.request, safeClientAddress(() => Astro.clientAddress)))) {
+      // The visitor is told, unlike with a bot signal: a real person may have hit
+      // the limit by accident and should not lose their message silently.
+      rateLimited = true;
+    } else {
       Object.keys(formData).forEach(function(key){
-        let value = formData[key];
-        if (typeof value !== null && value.length > 0) {
+        const value = fields[key];
+        if (typeof value === "string" && value.length > 0) {
           description += "**"+key+"**: " + value + "\n";
         }
       });
       const redminePayload = {
         issue: {
           project_id: parseInt(import.meta.env.REDMINE_NEW_CONTACT_PROJECT_ID),
-          subject: typeof name === "string" && name.length > 0 ? name : email,
+          subject: name.length > 0 ? name : email,
           description: description
         }
       };
-      console.error(redminePayload);
       const redmineResponse = await fetch(import.meta.env.REDMINE_NEW_QUOTE_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -100,29 +144,25 @@ if (Astro.request.method === "POST") {
       const redmineData = await redmineResponse.json();
       formSent = true;
       if (redmineResponse.status === 201) {
-        
+        // Issue created in Redmine.
       } else {
         if ('errors' in redmineData) {
           errors.form = String(redmineResponse.status) + " " + JSON.stringify(redmineData.errors);
         } else {
           errors.form = String(redmineResponse.status);
         }
-        console.error(redmineResponse);
-        console.error(redmineData);
+        // Log the status only - never the submitted personal data.
+        console.error('Redmine contact issue creation failed with status', redmineResponse.status);
       }
-    } else {
-      console.error(errors);
     }
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(error.message);
-    }
+    console.error('Contact form submission failed', error);
   }
 }
 ---
 
 <BaseLayout title={t('Contact')} description={t('Contact us')}>
-<section id="contact-info" class="py-16 bg-zinc-50 dark:bg-[#0c0c0f]">
+<section id="contact-info" class="py-16 bg-zinc-50 dark:bg-night-soft">
   <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
     <div class="max-w-8xl mx-auto mb-16 reveal-on-scroll">
       <div class="grid grid-cols-1 lg:grid-rows-1 gap-6 max-w-7xl mx-auto">
@@ -153,7 +193,7 @@ if (Astro.request.method === "POST") {
     </div>
   </div>
 </section>
-<section id="form" class="py-32 bg-zinc-50 dark:bg-[#0c0c0f] border-y border-zinc-200 dark:border-zinc-800 relative overflow-hidden">
+<section id="form" class="py-32 bg-zinc-50 dark:bg-night-soft border-y border-zinc-200 dark:border-night-line relative overflow-hidden">
   <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-200/50 via-transparent to-transparent dark:from-primary-900/10 dark:via-transparent dark:to-transparent"></div>
 
   <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
@@ -169,38 +209,46 @@ if (Astro.request.method === "POST") {
           {t('Thank you for submitting your request.')}
         </h2>
         <p style={errors.form ? 'display:none' : ''} class="text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-          {t('We will be in contact to the email address you provided.')}
+          {t('We will reply to the e-mail address you provided.')}
         </p>
-        <p style={errors.form ? '' : 'display:none'}class="text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-          {t('Unfortunately an error occurred. Please contact us at')} <a href="mailto:contact@hypernova.fi">contact@hypernova.fi</a> {t('and provide the following error message.')}
-
-          <div style={errors.form ? '' : 'display:none'} class="mt-10 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-3xl p-8 flex flex-col relative transform shadow-2xl shadow-primary-500/10 reveal-on-scroll" style="transition-delay: 100ms;">
-            {errors.form}
-          </div>
+        <p style={errors.form ? '' : 'display:none'} class="text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
+          {t('Unfortunately an error occurred. Please try again later or contact us by post (our address is above) and include the following error message.')}
         </p>
+        <pre style={errors.form ? 'transition-delay: 100ms;' : 'display:none'} class="mt-10 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-3xl p-8 flex flex-col relative transform shadow-2xl shadow-primary-500/10 reveal-on-scroll overflow-x-auto whitespace-pre-wrap">{errors.form}</pre>
       </div>
-      <form method="POST" action="#request-a-quote" style={formSent && errors.form.length === 0 ? 'display:none': ''} >
+      {rateLimited && (
+        <p role="alert" data-form-rate-limited class="max-w-3xl mx-auto mb-8 text-left text-xl text-red-800 dark:text-red-400">
+          {t('Too many submissions from this connection. Please try again later or contact us by post (our address is above).')}
+        </p>
+      )}
+      <form method="POST" action="#form" novalidate data-validate style={formSent && errors.form.length === 0 ? 'display:none': ''} >
         <div class="glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-3xl p-8 flex flex-col relative transform shadow-2xl shadow-primary-500/10 reveal-on-scroll" style="transition-delay: 100ms;">
           <div class="grid md:grid-cols-4 sm:grid-cols-1 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform" >
-            <div class="absolute -top-4 -tranzinc-x-1/2">
+            <div class="absolute -top-4 -translate-x-1/2">
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Contact information')}</Badge> 
             </div>
-            <label class="p-3 mt-5 col-span-1">{t('Name')}</label><input type="text" name="name" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.name} required /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Name')}</label><input type="text" name="name" maxlength="120" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.name} required data-error-message={t('Please enter your name. ')} /><div class="md:col-span-2"></div>
             {errors.name && <p class="col-span-1 md:col-span-4 text-red-800">{errors.name}</p>}
-            <label class="p-3 mt-5 col-span-1">{t('Organization')}</label><input type="text" name="organization" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.organization} /><div class="md:col-span-2"></div>
+            <p id="contact-error-name" class="col-span-1 md:col-span-4 text-red-800" data-error-for="name" hidden></p>
+            <label class="p-3 mt-5 col-span-1">{t('Organization')}</label><input type="text" name="organization" maxlength="120" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.organization} /><div class="md:col-span-2"></div>
             {errors.organization && <p class="col-span-1 md:col-span-4 text-red-800">{errors.organization}</p>}
-            <label class="p-3 mt-5 col-span-1">{t('E-mail')}</label><input type="email" name="email" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.email} required /><div class="md:col-span-2"></div>
-            <span class="hidden"><input type="text" name="website" value={formData.website} /></span>
+            <label class="p-3 mt-5 col-span-1">{t('E-mail')}</label><input type="email" name="email" maxlength="254" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.email} required data-error-message={t('Please enter an email address. ')} /><div class="md:col-span-2"></div>
+            <!-- Bot traps: hidden from people and screen readers, but not from scripts. -->
+            <div aria-hidden="true" class="absolute left-[-9999px] top-auto h-px w-px overflow-hidden">
+              <label>Website<input type="text" name="website" value={formData.website} tabindex="-1" autocomplete="off" /></label>
+            </div>
+            <input type="hidden" name="form_token" value={formToken} />
             {errors.email && <p class="col-span-1 md:col-span-4 text-red-800">{errors.email}</p>}
+            <p id="contact-error-email" class="col-span-1 md:col-span-4 text-red-800" data-error-for="email" hidden></p>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
-            <div class="absolute -top-4 -tranzinc-x-1/2">
+            <div class="absolute -top-4 -translate-x-1/2">
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('How can we help you?')}</Badge> 
             </div>
-            <textarea name="content" rows="5" class="p-3 sm:col-span-1 col-span-2 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1">{formData.content}</textarea>
+            <textarea name="content" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="p-3 sm:col-span-1 col-span-2 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1">{formData.content}</textarea>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
-            <div class="absolute -top-4 -tranzinc-x-1/2">
+            <div class="absolute -top-4 -translate-x-1/2">
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Ready?')}</Badge> 
             </div>
             <Button type="submit" class="border-2 col-span-2 border-primary-500">{t('Submit')}</Button>
@@ -210,6 +258,6 @@ if (Astro.request.method === "POST") {
     </div>
   </div>
 </section>
-</div>
 
+  <FormValidation />
 </BaseLayout>

@@ -2,15 +2,85 @@
 import Badge from '../components/Badge.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Button from '../components/Button.astro';
+import KohaServiceComponent from '../components/KohaService.astro';
 
 import { Image } from 'astro:assets';
 import kohaLogo from "../images/koha.webp";
+import FormValidation from '../components/FormValidation.astro';
 import { useTranslations } from '../i18n/utils';
+import {
+  checkFormToken,
+  cleanValues,
+  clientId,
+  createFormToken,
+  detectSpam,
+  isRateLimited,
+  safeClientAddress,
+  MAX_MESSAGE_LENGTH,
+  MAX_SHORT_FIELD_LENGTH,
+} from '../utils/form-protection';
 
 export const prerender = false;
 
+const i18n = {
+  fi: {
+    'Koha Library System': 'Koha-kirjastojärjestelmä',
+    'Open source library system': 'Avoimen koodin kirjastojärjestelmä',
+    'Koha is the first Free and Open Source library system in the world, and it has been the pioneer of secure and sustainable catalog and patron management since 1999. Discover the': 'Koha on maailman ensimmäinen vapaan ja avoimen lähdekoodin kirjastojärjestelmä. Se on toiminut edelläkävijänä kirjaston kestävässä ja turvallisessa aineisto- ja asiakastietokannan hallinnoimisessa jo vuodesta 1999 alkaen. Tutustu tarkemmin',
+    'benefits of free and open source software': 'vapaan ja avoimen lähdekoodin hyötyihin',
+    'For libraries of any size': 'Kaikenkokoisille kirjastoille',
+    'Koha is a full-featured, scalable library management system, funded by libraries of all types and sizes, by volunteers and by support companies worldwide.': 'Koha soveltuu sekä pienille erikoiskirjastoille että suuremmille yleisille ja akateemisille kirjastoille. Kohaan sisältyvät käytännössä kaikki toiminnallisuudet, joita kirjasto tarvitsee. Järjestelmän kehitystä rahoittavat erilaiset kirjastot, vapaaehtoiset ja tukiyritykset ympäri maailmaa.',
+    'Customizable': 'Mukautuva',
+    'Koha can be configured in hundreds of ways, which makes it suitable for any type of library. It also supports many open standards and integrates with countless other systems.': 'Koha on erittäin mukautuva järjestelmä. Se sisältää satoja asetuksia, joiden ansiosta Koha palvelee minkä tahansa tyyppistä kirjastoa. Koha tukee useita avoimia standardeja, ja sen voi integroida lukemattomiin muihin järjestelmiin, mukaan lukien Finna, Finto ja Melinda.',
+    'Koha Cloud Hosting Service': 'Koha-pilvipalvelu',
+    'Sustainable choice': 'Kestävä valinta',
+    'Koha is a mature library system in active development since 1999. Backed by thousands of libraries around the world, its community keeps Koha in step with modern standards and technologies. Koha has a responsive interface that works on desktops, tablets and phones, and it connects to other systems through a range of APIs.': 'Koha on pitkäikäinen kirjastojärjestelmä, joka on ollut aktiivisessa kehityksessä vuodesta 1999 alkaen. Kohan takana on maailmanlaajuisesti tuhansia kirjastoja, joiden muodostama yhteisö pitää huolen siitä, että Koha tukee moderneja standardeja ja teknologioita. Kohassa on responsiivinen käyttöliittymä, joka soveltuu kaikentyyppisille laitteille, kuten tietokoneille, matkapuhelimille ja lainausautomaateille. Kohan voi yhdistää muihin järjestelmiin lukuisten rajapintojen avulla.',
+    'One of the main strengths of Koha is that nobody "owns" its source code. The GPLv3 licence gives everyone the right to copy and modify the software. Unlike proprietary systems, no vendor can decide that Koha is finished and push a library to buy a new system instead. Anyone can take a copy of Koha at any time and continue its development. Koha lives as long as its community keeps it going, and there is no sign of that slowing down. That is why we often say Koha will probably be the last library system your library ever needs.': 
+    'Yksi Kohan suurimmista vahvuuksista on se, ettei kukaan "omista" sen lähdekoodia. GPLv3-lisenssi antaa jokaiselle oikeuden kopioida ja muokata sitä. Toisin kuin kaupallisissa järjestelmissä, mikään taho ei voi päättää, että Kohan kehitys päättyy, ja pakottaa näin kirjaston hankkimaan tilalleen uuden järjestelmän. Kuka tahansa voi milloin tahansa ottaa Kohasta uuden kopion ja jatkaa sen kehitystä. Koha elää niin kauan kuin sen yhteisö sitä tukee, eikä hiipumisen merkkejä ole näkyvissä - päinvastoin, Kohan yhteisö on varsin aktiivinen ja kasvaa jatkuvasti. Tästä syystä meillä on tapana sanoa, että Koha tulee todennäköisesti olemaan viimeinen kirjastojärjestelmä, jonka kirjastosi tarvitsee.',
+    'Request': 'Pyydä',
+    'a quote': 'tarjous',
+    'Free your library from vendor lock-ins and offer a transparent, sustainable service to your patrons. Koha will probably be the last library system your library ever needs.': 'Vapauta kirjastosi toimittajaloukusta ja tarjoa asiakkaille läpinäkyvää ja kestävää palvelua. Koha on todennäköisesti viimeinen kirjastojärjestelmä, jonka kirjastosi tarvitsee.',
+    'Thank you for submitting your request.': 'Kiitos tarjouspyynnön lähettämisestä.',
+    'We will reply to the e-mail address you provided.': 'Olemme yhteydessä antamaasi sähköpostiosoitteeseen.',
+    'Unfortunately an error occurred. Please try again later or contact us by post (our address is on the contact page) and include the following error message.':
+      'Valitettavasti lomakkeen lähetys epäonnistui. Yritä myöhemmin uudelleen tai ota yhteyttä postitse (osoitteemme on yhteystiedot-sivulla) ja liitä mukaan seuraava virheviesti.',
+    'Too many submissions from this connection. Please try again later or contact us by post (our address is on the contact page).':
+      'Tältä yhteydeltä on tullut liian monta lähetystä. Yritä myöhemmin uudelleen tai ota yhteyttä postitse (osoitteemme on yhteystiedot-sivulla).',
+    'Contact information': 'Yhteystiedot',
+    'Name': 'Nimi',
+    'Organization': 'Organisaatio',
+    'E-mail': 'Sähköposti',
+    'Catalog and user details': 'Kokoelma- ja asiakastiedot',
+    'Please enter the number of': 'Syötä lukumäärä',
+    'Records': 'Nimekkeet',
+    'Items': 'Niteet',
+    'Annual circulation': 'Vuosittainen lainamäärä',
+    'Patrons': 'Asiakkaat',
+    'Librarians': 'Virkailijat',
+    'Current library system': 'Nykyinen kirjastojärjestelmä',
+    'Current system': 'Nykyinen järjestelmä',
+    'Your library': 'Kirjastosi',
+    'Describe your library and its daily work. Do not worry about being too formal. Tell us what kind of material your library manages, what kinds of patrons you serve, what circulation rules you use, what your library building is like and how it affects your shelving locations, and so on.': 
+    'Kuvaile kirjastosi arkea. Vastauksen ei tarvitse olla ollenkaan muodollinen. Kerro, millaista aineistoa kirjastosi hallinnoi, millaisia asiakkaita kirjastossasi käy, millaisia lainaussääntöjä kirjastossasi on, millainen kirjastorakennuksesi on ja miten se vaikuttaa hyllypaikkoihin, jne.',
+    'The more detail you give us, the better we can tailor the Koha configuration for your library.': 'Mitä tarkemmin kuvailet kirjastoasi, sitä paremmin voimme räätälöidä Koha-ympäristön kirjastollesi.',
+    'Additional services and integrations': 'Muut palvelut ja integraatiot',
+    'Do you have checkout machines that need to be connected to Koha? Does your library system talk to other systems - for example SSO authentication (Azure/Google/other), mail servers (O365/Gmail/other) for library notifications, or online resources behind authentication?': 
+    'Onko teillä lainausautomaatteja, jotka pitää kytkeä Kohaan? Keskusteleeko kirjastojärjestelmäsi muiden järjestelmien kanssa - esimerkiksi SSO-tunnistautuminen (Azure/Google/muu), sähköpostipalvelimet (O365/Gmail/muu) kirjaston asiakasilmoituksiin tai tunnistautumisen takana olevat verkkoaineistot?',
+    'It is perfectly normal not to need any additional services or integrations, so it is fine to leave this field empty.': 'On täysin normaalia, ettei ylimääräisiä palveluita tai integraatioita tarvita, joten kentän voi hyvin jättää tyhjäksi.',
+    'We ask because integrations take a little more work to set up and sometimes require software development.': 'Kysymme siksi, että integraatioiden asentaminen ja määrittely vaatii hieman enemmän työtä ja joskus jopa ohjelmistokehitystä.',
+    'Ready?': 'Valmista?',
+    'Submit': 'Lähetä tarjouspyyntö',
+    'Please enter your name. ': 'Syötä nimesi. ',
+    'Please enter an email address. ': 'Syötä sähköpostiosoitteesi. ',
+    'Please enter your organization. ': 'Syötä organisaatiosi. '
+  }
+};
+const t = useTranslations(i18n, Astro);
+
+const formId = 'koha' as const;
 const errors = { name: "", email: "", organization: "", form: "" };
 let formSent = false;
+let rateLimited = false;
 let description = "";
 const formData = {
     name: "",
@@ -27,44 +97,70 @@ const formData = {
     additional_services: ""
 };
 
+// A signed, timestamped token for this page load. It is re-used when the form is
+// rendered again after a validation error, so fixing a typo quickly is not
+// mistaken for an automated submission.
+let formToken = createFormToken(formId);
+
 if (Astro.request.method === "POST") {
   try {
     const data = await Astro.request.formData();
+    const raw: Record<string, string> = {};
     data.forEach(function(value, key){
-      if (typeof value === "string" && key in formData) {
-        formData[key] = value;
+      if (typeof value === "string") {
+        raw[key] = value;
       }
     });
-    const name = data.get("name");
-    const organization = data.get("organization");
-    const email = data.get("email");
-    const bot_test = data.get("website");
-    const records = data.get("records");
-    const items = data.get("items");
-    const circulation = data.get("circulation");
-    const patrons = data.get("patrons");
-    const librarians = data.get("librarians");
-    const current_ils = data.get("current_ils");
-    const about_my_library = data.get("about_my_library");
-    const additional_services = data.get("additional_services");
+    const fields = cleanValues(raw);
+    Object.keys(formData).forEach(function(key){
+      if (key in fields) {
+        (formData as Record<string, string>)[key] = fields[key];
+      }
+    });
+
+    const name = fields.name;
+    const organization = fields.organization;
+    const email = fields.email;
+    const bot_test = fields.website;
 
     if (typeof name !== "string" || name.length < 1) {
       errors.name += t("Please enter your name. ");
     }
     if (typeof organization !== "string" || organization.length < 1) {
-      errors.name += t("Please enter your organization. ");
+      errors.organization += t("Please enter your organization. ");
     }
     if (typeof email !== "string" || email.length < 6 || email.search(/@/) < 0) {
       errors.email += t("Please enter an email address. ");
     }
     const hasErrors = Object.values(errors).some(msg => msg)
-    if (typeof bot_test === "string" && bot_test.length>0) {
-      console.error("Bot detected. " + JSON.stringify(formData));
+
+    const tokenReason = checkFormToken(raw.form_token, formId);
+    if (tokenReason === null || tokenReason === "too-fast") {
+      formToken = raw.form_token as string;
+    }
+
+    // Only submissions that pass validation are judged, so a visitor fixing a
+    // mistake still gets the field messages.
+    const spamReason = hasErrors
+      ? null
+      : detectSpam({ formId, request: Astro.request, host: Astro.url.host, raw, fields });
+
+    if (hasErrors) {
+      // Validation errors are rendered back to the visitor, nothing to log.
+    } else if ((typeof bot_test === "string" && bot_test.length > 0) || spamReason) {
+      // Bot signals are answered exactly like a real submission so scripts learn
+      // nothing, but Redmine is never contacted. The reason is safe to log: it
+      // carries no visitor data.
+      console.warn("Koha quote form submission dropped:", spamReason ?? "honeypot");
       formSent = true;
-    } else if (!hasErrors) {
+    } else if (isRateLimited(clientId(Astro.request, safeClientAddress(() => Astro.clientAddress)))) {
+      // The visitor is told, unlike with a bot signal: a real person may have hit
+      // the limit by accident and should not lose their message silently.
+      rateLimited = true;
+    } else {
       Object.keys(formData).forEach(function(key){
-        let value = formData[key];
-        if (typeof value !== null && value.length > 0) {
+        const value = fields[key];
+        if (typeof value === "string" && value.length > 0) {
           description += "**"+key+"**: " + value + "\n";
         }
       });
@@ -72,11 +168,10 @@ if (Astro.request.method === "POST") {
         issue: {
           project_id: parseInt(import.meta.env.REDMINE_NEW_QUOTE_PROJECT_ID),
           status_id: parseInt(import.meta.env.REDMINE_NEW_QUOTE_STATUS_ID),
-          subject: typeof organization === "string" && organization.length > 0 ? organization : name,
+          subject: organization.length > 0 ? organization : name,
           description: description
         }
       };
-      console.error(redminePayload);
       const redmineResponse = await fetch(import.meta.env.REDMINE_NEW_QUOTE_ENDPOINT, {
         method: 'POST',
         headers: {
@@ -89,98 +184,26 @@ if (Astro.request.method === "POST") {
       const redmineData = await redmineResponse.json();
       formSent = true;
       if (redmineResponse.status === 201) {
-        
+        // Issue created in Redmine.
       } else {
         if ('errors' in redmineData) {
           errors.form = String(redmineResponse.status) + " " + JSON.stringify(redmineData.errors);
         } else {
           errors.form = String(redmineResponse.status);
         }
-        console.error(redmineResponse);
-        console.error(redmineData);
+        // Log the status only - never the submitted personal data.
+        console.error('Redmine quote issue creation failed with status', redmineResponse.status);
       }
-    } else {
-      console.error(errors);
     }
   } catch (error) {
-    if (error instanceof Error) {
-      console.error(error.message);
-    }
+    console.error('Koha quote form submission failed', error);
   }
 }
 
-const i18n = {
-  fi: {
-    'Koha Library System': 'Koha-kirjastojärjestelmä',
-    'Open source library system': 'Avoimen koodin kirjastojärjestelmä',
-    'Koha, the first Free and Open Source Library System in the world, is the pioneer software for maintaining your catalog and users in a secure and sustainable environment. Enjoy all the': 'Koha on maailman ensimmäinen vapaan ja avoimen lähdekoodin kirjastojärjestelmä. Se on toiminut edelläkävijänä kirjaston kestävässä ja turvallisessa aineisto- ja asiakastietokannan hallinnoimisessa jo vuodesta 1999 alkaen. Tutustu tarkemmin',
-    'benefits of free and open source software': 'vapaan ja avoimen lähdekoodin hyötyihin',
-    'For libraries of any size': 'Kaikenkokoisille kirjastoille',
-    'Koha is a fully featured, scalable library management system. Development is sponsored by libraries of varying types and sizes, volunteers, and support companies worldwide.': 'Koha soveltuu sekä pienille erikoiskirjastoille että suuremmille yleisille ja akateemisille kirjastoille. Kohaan sisältyvät käytännössä kaikki toiminnallisuudet, joita kirjasto tarvitsee. Järjestelmän kehitystä rahoittavat erilaiset kirjastot, vapaaehtoiset ja tukiyritykset ympäri maailmaa.',
-    'Customizable': 'Mukautuva',
-    'Koha is a highly customizable with hundreds of configurations making it suitable for any type of library. It also supports various open standards and can be integrated with countless other systems.': 'Koha on erittäin mukautuva järjestelmä. Se sisältää satoja ympäristöasetuksia, joiden avulla Koha voi palvella minkä tyyppistä kirjastoa tahansa. Koha tukee useita avoimia standardeja ja sen voi integroida lukemattomien eri järjestelmien kanssa, mukaanlukien Finna, Finto ja Melinda.',
-    'Koha Cloud Hosting Service': 'Koha-pilvipalvelu',
-    'Sustainable choice': 'Kestävä valinta',
-    'Koha is a mature library system that has been in active development since 1999. Backed by thousands of libraries around the world, its large community ensures Koha keeps up with modern standards and technologies. Koha comes with a responsive design suitable for any desktop or mobile device, and it can be connected to other systems using a number of APIs.': 'Koha on pitkäikäinen kirjastojärjestelmä, joka on ollut aktiivisessa kehityksessä vuodesta 1999 alkaen. Kohan takana on maailmanlaajusesti tuhansia kirjastoja, joiden muodostama yhteisö pitää huolen siitä, että Koha kykenee tukemaan moderneja standardeita ja teknologita. Kohassa on responsiivinen käyttöliittymä, joka soveltuu kaikentyyppisille laitteille, kuten tietokoneille, matkapuhelimille ja lainausautomaateille. Kohan voi yhdistää muihin järjestelmiin lukuisten eri rajapintojen avulla.',
-    'One of the main benefits of Koha is the fact that nobody "owns" its source code. GPLv3 license grants anyone the right to copy and modify the software. Unlike proprietary systems, nobody can decide that the development of Koha is over and indirectly force a library to acquire a new system. Anyone at any time can take another copy of Koha and continue its development. Koha will live on for as long as it has an active community providing resources for its maintenance. And there is no sign of slowing down. For this reason we often say that Koha will likely be the last library system your library will ever need.': 
-    'Yksi Kohan suurimmista vahvuuksista on se, ettei kukaan "omista" sen lähdekoodia. GPLv3-lisenssi antaa jokaiselle oikeuden kopioida ja muokata sitä. Toisin kuin kaupallisissa järjestelmissä, kukaan ei voi päättää päivitysten lakkauttamisesta ja epäsuoraan pakottaa kirjastoa hankkimaan uusi kallis järjestelmä. Kuka tahansa ja milloin tahansa voi ottaa Kohasta uuden kopion ja jatkaa sen kehitystä. Koha on elossa niin kauan kuin sitä tukevat kirjastot tarjoavat resursseja sen ylläpitoon. Merkkejä hiipumisesta ei ole näkyvissä - päinvastoin Kohalla on varsin aktiivinen yhteisö, johon liittyy jatkuvasti uusia jäseniä. Tästä syystä meillä on tapana sanoa, että Koha tulee todennäköisesti olemaan viimeinen kirjastojärjestelmä, jonka kirjastosi tarvitsee.',
-    'Cloud Hosting': '-',
-    'Service': 'pilvipalvelu',
-    'A cost-effective path to migrating your library to Koha. Our small but flexible and experienced team ensures we focus on what really matters - providing you a reliable experience of the best library system in the world.': 'Kustannustehokas tie kirjastosi Koha-käyttöönottoon. Pieni mutta kokenut ja joustava tiimimme keskittyy olennaiseen. Tarjoamme vakaan ja luotettavan käyttökokemuksen maailman parhaasta kirjastojärjestelmästä. Emme tuhlaa resursseja turhaan paperinpyörittelyyn ja byrokratiaan.',
-    'Easy and Reliable': 'Helppo ja luotettava',
-    'Access': 'Avaa',
-    'using only your web browser. Our modern cloud infrastructure is monitored in real time to ensure consistent and reliable Koha user experience.': 'helposti verkkoselaimellasi. Modernia pilvipalveluamme monitoroidaan reaaliaikaisesti, jotta kykenemme tarjoamaan saumattoman ja luotettavan Koha-käyttökokemuksen.',
-    'Secure and Up-to-date': 'Turvallinen ja päivitetty',
-    'Automatic security updates. Daily encrypted backups, stored in multiple secure locations. Feature updates twice a year. Includes encrypted network connections and SSL certificates.': 'Automaattiset tietoturvapäivitykset. Päivittäiset salatut varmuuskopiot, jotka säilötään turvallisesti hajautetuissa maantieteellisissä kohteissa. Uudet ominaisuuspäivitykset puolivuosittain. Sisältää salatun verkkoliikenteen ja SSL-sertifikaatit.',
-    'GDPR and Data Control': 'GDPR ja henkilötietojen käsittely',
-    'User data and rights are protected by GDPR. You as the data controller have the full control and free (both freedom and free of charge) access to your database. SSH remote access included.': 'GDPR takaa henkilötietojen oikeudenmukaisen säilytyksen. Rekisterinpitäjänä sinulla on täydet ja vapaat käyttöoikeudet omaan tietokantaasi. SSH-yhteys sisältyy palveluun.',
-    'Request a Quote': 'Pyydä tarjous',
-    'With Leading Experience': 'Johtavalla kokemuksella',
-    'Our Koha professionals have more than a decade of Koha experience from libraries of various sizes. We have hosted and supported large consortiums, academic libaries, school libraries and smaller special libraries each with their own unique ways to operate a library. Over the years we have contributed thousands of software changes, features and translations to Koha. Our team has developed countless integrations to other systems using open standards and APIs, making Koha more modern and accessible to rest of the world.': 'Koha-ammattilaisillamme on yli vuosikymmenen Koha-kokemus erilaisissa kirjastoympäristöissä. Olemme ylläpitäneet suuria kirjastokimppoja, akateemisia kirjastoja, koulukirjastoja ja pieniä erikoiskirjastoja, joista jokaisella on ollut omat uniikit tapansa toteuttaa kirjastopalveluita. Vuosien varrella olemme toteuttaneet tuhansia koodimuutoksia, uusia ominaisuuksia ja käännöksiä Kohaan. Tiimimme on kehittänyt lukuisia integraatioita muihin järjestelmiin käyttäen avoimia standardeja ja rajapintoja. Niiden avulla Koha on järjestelmänä jatkuvasti ajan tasalla sekä saatavilla missä tahansa ja milloin tahansa.',
-    'Our clients range from large state organizations to the smallest village libraries and anything in between. Hypernova has collaborated with': 'Asiakkaamme vaihtelevat suurista valtiontason organisaatioista pieniin kyläkirjastoihin, ja kaikkea siltä väliltä. Hypernova on tehnyt yhteistyötä mm.',
-    'the National Library of Finland': 'Kansalliskirjaston',
-    'and various other private Koha organizations around the world.': 'sekä muiden lukuisten Koha-organisaatioiden kanssa ympäri maailmaa.',
-    'This vast experience has enhanced our problem solving skills and provided us the ability to use innovative methods to optimize your library operations.': 'Tämä mittava kokemus on antanut meille monipuolisen ongelmanratkaisukyvykkyyden ja mahdollistanut innovatiivisten menetelmien käytön kirjastotoiminnan optimointiin.',
-    'Request': 'Pyydä',
-    'a quote': 'tarjous',
-    'Free your library from vendor lock-ins and provide a transparent and sustainable service to your visitors. Koha will likely be the last library system you will ever need.': 'Vapauta kirjastosi toimittajaloukusta ja palvele asiakkaitasi kestävästi ja läpinäkyvästi. Koha on todennäköisesti viimeinen kirjastojärjestelmä, jonka kirjastosi tarvitsee hankkia.',
-    'Thank you for submitting your request.': 'Kiitos tarjouspyynnön lähettämisestä.',
-    'We will be in contact to the email address you provided.': 'Olemme teihin yhteydessä pikimmiten.',
-    'Unfortunately an error occurred. Please contact us at': 'Valitettavasti lomakkeen lähetys epäonnistui. Ota yhteyttä osoitteeseen',
-    'and provide the following error message.': 'ja liitä seuraava virheviesti.',
-    'Contact information': 'Yhteystiedot',
-    'Name': 'Nimi',
-    'Organization': 'Organisaatio',
-    'E-mail': 'Sähköposti',
-    'Catalog and user details': 'Kokoelma- ja asiakastiedot',
-    'Please enter the number of': 'Syötä lukumäärä',
-    'Records': 'Nimekkeet',
-    'Items': 'Niteet',
-    'Annual circulation': 'Vuosittainen lainamääärä',
-    'Patrons': 'Asiakkaat',
-    'Librarians': 'Virkailijat',
-    'Current library system': 'Nykyinen kirjastojärjestelmä',
-    'Your library': 'Kirjastonne',
-    'Describe your library and its daily operations. Do not worry about being too formal. Tell us what kind of material your library manages, what type of patrons are registered at your library, what kind of circulation rules apply, physical characterestics of your library building and how it affects your shelving locations, etc.': 
-    'Kuvaile kirjastosi arkea. Vastauksen ei tarvitse olla ollenkaan muodollinen. Kerro, millaista materiaalia kirjastosi hallinnoi, millaisia asiakkaita kirjastossasi käy, millaisia lainaussääntöjä kirjastossasi on, kuvaa kirjastorakennuksesi fyysisiä ominaisuuksia ja miten ne vaikuttaa hyllypaikkoihin, jne.',
-    'The more detailed description you provide the better we will be able to optimize a suitable Koha configuration for your library.': 'Mitä tarkemmin kuvailet kirjastoasi, sitä paremmin optimoidun Koha-palvelun voimme tarjota kirjastollesi.',
-    'Additional services and integrations': 'Muut palvelut ja integraatiot',
-    'Do you have checkout machines that need to be connected to Koha? Does your library system talk to other systems, for example SSO authentication (Azure/Google/other), email servers (O365/Gmail/other) for sending library notifications, online resources behind authentication and so on.': 
-    'Onko teillä lainausautomaatteja, jotka pitää kytkeä Kohaan? Keskusteleeko kirjastojärjestelmäsi muiden järjestelmien kanssa, esim. SSO-autentikaatiot (Azure/Google/muu), sähköpostipalvelimet (O365/Gmail/muu) kirjaston asiakasilmoitusten lähettämiseen, tunnistautumisen takana olevat verkkoaineistot, jne.',
-    'It is perfectly normal not to need any additional services or integrations, so is okay to leave the following field empty.': 'On täysin normaalia ettei ylimääräisiä palveluita tai integraatioita tarvita, joten ei haittaa jos seuraava kenttä jätetään tyhjäksi.',
-    'We ask because configuring integrations requires slightly more work and in some cases may require software development.': 'Kysymme näistä koska integraatioiden asentaminen ja määrittely vaatii hieman enemmän työtä ja joissain tapauksissa ylimääräistä ohjelmistokehitystä.',
-    'Ready?': 'Valmista?',
-    'Submit': 'Lähetä tarjouspyyntö',
-    'Please enter your name. ': 'Syötä nimesi. ',
-    'Please enter an email address. ': 'Syötä sähköpostiosoitteesi. ',
-    'Please enter your organization. ': 'Syötä organisaatiosi. '
-  }
-} as i18n;
-const t = useTranslations(i18n);
 ---
 
 <BaseLayout title="Koha" description={t('Koha Library System')}>
-  <div id="what-is-koha" class="bg-zinc-50 dark:bg-[#0c0c0f] border-b border-zinc-200 dark:border-zinc-800 py-16 md:py-16 transition-colors">
+  <div id="what-is-koha" class="bg-zinc-50 dark:bg-night-soft border-b border-zinc-200 dark:border-night-line py-16 md:py-16 transition-colors">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl text-center">
       <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-8 max-w-6xl mx-auto mt-10">
         <div></div>
@@ -188,9 +211,10 @@ const t = useTranslations(i18n);
         <div></div>
       </div>
     </div>
+  </div>
 
     
-<section id="kohaSection" class="py-16 bg-zinc-50 dark:bg-[#0c0c0f]">
+<section id="kohaSection" class="py-16 bg-zinc-50 dark:bg-night-soft">
   <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
     <div class="text-center max-w-8xl mx-auto mb-16 reveal-on-scroll">
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 lg:grid-rows-1 gap-6 max-w-7xl mx-auto">
@@ -198,7 +222,7 @@ const t = useTranslations(i18n);
           <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 text-accent-600 dark:text-zinc-400 rounded-2xl flex items-center justify-center mb-6" set:html={`        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`} />
           <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('Open source library system')}</h3>
           <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
-            {t('Koha, the first Free and Open Source Library System in the world, is the pioneer software for maintaining your catalog and users in a secure and sustainable environment. Enjoy all the')} <a href="/#whyfoss" class="dark:text-zinc-100 hover:text-zinc-600">{t('benefits of free and open source software')}</a>.
+            {t('Koha is the first Free and Open Source library system in the world, and it has been the pioneer of secure and sustainable catalog and patron management since 1999. Discover the')} <a href="/#whyfoss" class="dark:text-zinc-100 hover:text-zinc-600">{t('benefits of free and open source software')}</a>.
           </p>
         </div>
         <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0">
@@ -215,7 +239,7 @@ const t = useTranslations(i18n);
           <div class="absolute inset-0 bg-gradient-to-br from-primary-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('For libraries of any size')}</h3>
           <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
-            {t('Koha is a fully featured, scalable library management system. Development is sponsored by libraries of varying types and sizes, volunteers, and support companies worldwide.')} <sup><a href="https://koha-community.org" class="dark:text-zinc-100 hover:text-zinc-600" target="_blank">[1]</a></sup>
+            {t('Koha is a full-featured, scalable library management system, funded by libraries of all types and sizes, by volunteers and by support companies worldwide.')} <sup><a href="https://koha-community.org" class="dark:text-zinc-100 hover:text-zinc-600" target="_blank">[1]</a></sup>
           </p>
           <p class="text-zinc-600 dark:text-zinc-100 text-lg leading-relaxed mb-8 flex-grow z-10">
             <sup>[1]</sup> <a href="https://koha-community.org/" class="dark:text-zinc-100 hover:text-zinc-600" target="_blank">koha-community.org</a>
@@ -237,7 +261,7 @@ const t = useTranslations(i18n);
           </svg>`} />
           <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('Customizable')}</h3>
           <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
-            {t('Koha is a highly customizable with hundreds of configurations making it suitable for any type of library. It also supports various open standards and can be integrated with countless other systems.')}
+            {t('Koha can be configured in hundreds of ways, which makes it suitable for any type of library. It also supports many open standards and integrates with countless other systems.')}
           </p>
         </div>
       </div>
@@ -249,98 +273,27 @@ const t = useTranslations(i18n);
           {t('Sustainable choice')}
         </h2>
           <p class="text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-          {t('Koha is a mature library system that has been in active development since 1999. Backed by thousands of libraries around the world, its large community ensures Koha keeps up with modern standards and technologies. Koha comes with a responsive design suitable for any desktop or mobile device, and it can be connected to other systems using a number of APIs.')}
+          {t('Koha is a mature library system in active development since 1999. Backed by thousands of libraries around the world, its community keeps Koha in step with modern standards and technologies. Koha has a responsive interface that works on desktops, tablets and phones, and it connects to other systems through a range of APIs.')}
         </p>
         <p class="mt-10 text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-          {t('One of the main benefits of Koha is the fact that nobody "owns" its source code. GPLv3 license grants anyone the right to copy and modify the software. Unlike proprietary systems, nobody can decide that the development of Koha is over and indirectly force a library to acquire a new system. Anyone at any time can take another copy of Koha and continue its development. Koha will live on for as long as it has an active community providing resources for its maintenance. And there is no sign of slowing down. For this reason we often say that Koha will likely be the last library system your library will ever need.')}
+          {t('One of the main strengths of Koha is that nobody "owns" its source code. The GPLv3 licence gives everyone the right to copy and modify the software. Unlike proprietary systems, no vendor can decide that Koha is finished and push a library to buy a new system instead. Anyone can take a copy of Koha at any time and continue its development. Koha lives as long as its community keeps it going, and there is no sign of that slowing down. That is why we often say Koha will probably be the last library system your library ever needs.')}
         </p>
       </div>
     </div>
   </div>
 </section>
 
-<section id="cloud-hosting-service" class="py-32 bg-zinc-50 dark:bg-[#0c0c0f] border-y dark:border-zinc-800">
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
-    <div class="text-center max-w-3xl mx-auto mb-20 reveal-on-scroll">
-      <h2 class="text-4xl md:text-5xl font-heading font-extrabold text-zinc-900 dark:text-white mb-6">
-        Koha <span class="text-zinc-400 dark:text-zinc-500">{t('Cloud Hosting')}</span> {t('Service')}
-      </h2>
-      <p class="text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-        {t('A cost-effective path to migrating your library to Koha. Our small but flexible and experienced team ensures we focus on what really matters - providing you a reliable experience of the best library system in the world.')}
-      </p>
-    </div>
-
-    <div class="text-center max-w-8xl mx-auto mb-20 reveal-on-scroll">
-
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 lg:grid-rows-1 gap-6 max-w-7xl mx-auto">
-        <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0" style="transition-delay: 200ms;">
-          <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 text-accent-600 dark:text-zinc-100 rounded-2xl flex items-center justify-center mb-6" set:html={`        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 512.001 512.001" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g><path d="M344.381,143.771C254.765,56.017,102.37,103.776,79.825,227.7c-31.849,4.598-59.138,25.445-72.018,55.076
-			c-0.016,0.035-0.032,0.07-0.047,0.107c-26.687,61.602,18.784,130.232,85.51,130.232h282.267
-			c75.246,0,136.463-61.216,136.463-136.462C512,189.241,430.314,123.682,344.381,143.771z M375.537,381.12H93.271
-			c-69.246,0-84.534-98.263-18.714-119.456c14.753-4.65,43.01-7.348,74.38,21.892c6.464,6.024,16.586,5.667,22.61-0.794
-			c6.024-6.464,5.668-16.586-0.794-22.61c-17.93-16.712-38.071-27.33-58.484-31.453c22.034-99.077,147.374-131.851,215.247-56.305
-			c4.189,4.661,10.714,6.451,16.693,4.57c67.272-21.117,135.795,29.374,135.795,99.69
-			C480.005,334.256,433.141,381.12,375.537,381.12z"/></g></svg>`} />
-          <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('Easy and Reliable')}</h3>
-          <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
-            {t('Access')} <a href="#what-is-koha" class="dark:text-zinc-100 hover:text-zinc-600">{t('Koha Library System')}</a> {t('using only your web browser. Our modern cloud infrastructure is monitored in real time to ensure consistent and reliable Koha user experience.')}
-          </p>
-        </div>
-        <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0">
-          <div class="w-12 h-12 bg-zinc-100 dark:bg-zinc-600 text-zinc-600 dark:text-zinc-900 rounded-2xl flex items-center justify-center mb-6" set:html={`
-          <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" height="24px" width="24px" fill="currentColor" stroke="currentColor" viewBox="0 0 512 512" xml:space="preserve">
-<g>
-	<path class="st0" d="M165.865,85.55c23.636,0,42.779-19.159,42.779-42.77C208.644,19.142,189.501,0,165.865,0   c-23.636,0-42.779,19.142-42.779,42.779C123.086,66.391,142.229,85.55,165.865,85.55z"/>
-	<path class="st0" d="M222.061,97.624H109.669c-20.726,0-43.274,22.548-43.274,43.282v143.768c0,10.363,8.396,18.767,18.758,18.767   c10.363,0,18.775-8.404,18.775-18.767V166.469h8.651v320.88c0,13.616,11.035,24.651,24.644,24.651   c13.625,0,24.66-11.035,24.66-24.651V301.138h7.964v186.211c0,13.616,11.035,24.651,24.66,24.651   c13.609,0,24.644-11.035,24.644-24.651v-320.88h8.668v118.204c0,10.363,8.396,18.767,18.758,18.767   c10.379,0,18.759-8.404,18.759-18.767V140.906C265.335,120.172,242.787,97.624,222.061,97.624z"/>
-	<path class="st0" d="M373.041,256.72c19.206,0,34.758-15.568,34.758-34.751c0-19.206-15.552-34.759-34.758-34.759   c-19.206,0-34.758,15.552-34.758,34.759C338.283,241.152,353.835,256.72,373.041,256.72z"/>
-	<path class="st0" d="M412.989,278.117h-84.718c-15.616,0-32.616,16.992-32.616,32.624v75.482c0,7.812,6.333,14.145,14.137,14.145   c7.812,0,14.153-6.333,14.153-14.145v-56.212h6.525v163.407c0,10.267,8.316,18.582,18.566,18.582   c10.275,0,18.592-8.316,18.592-18.582v-94.785h6.005v94.785c0,10.267,8.316,18.582,18.582,18.582   c10.259,0,18.582-8.316,18.582-18.582V330.011h6.525v56.212c0,7.812,6.332,14.145,14.137,14.145   c7.828,0,14.144-6.333,14.144-14.145v-75.482C445.605,295.108,428.614,278.117,412.989,278.117z"/>
-</g>
-</svg>
-`} />
-          <div class="absolute inset-0 bg-gradient-to-br from-primary-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-          <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('Secure and Up-to-date')}</h3>
-          <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
-            {t('Automatic security updates. Daily encrypted backups, stored in multiple secure locations. Feature updates twice a year. Includes encrypted network connections and SSL certificates.')}
-          </p>
-        </div>
-  
-        <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0" style="transition-delay: 100ms;">
-          <div class="w-12 h-12 bg-accent-100 dark:bg-accent-900/40 text-accent-600 dark:text-green-400 rounded-2xl flex items-center justify-center mb-6" set:html={`<svg xmlns="http://www.w3.org/2000/svg" width="54px" height="54px" viewBox="-9 0 32 32" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M11.040 20.96c-0.6 0.24-1.2 0.32-1.84 0.32-2.12 0-3.92-1.24-4.76-3h4.72c0.48 0 0.84-0.4 0.84-0.84s-0.4-0.84-0.84-0.84h-5.24c-0.040-0.2-0.040-0.4-0.040-0.6s0-0.4 0.040-0.6h5.24c0.48 0 0.84-0.4 0.84-0.84s-0.4-0.84-0.84-0.84h-4.76c0.88-1.76 2.68-3 4.76-3 0.6 0 1.24 0.12 1.84 0.32 0.44 0.16 0.92-0.080 1.080-0.52s-0.080-0.92-0.52-1.080c-0.8-0.28-1.6-0.44-2.44-0.44-3.080 0-5.68 1.96-6.6 4.72h-1.68c-0.48 0-0.84 0.4-0.84 0.84s0.4 0.84 0.84 0.84h1.36c0 0.2-0.040 0.4-0.040 0.6s0 0.4 0.040 0.6h-1.36c-0.48 0-0.84 0.4-0.84 0.84s0.4 0.84 0.84 0.84h1.72c0.96 2.72 3.56 4.72 6.6 4.72 0.84 0 1.64-0.16 2.44-0.44 0.44-0.16 0.68-0.64 0.52-1.080s-0.64-0.68-1.080-0.52z"></path></svg>`} />
-          <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('GDPR and Data Control')}</h3>
-          <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
-            {t('User data and rights are protected by GDPR. You as the data controller have the full control and free (both freedom and free of charge) access to your database. SSH remote access included.')}
-          </p>
-        </div>
-    </div>
-    <Button href="#request-a-quote" variant="primary" size="lg" class="w-full mt-12 sm:w-auto text-lg px-8 py-4 shadow-xl shadow-primary-500/20">
-      {t('Request a Quote')}
-    </Button>
-    <div class="p-8 max-w-3xl mx-auto py-32 reveal-on-scroll">
-      <h2 class="text-4xl md:text-5xl font-heading font-extrabold text-zinc-900 dark:text-white mb-6">
-        {t('With Leading Experience')}
-      </h2>
-      <p class="text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-        {t('Our Koha professionals have more than a decade of Koha experience from libraries of various sizes. We have hosted and supported large consortiums, academic libaries, school libraries and smaller special libraries each with their own unique ways to operate a library. Over the years we have contributed thousands of software changes, features and translations to Koha. Our team has developed countless integrations to other systems using open standards and APIs, making Koha more modern and accessible to rest of the world.')}
-      </p>
-      <p class="mt-5 text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-        {t('Our clients range from large state organizations to the smallest village libraries and anything in between. Hypernova has collaborated with')} <a href="https://www.kansalliskirjasto.fi" target="_blank">{t('the National Library of Finland')}</a> {t('and various other private Koha organizations around the world.')} 
-      </p>
-      <p class="mt-5 text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-        {t('This vast experience has enhanced our problem solving skills and provided us the ability to use innovative methods to optimize your library operations.')}
-      </p>
-    </div>
-  </div>
-</section>
-<section id="request-a-quote" class="py-32 bg-zinc-50 dark:bg-[#0c0c0f] border-y border-zinc-200 dark:border-zinc-800 relative overflow-hidden">
+<KohaServiceComponent />
+<section id="request-a-quote" class="py-32 bg-zinc-50 dark:bg-night-soft border-y border-zinc-200 dark:border-night-line relative overflow-hidden">
   <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-200/50 via-transparent to-transparent dark:from-primary-900/10 dark:via-transparent dark:to-transparent"></div>
 
   <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
     <div class="text-center max-w-3xl mx-auto mb-20 reveal-on-scroll">
       <h2 class="text-4xl md:text-5xl font-heading font-extrabold text-zinc-900 dark:text-white mb-6">
-        {t('Request')} <span class="text-zinc-400 dark:text-zinc-500">{t('a quote')}</span>
+        {t('Request')} <span class="text-zinc-400 dark:text-zinc-400">{t('a quote')}</span>
       </h2>
       <p class="text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-        {t('Free your library from vendor lock-ins and provide a transparent and sustainable service to your visitors. Koha will likely be the last library system you will ever need.')}
+        {t('Free your library from vendor lock-ins and offer a transparent, sustainable service to your patrons. Koha will probably be the last library system your library ever needs.')}
       </p>
     </div>
 
@@ -350,67 +303,76 @@ const t = useTranslations(i18n);
           {t('Thank you for submitting your request.')}
         </h2>
         <p style={errors.form ? 'display:none' : ''} class="text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-          {t('We will be in contact to the email address you provided.')}
+          {t('We will reply to the e-mail address you provided.')}
         </p>
-        <p style={errors.form ? '' : 'display:none'}class="text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-          {t('Unfortunately an error occurred. Please contact us at')} <a href="mailto:contact@hypernova.fi">contact@hypernova.fi</a> {t('and provide the following error message.')}
-
-          <div style={errors.form ? '' : 'display:none'} class="mt-10 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-3xl p-8 flex flex-col relative transform shadow-2xl shadow-primary-500/10 reveal-on-scroll" style="transition-delay: 100ms;">
-            {errors.form}
-          </div>
+        <p style={errors.form ? '' : 'display:none'} class="text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
+          {t('Unfortunately an error occurred. Please try again later or contact us by post (our address is on the contact page) and include the following error message.')}
         </p>
+        <pre style={errors.form ? 'transition-delay: 100ms;' : 'display:none'} class="mt-10 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-3xl p-8 flex flex-col relative transform shadow-2xl shadow-primary-500/10 reveal-on-scroll overflow-x-auto whitespace-pre-wrap">{errors.form}</pre>
       </div>
-      <form method="POST" action="#request-a-quote" style={formSent && errors.form.length === 0 ? 'display:none': ''} >
+      {rateLimited && (
+        <p role="alert" data-form-rate-limited class="max-w-3xl mx-auto mb-8 text-left text-xl text-red-800 dark:text-red-400">
+          {t('Too many submissions from this connection. Please try again later or contact us by post (our address is on the contact page).')}
+        </p>
+      )}
+      <form method="POST" action="#request-a-quote" novalidate data-validate style={formSent && errors.form.length === 0 ? 'display:none': ''} >
         <div class="glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-3xl p-8 flex flex-col relative transform shadow-2xl shadow-primary-500/10 reveal-on-scroll" style="transition-delay: 100ms;">
           <div class="grid md:grid-cols-4 sm:grid-cols-1 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform" >
-            <div class="absolute -top-4 -tranzinc-x-1/2">
+            <div class="absolute -top-4 -translate-x-1/2">
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Contact information')}</Badge> 
             </div>
-            <label class="p-3 mt-5 col-span-1">{t('Name')}</label><input type="text" name="name" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.name} required /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Name')}</label><input type="text" name="name" maxlength="120" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.name} required data-error-message={t('Please enter your name. ')} /><div class="md:col-span-2"></div>
             {errors.name && <p class="col-span-1 md:col-span-4 text-red-800">{errors.name}</p>}
-            <label class="p-3 mt-5 col-span-1">{t('Organization')}</label><input type="text" name="organization" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.organization} required /><div class="md:col-span-2"></div>
+            <p id="koha-error-name" class="col-span-1 md:col-span-4 text-red-800" data-error-for="name" hidden></p>
+            <label class="p-3 mt-5 col-span-1">{t('Organization')}</label><input type="text" name="organization" maxlength="120" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.organization} required data-error-message={t('Please enter your organization. ')} /><div class="md:col-span-2"></div>
             {errors.organization && <p class="col-span-1 md:col-span-4 text-red-800">{errors.organization}</p>}
-            <label class="p-3 mt-5 col-span-1">{t('E-mail')}</label><input type="email" name="email" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.email} required /><div class="md:col-span-2"></div>
-            <span class="hidden"><input type="text" name="website" value={formData.website} /></span>
+            <p id="koha-error-organization" class="col-span-1 md:col-span-4 text-red-800" data-error-for="organization" hidden></p>
+            <label class="p-3 mt-5 col-span-1">{t('E-mail')}</label><input type="email" name="email" maxlength="254" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.email} required data-error-message={t('Please enter an email address. ')} /><div class="md:col-span-2"></div>
+            <!-- Bot traps: hidden from people and screen readers, but not from scripts. -->
+            <div aria-hidden="true" class="absolute left-[-9999px] top-auto h-px w-px overflow-hidden">
+              <label>Website<input type="text" name="website" value={formData.website} tabindex="-1" autocomplete="off" /></label>
+            </div>
+            <input type="hidden" name="form_token" value={formToken} />
             {errors.email && <p class="col-span-1 md:col-span-4 text-red-800">{errors.email}</p>}
+            <p id="koha-error-email" class="col-span-1 md:col-span-4 text-red-800" data-error-for="email" hidden></p>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-4 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
-            <div class="absolute -top-4 -tranzinc-x-1/2">
+            <div class="absolute -top-4 -translate-x-1/2">
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Catalog and user details')}</Badge> 
             </div>
             <h3 class="col-span-1 md:col-span-4">{t('Please enter the number of')}</h3>
-            <label class="p-3 mt-5 col-span-1">{t('Records')}</label><input type="text" name="records" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.records} /><div class="md:col-span-2"></div>
-            <label class="p-3 mt-5 col-span-1">{t('Items')}</label><input type="text" name="items" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.items} /><div class="md:col-span-2"></div>
-            <label class="p-3 mt-5 col-span-1">{t('Annual circulation')}</label><input type="text" name="circulation" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.circulation} /><div class="md:col-span-2"></div>
-            <label class="p-3 mt-5 col-span-1">{t('Patrons')}</label><input type="text" name="patrons" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.patrons} /><div class="md:col-span-2"></div>
-            <label class="p-3 mt-5 col-span-1">{t('Librarians')}</label><input type="text" name="librarians" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1"  value={formData.librarians} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Records')}</label><input type="text" name="records" maxlength={MAX_SHORT_FIELD_LENGTH} class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.records} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Items')}</label><input type="text" name="items" maxlength={MAX_SHORT_FIELD_LENGTH} class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.items} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Annual circulation')}</label><input type="text" name="circulation" maxlength={MAX_SHORT_FIELD_LENGTH} class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.circulation} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Patrons')}</label><input type="text" name="patrons" maxlength={MAX_SHORT_FIELD_LENGTH} class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.patrons} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Librarians')}</label><input type="text" name="librarians" maxlength={MAX_SHORT_FIELD_LENGTH} class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1"  value={formData.librarians} /><div class="md:col-span-2"></div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-4 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
-            <div class="absolute -top-4 -tranzinc-x-1/2">
-              <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Current system<')}</Badge> 
+            <div class="absolute -top-4 -translate-x-1/2">
+              <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Current system')}</Badge> 
             </div>
-            <label class="p-3 mt-5 col-span-1">{t('Current library system')}</label><input type="text" name="current_ils" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.records} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Current library system')}</label><input type="text" name="current_ils" maxlength={MAX_SHORT_FIELD_LENGTH} class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.records} /><div class="md:col-span-2"></div>
         </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
-            <div class="absolute -top-4 -tranzinc-x-1/2">
+            <div class="absolute -top-4 -translate-x-1/2">
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Your library')}</Badge> 
             </div>
-            <p class="col-span-2 mb-3">{t('Describe your library and its daily operations. Do not worry about being too formal. Tell us what kind of material your library manages, what type of patrons are registered at your library, what kind of circulation rules apply, physical characterestics of your library building and how it affects your shelving locations, etc.')}</p>
-            <p class="col-span-2 mb-3">{t('The more detailed description you provide the better we will be able to optimize a suitable Koha configuration for your library.')}</p>
-            <textarea name="about_my_library" rows="5" class="p-3 sm:col-span-1 col-span-2 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1">{formData.about_my_library}</textarea>
+            <p class="col-span-2 mb-3">{t('Describe your library and its daily work. Do not worry about being too formal. Tell us what kind of material your library manages, what kinds of patrons you serve, what circulation rules you use, what your library building is like and how it affects your shelving locations, and so on.')}</p>
+            <p class="col-span-2 mb-3">{t('The more detail you give us, the better we can tailor the Koha configuration for your library.')}</p>
+            <textarea name="about_my_library" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="p-3 sm:col-span-1 col-span-2 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1">{formData.about_my_library}</textarea>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
-            <div class="absolute -top-4 -tranzinc-x-1/2">
+            <div class="absolute -top-4 -translate-x-1/2">
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Additional services and integrations')}</Badge> 
             </div>
-            <p class="col-span-2 mt-10 lg:mt-3 mb-3">{t('Do you have checkout machines that need to be connected to Koha? Does your library system talk to other systems, for example SSO authentication (Azure/Google/other), email servers (O365/Gmail/other) for sending library notifications, online resources behind authentication and so on.')}</p>
-            <p class="col-span-2 mb-3">{t('It is perfectly normal not to need any additional services or integrations, so is okay to leave the following field empty.')}</p>
-            <p class="col-span-2 mb-3">{t('We ask because configuring integrations requires slightly more work and in some cases may require software development.')}</p>
+            <p class="col-span-2 mt-10 lg:mt-3 mb-3">{t('Do you have checkout machines that need to be connected to Koha? Does your library system talk to other systems - for example SSO authentication (Azure/Google/other), mail servers (O365/Gmail/other) for library notifications, or online resources behind authentication?')}</p>
+            <p class="col-span-2 mb-3">{t('It is perfectly normal not to need any additional services or integrations, so it is fine to leave this field empty.')}</p>
+            <p class="col-span-2 mb-3">{t('We ask because integrations take a little more work to set up and sometimes require software development.')}</p>
 
-            <textarea name="additional_services" rows="5" class="p-3 sm:col-span-1 col-span-2 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1">{formData.additional_services}</textarea>
+            <textarea name="additional_services" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="p-3 sm:col-span-1 col-span-2 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1">{formData.additional_services}</textarea>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
-            <div class="absolute -top-4 -tranzinc-x-1/2">
+            <div class="absolute -top-4 -translate-x-1/2">
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Ready?')}</Badge> 
             </div>
             <Button type="submit" class="border-2 col-span-2 border-primary-500">{t('Submit')}</Button>
@@ -420,6 +382,6 @@ const t = useTranslations(i18n);
     </div>
   </div>
 </section>
-</div>
 
+  <FormValidation />
 </BaseLayout>

@@ -1,4 +1,5 @@
-import { z, defineCollection, reference } from 'astro:content';
+import { z } from 'astro/zod';
+import { defineCollection, reference } from 'astro:content';
 import { glob } from 'astro/loaders';
 
 const blogCollection = defineCollection({
@@ -34,6 +35,7 @@ const changelogCollection = defineCollection({
     date: z.date(),
     title: z.string(),
     type: z.enum(['major', 'minor', 'patch']).default('minor'),
+    draft: z.boolean().default(false),
   }),
 });
 

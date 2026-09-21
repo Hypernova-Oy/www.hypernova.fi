@@ -1,0 +1,61 @@
+---
+import type { LegalBlock } from '../legal/types';
+import type { Language } from '../i18n/ui';
+
+interface Props {
+  block: LegalBlock;
+  lang: Language;
+}
+
+const { block, lang } = Astro.props;
+
+// Narrow the discriminated union once, so the template stays simple.
+const paragraph = block.kind === 'p' ? block.text[lang] : null;
+const items = block.kind === 'ul' ? block.items[lang] : null;
+const addressLines = block.kind === 'address' ? block.lines[lang] : null;
+const table = block.kind === 'table' ? block : null;
+---
+
+{paragraph && <p>{paragraph}</p>}
+
+{items && (
+  <ul>
+    {items.map((item) => (
+      <li>{item}</li>
+    ))}
+  </ul>
+)}
+
+{addressLines && (
+  <address class="not-italic">
+    {addressLines.map((line, index) => (
+      <>
+        {line}
+        {index < addressLines.length - 1 && <br />}
+      </>
+    ))}
+  </address>
+)}
+
+{table && (
+  <div class="overflow-x-auto">
+    <table>
+      <thead>
+        <tr>
+          {table.columns[lang].map((column) => (
+            <th>{column}</th>
+          ))}
+        </tr>
+      </thead>
+      <tbody>
+        {table.rows.map((row) => (
+          <tr>
+            {row[lang].map((cell) => (
+              <td>{cell}</td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  </div>
+)}

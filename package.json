@@ -1,25 +1,25 @@
 {
   "name": "hypernova",
-  "description": "A high-performance Astro 6 SaaS theme by Farros FR. 100/100 Lighthouse optimized with dark mode, MDX blog, changelog, and search. This theme is a fork of Zenix theme by farrosfr.",
+  "description": "Hypernova Oy website - Free and Open Source software services (Koha, Lainuri, Toveri). This theme is a fork of Zenix theme by farrosfr.",
   "type": "module",
   "version": "0.0.1",
   "license": "MIT",
-  "homepage": "https://zenix.farrosfr.com/",
+  "homepage": "https://www.hypernova.fi/",
   "repository": {
     "type": "git",
-    "url": "https://github.com/farrosfr/zenix.git"
+    "url": "https://github.com/Hypernova-Oy/zenix.git"
   },
   "bugs": {
-    "url": "https://github.com/farrosfr/zenix/issues"
+    "url": "https://github.com/Hypernova-Oy/zenix/issues"
   },
   "keywords": [
     "astro",
-    "astro-theme",
     "tailwindcss",
-    "saas",
-    "landing-page",
-    "blog",
-    "mdx"
+    "koha",
+    "library-system",
+    "foss",
+    "lainuri",
+    "toveri"
   ],
   "engines": {
     "node": ">=22.12.0"
@@ -27,6 +27,11 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
+    "check": "astro check",
+    "bench:scroll": "node scripts/scroll-bench.mjs",
+    "start": "node ./dist/server/entry.mjs",
+    "test": "npm run test:unit && npm run test:e2e",
+    "test:unit": "node --test tests/unit/*.test.ts",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "preview": "astro preview",
@@ -34,16 +39,20 @@
   },
   "dependencies": {
     "@astrojs/mdx": "^5.0.6",
+    "@astrojs/node": "^10.1.4",
     "@fontsource-variable/inter": "^5.2.8",
     "@fontsource-variable/space-grotesk": "^5.2.10",
     "@tailwindcss/vite": "^4.3.0",
-    "astro": "^6.3.3",
+    "astro": "^6.4.8",
     "flag-icons": "^7.5.0",
     "sharp": "^0.35.1",
     "tailwindcss": "^4.3.0"
   },
   "devDependencies": {
+    "@astrojs/check": "^0.9.10",
     "@playwright/test": "^1.60.0",
-    "@tailwindcss/typography": "^0.5.19"
+    "@tailwindcss/typography": "^0.5.19",
+    "@types/node": "^26.6.2",
+    "typescript": "^6.0.3"
   }
 }

@@ -8,7 +8,7 @@ import Footer from '../components/Footer.astro';
 import CommandPalette from '../components/CommandPalette.astro';
 import { SITE_TITLE, SITE_DESCRIPTION, SITE_DESCRIPTION_I18N, SITE_URL } from '../config';
 import { resolvePath } from '../utils/navigation';
-import { langConfig } from '../i18n/ui';
+import type { i18n } from '../i18n/ui';
 import { useTranslations } from '../i18n/utils';
 
 interface Props {
@@ -21,11 +21,11 @@ interface Props {
   author?: string;
 }
 
-const i18n = {
+const i18n: i18n = {
   fi: {}
-} as i18n;
+};
 i18n['fi'][SITE_DESCRIPTION] = SITE_DESCRIPTION_I18N['fi'];
-const t = useTranslations(i18n);
+const t = useTranslations(i18n, Astro);
 
 const {
   title,
@@ -77,26 +77,8 @@ const structuredData =
         url: siteURL,
       };
 
-let lang;
-const langParam = Astro.url.searchParams.get("l");
-const langCookie = Astro.cookies.get('language');
-if (typeof langParam === 'string' && langParam.length > 0 && langParam !== 'null') {
-  lang = langParam;
-} else if (typeof langCookie !== 'undefined') {
-  lang = langCookie.value;
-} else if (typeof lang === 'undefined') {
-  lang = typeof Astro.preferredLocale === 'string' ? Astro.preferredLocale : 'gb';
-}
-if (!Astro.request.headers.has('Sec-Purpose') || Astro.request.headers.get('Sec-Purpose') !== 'prefetch') {
-  if (Astro.cookies.has('language')) {
-    if (langCookie.value !== lang) {
-      Astro.response.headers.append('set-cookie', 'language='+lang+'; path=/;');
-    }
-  } else {
-    Astro.response.headers.append('set-cookie', 'language='+lang+'; path=/;');
-  }
-}
-langConfig.currentLang = lang;
+// The UI language is resolved per request in src/middleware.ts.
+const lang = Astro.locals.lang;
 ---
 
 <!DOCTYPE html>
@@ -169,7 +151,7 @@ langConfig.currentLang = lang;
       })();
     </script>
   </head>
-  <body class="flex flex-col min-h-screen bg-zinc-50 text-zinc-900 transition-colors duration-300 dark:bg-[#09090b] dark:text-zinc-100">
+  <body class="flex flex-col min-h-screen bg-zinc-50 text-zinc-900 transition-colors duration-300 dark:bg-night dark:text-zinc-100">
     <CommandPalette />
     <Navbar />
     <main class="flex-grow">
@@ -182,15 +164,23 @@ langConfig.currentLang = lang;
       document.addEventListener('astro:page-load', () => {
         const observer = new IntersectionObserver((entries) => {
           entries.forEach(entry => {
-            if (entry.isIntersecting) {
-              entry.target.classList.add('is-revealed');
-              // Optional: Stop observing once revealed
-              // observer.unobserve(entry.target);
-            }
+            if (!entry.isIntersecting) return;
+
+            const element = entry.target;
+            element.classList.add('is-revealed');
+            // Stop observing once revealed: re-checking every scroll frame is wasted work.
+            observer.unobserve(element);
+
+            // Release the will-change hint after the fade so no layer is kept around.
+            const release = () => element.classList.add('reveal-done');
+            element.addEventListener('transitionend', release, { once: true });
+            window.setTimeout(release, 800);
           });
         }, {
           root: null,
-          rootMargin: '0px',
+          // Begin the fade slightly before the element scrolls into view, so the
+          // animation finishes just off-centre instead of under the reader's eyes.
+          rootMargin: '0px 0px 8% 0px',
           threshold: 0.1
         });
 

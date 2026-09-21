@@ -1,8 +1,8 @@
 ---
-import { langConfig, languages } from '../i18n/ui';
+import { languages } from '../i18n/ui';
 import "flag-icons/css/flag-icons.min.css";
 
-const currentLang = langConfig.currentLang;
+const currentLang = Astro.locals.lang;
 ---
 <ul>
   {Object.entries(languages).map(([lang, label]) => (

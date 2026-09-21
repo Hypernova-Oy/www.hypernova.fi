@@ -1,0 +1,78 @@
+---
+// Progressive enhancement for the quote and contact forms.
+//
+// The fields keep their `required` attributes for accessibility, but the forms carry
+// `novalidate`: otherwise the browser's own bubble swallows the submission, the
+// server never runs, and the visitor only sees the first field being focused with no
+// explanation. This script shows the same messages the server would render, inline
+// and immediately, and focuses the first invalid field. Without JavaScript the form
+// still submits normally and the server renders the messages.
+---
+
+<script>
+  function setupFormValidation() {
+    document.querySelectorAll<HTMLFormElement>('form[data-validate]').forEach((form) => {
+      if (form.dataset.validationBound === 'true') return;
+      form.dataset.validationBound = 'true';
+
+      const fields = form.querySelectorAll<HTMLInputElement | HTMLTextAreaElement>('[required]');
+
+      const errorElement = (field: HTMLInputElement | HTMLTextAreaElement) =>
+        form.querySelector<HTMLElement>(`[data-error-for="${field.name}"]`);
+
+      // Mirrors the server-side checks in src/pages/koha.astro and contact.astro.
+      const isValid = (field: HTMLInputElement | HTMLTextAreaElement) => {
+        const value = field.value.trim();
+        if (value.length === 0) return false;
+        if (field.type === 'email') return value.length >= 6 && value.includes('@');
+        return true;
+      };
+
+      const showError = (field: HTMLInputElement | HTMLTextAreaElement) => {
+        const target = errorElement(field);
+        if (!target) return;
+        target.textContent = field.dataset.errorMessage ?? '';
+        target.hidden = false;
+        field.setAttribute('aria-invalid', 'true');
+        if (target.id) field.setAttribute('aria-describedby', target.id);
+      };
+
+      const clearError = (field: HTMLInputElement | HTMLTextAreaElement) => {
+        const target = errorElement(field);
+        if (!target) return;
+        target.textContent = '';
+        target.hidden = true;
+        field.removeAttribute('aria-invalid');
+        field.removeAttribute('aria-describedby');
+      };
+
+      fields.forEach((field) => {
+        field.addEventListener('input', () => clearError(field));
+        field.addEventListener('change', () => clearError(field));
+      });
+
+      form.addEventListener('submit', (event) => {
+        const fieldList = Array.from(fields);
+        let firstInvalid: HTMLInputElement | HTMLTextAreaElement | null = null;
+
+        for (const field of fieldList) {
+          if (isValid(field)) {
+            clearError(field);
+            continue;
+          }
+          showError(field);
+          if (!firstInvalid) firstInvalid = field;
+        }
+
+        if (firstInvalid) {
+          event.preventDefault();
+          firstInvalid.focus();
+          firstInvalid.scrollIntoView({ block: 'center', behavior: 'smooth' });
+        }
+      });
+    });
+  }
+
+  setupFormValidation();
+  document.addEventListener('astro:page-load', setupFormValidation);
+</script>

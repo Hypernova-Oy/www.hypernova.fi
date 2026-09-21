@@ -1,5 +1,4 @@
 ---
-import Button from './Button.astro';
 import Badge from './Badge.astro';
 import { resolvePath } from '../utils/navigation';
 
@@ -9,38 +8,37 @@ import { useTranslations } from '../i18n/utils';
 const i18n = {
   fi: {
       'Most Popular': 'Suosituin',
-      'Choose the perfect open source solution for your next project.': 'Valitse sopiva avoimen lähdekoodin ratkaisu seuraavaan projektiisi.',
       'Koha Library System': 'Koha-kirjastojärjestelmä',
-      'Used by thousands of libraries around the world.': 'Tuhansien kirjastojen käyttämä kestävä ja mukautuva ratkaisu.',
+      'Used by thousands of libraries around the world.': 'Tuhansien kirjastojen luottama ratkaisu.',
       'Cloud service': 'Pilvipalvelu',
       'Full access': 'Täydet käyttöoikeudet',
       'Backups & upgrades': 'Varmuuskopiot ja päivitykset',
-      'Highly customizable': 'Mukautuu tarpeisiinne',
-      'Get Started': 'Lue lisää',
+      'Highly customizable': 'Mukautuu tarpeisiisi',
+      'Read more': 'Lue lisää',
       'Toveri Access Control Device': 'Toveri-kulunvalvontalaite',
-      'Manage access control to your premises.': 'Luotettava järjestelmä tilojen pääsyoikeushallintaan.',
-      'Extreme weather': 'Äärimmäiset sääolosuhteet',
+      'Access control for self-service libraries.': 'Kulunvalvonta itsepalvelukirjastoihin.',
+      'Built for extreme weather': 'Kestää äärimmäiset sääolosuhteet',
       'Open standards': 'Avoimet standardit',
-      '2 year warranty': 'Kahden vuoden takuu',
-      'Custom casing': 'Valikoivat kotelointimateriaalit ja tyylit',
+      'Two-year warranty': 'Kahden vuoden takuu',
+      'Choice of casing materials': 'Valittavissa useita kotelomateriaaleja',
       'Lainuri Checkout Device': 'Lainuri-lainausautomaatti',
-      'Provide a professional self-service library.': 'Tarjoa ammattimainen itsepalvelukirjastopalvelu.',
-      'Quick install': 'Helppo asennus',
+      'Self-service checkout for your patrons.': 'Itsepalvelulainaus asiakkailesi.',
+      'Quick to install': 'Nopea asentaa',
       'Other': 'Joku muu?',
-      'Tell us about your project. We will try our best to help you using Free and Open Source Software.': 'Kerro meille projektistasi. Me autamme sinua toteuttamaan sen vapaan ja avoimen lähdekoodin ohjelmistoilla.'
+      'Tell us about your project. We will do our best to help you with Free and Open Source Software.': 'Kerro projektistasi. Autamme mielellämme vapaan ja avoimen lähdekoodin ratkaisuilla.'
   }
-} as i18n;
-const t = useTranslations(i18n);
+};
+const t = useTranslations(i18n, Astro);
 ---
 
-<section id="services" class="py-32 bg-zinc-50 dark:bg-[#0c0c0f] border-t border-zinc-200 dark:border-zinc-800">
+<section id="services" class="py-32 bg-zinc-50 dark:bg-night-soft border-t border-zinc-200 dark:border-night-line">
   <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
     <div class="text-center max-w-8xl mx-auto mb-16 reveal-on-scroll">
 
     <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 max-w-6xl mx-auto">
 
       <div class="glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-3xl p-8 flex flex-col relative transform shadow-2xl shadow-primary-500/10 reveal-on-scroll" style="transition-delay: 100ms;">
-        <div class="absolute -top-4 left-1/4 -tranzinc-x-1/2">
+        <div class="absolute -top-4 left-1/4 -translate-x-1/2">
           <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Most Popular')}</Badge> 
         </div>
         <h3 class="text-2xl font-heading font-bold text-zinc-900 dark:text-white mb-2">{t('Koha Library System')}</h3>
@@ -53,7 +51,7 @@ const t = useTranslations(i18n);
           <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Highly customizable')}</li>
         </ul>
         <a href={resolvePath('/koha/')} class="inline-flex items-center justify-center px-8 py-4 mt-4 text-lg font-bold rounded-xl bg-primary-100 text-primary-600 hover:bg-zinc-50 hover:scale-105 transition-all shadow-2xl shadow-white/10">
-          {t('Get Started')}
+          {t('Read more')}
         </a>
       </div>
 
@@ -61,42 +59,43 @@ const t = useTranslations(i18n);
       <div class="glass-panel rounded-3xl p-8 flex flex-col reveal-on-scroll" style="transition-delay: 200ms;">
         
         <h3 class="text-2xl font-heading font-bold text-zinc-900 dark:text-white mb-2">{t('Toveri Access Control Device')}</h3>
-        <p class="text-zinc-500 dark:text-zinc-400 text-sm mb-14 mt-8">{t('Manage access control to your premises.')}</p>
+        <p class="text-zinc-500 dark:text-zinc-400 text-sm mb-14 mt-8">{t('Access control for self-service libraries.')}</p>
         <ul class="space-y-2 text-sm text-zinc-600 dark:text-zinc-300 flex-grow">
-          <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Extreme weather')}</li>
+          <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Built for extreme weather')}</li>
           <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Open standards')}</li>
-          <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('2 year warranty')}</li>
-          <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Custom casing')}</li>
+          <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Two-year warranty')}</li>
+          <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Choice of casing materials')}</li>
         </ul>
-        <a href={resolvePath('/toveri-access-control-device/')} class="inline-flex items-center justify-center px-8 py-4 mt-4 text-lg font-bold border-2 border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-400 hover:scale-105 transition-all shadow-2xl shadow-black/10">
-          {t('Get Started')}
+        <a href={resolvePath('/toveri-access-control-device/')} class="inline-flex items-center justify-center px-8 py-4 mt-4 text-lg font-bold border-2 border-zinc-200 dark:border-night-line-strong rounded-xl text-zinc-700 dark:text-zinc-400 hover:scale-105 transition-all shadow-2xl shadow-black/10">
+          {t('Read more')}
         </a>
       </div>
 
       <!-- Enterprise Plan -->
       <div class="glass-panel rounded-3xl p-8 flex flex-col reveal-on-scroll" style="transition-delay: 200ms;">
         <h3 class="text-2xl font-heading font-bold text-zinc-900 dark:text-white mb-2">{t('Lainuri Checkout Device')}</h3>
-        <p class="text-zinc-500 dark:text-zinc-400 text-sm mb-8 mt-8">{t('Provide a professional self-service library.')}</p>
+        <p class="text-zinc-500 dark:text-zinc-400 text-sm mb-8 mt-8">{t('Self-service checkout for your patrons.')}</p>
         <ul class="space-y-2 text-sm text-zinc-600 dark:text-zinc-300 flex-grow">
-          <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Quick install')}</li>
+          <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Quick to install')}</li>
           <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Open standards')}</li>
-          <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('2 year warranty')}</li>
-          <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Custom casing')}</li>
+          <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Two-year warranty')}</li>
+          <li class="flex gap-3"><svg class="h-5 w-5 text-primary-500 dark:text-primary-400 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg> {t('Choice of casing materials')}</li>
         </ul>
-        <a href={resolvePath('/lainuri-self-checkout-machine/')} class="inline-flex items-center justify-center px-8 py-4 mt-4 text-lg font-bold border-2 border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-400 hover:scale-105 transition-all shadow-2xl shadow-black/10">
-          {t('Get Started')}
+        <a href={resolvePath('/lainuri-checkout-machine/')} class="inline-flex items-center justify-center px-8 py-4 mt-4 text-lg font-bold border-2 border-zinc-200 dark:border-night-line-strong rounded-xl text-zinc-700 dark:text-zinc-400 hover:scale-105 transition-all shadow-2xl shadow-black/10">
+          {t('Read more')}
         </a>
       </div>
 
       <div class="glass-panel rounded-3xl p-8 flex flex-col reveal-on-scroll" style="transition-delay: 200ms;">
         <h3 class="text-2xl font-heading font-bold text-zinc-900 dark:text-white mb-10">{t('Other')}</h3>
-        <p class="text-zinc-500 dark:text-zinc-400 text-sm mb-8">{t('Tell us about your project. We will try our best to help you using Free and Open Source Software.')}</p>
+        <p class="text-zinc-500 dark:text-zinc-400 text-sm mb-8">{t('Tell us about your project. We will do our best to help you with Free and Open Source Software.')}</p>
         <ul class="space-y-2 text-sm text-zinc-600 dark:text-zinc-300 flex-grow">
         </ul>
-        <a href={resolvePath('/contact/')} class="inline-flex items-center justify-center px-8 py-4 mt-4 text-lg font-bold border-2 border-zinc-200 dark:border-zinc-700 rounded-xl text-zinc-700 dark:text-zinc-400 hover:scale-105 transition-all shadow-2xl shadow-black/10">
-          {t('Get Started')}
+        <a href={resolvePath('/contact/')} class="inline-flex items-center justify-center px-8 py-4 mt-4 text-lg font-bold border-2 border-zinc-200 dark:border-night-line-strong rounded-xl text-zinc-700 dark:text-zinc-400 hover:scale-105 transition-all shadow-2xl shadow-black/10">
+          {t('Read more')}
         </a>
       </div>
     </div>
+  </div>
   </div>
 </section>

@@ -9,11 +9,14 @@ type SitemapEntry = {
 
 const staticEntries: SitemapEntry[] = [
   { path: '/' },
-  { path: '/koha/' },
-  { path: '/lainuri-checkout-machine/' },
-  { path: '/privacy/' },
   { path: '/services/' },
+  { path: '/koha/' },
+  { path: '/koha-hosting/' },
+  { path: '/lainuri-checkout-machine/' },
   { path: '/toveri-access-control-device/' },
+  { path: '/contact/' },
+  { path: '/privacy/' },
+  { path: '/terms/' },
 ];
 
 const escapeXml = (value: string) =>
@@ -28,12 +31,17 @@ const formatDate = (date: Date) => date.toISOString().split('T')[0];
 
 export const GET: APIRoute = async () => {
   const posts = await getCollection('blog', ({ data }) => data.draft !== true);
-  const entries = [
+  const changelog = await getCollection('changelog', ({ data }) => data.draft !== true);
+
+  const entries: SitemapEntry[] = [
     ...staticEntries,
+    // Only advertise the index pages once they actually have content.
+    ...(posts.length > 0 ? [{ path: '/blog/' }] : []),
     ...posts.map((post) => ({
       path: `/blog/${post.id}/`,
       lastmod: post.data.updatedDate ?? post.data.pubDate,
     })),
+    ...(changelog.length > 0 ? [{ path: '/changelog/' }] : []),
   ];
 
   const urls = entries

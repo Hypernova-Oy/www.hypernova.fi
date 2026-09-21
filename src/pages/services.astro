@@ -6,19 +6,18 @@ const i18n = {
   fi: {
       'Services': 'Palvelut',
       'Our Services': 'Palvelumme',
-      'Why Free and Open Source?': 'Miksi valita vapaa ja avoin lähdekoodi?',
-      'Choose the perfect open source solution for your next project.': 'Valitse sopiva avoimen lähdekoodin ratkaisu seuraavaan projektiisi.'
+      'Choose the open source solution that fits your library.': 'Valitse kirjastollesi sopiva avoimen lähdekoodin ratkaisu.'
   }
-} as i18n;
-const t = useTranslations(i18n);
+};
+const t = useTranslations(i18n, Astro);
 ---
 
 <BaseLayout title={t('Services')} description={t('Our Services')}>
-  <div class="bg-zinc-50 dark:bg-[#0c0c0f] border-b border-zinc-200 dark:border-zinc-800 py-16 md:py-24 transition-colors">
+  <div class="bg-zinc-50 dark:bg-night-soft border-b border-zinc-200 dark:border-night-line py-16 md:py-24 transition-colors">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl text-center">
       <h1 class="text-4xl md:text-5xl font-bold text-zinc-900 dark:text-white mb-4">{t('Our Services')}</h1>
       <p class="text-xl text-zinc-600 dark:text-zinc-400">
-        {t('Choose the perfect open source solution for your next project.')}
+        {t('Choose the open source solution that fits your library.')}
       </p>
     </div>
   </div>

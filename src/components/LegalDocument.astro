@@ -1,0 +1,56 @@
+---
+import LegalBlock from './LegalBlock.astro';
+import type { LegalDocument } from '../legal/types';
+import { isLanguage, type Language } from '../i18n/ui';
+
+interface Props {
+  document: LegalDocument;
+}
+
+const { document: doc } = Astro.props;
+const lang: Language = isLanguage(Astro.locals.lang) ? Astro.locals.lang : 'gb';
+
+const labels: Record<Language, { version: string; updated: string; notice: string }> = {
+  gb: {
+    version: 'Version',
+    updated: 'Last updated',
+    notice:
+      'This document is published in Finnish and English. In case of conflicting interpretations, the Finnish version prevails.',
+  },
+  fi: {
+    version: 'Versio',
+    updated: 'Päivitetty',
+    notice:
+      'Tämä asiakirja julkaistaan suomeksi ja englanniksi. Jos kieliversioiden välillä on tulkintaeroja, suomenkielinen versio on ensisijainen.',
+  },
+};
+
+const meta = labels[lang];
+const updated = new Date(doc.updated).toLocaleDateString(lang === 'fi' ? 'fi-FI' : 'en-GB', {
+  year: 'numeric',
+  month: 'long',
+  day: 'numeric',
+});
+---
+
+<article class="py-16 md:py-24">
+  <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-3xl">
+    <h1 class="text-4xl md:text-5xl font-bold text-zinc-900 dark:text-white mb-4">{doc.title[lang]}</h1>
+
+    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-3">
+      {meta.version} {doc.version} &middot; {meta.updated} {updated}
+    </p>
+    <p class="text-sm text-zinc-500 dark:text-zinc-400 mb-10">{meta.notice}</p>
+
+    <div class="prose prose-zinc dark:prose-invert max-w-none">
+      {doc.sections.map((section) => (
+        <section class="mb-12">
+          <h2>{section.heading[lang]}</h2>
+          {section.blocks.map((block) => (
+            <LegalBlock block={block} lang={lang} />
+          ))}
+        </section>
+      ))}
+    </div>
+  </div>
+</article>

@@ -7,29 +7,33 @@ import { resolvePath } from '../utils/navigation';
 import { useTranslations } from '../i18n/utils';
 const i18n = {
   fi: {
-      'Ready to launch your project?': 'Aloitetaanko?',
-      'Let us help you get the most out of Free and Open Source Software.': 'Toteutetaan projektisi vapaalla ja avoimella lähdekoodilla.',
-      'Our Services': 'Palvelumme'
+      'Ready to move to open source?': 'Valmiina siirtymään avoimeen lähdekoodiin?',
+      'Tell us what your organization runs today and we will reply with a concrete proposal.': 'Kerro, mitä järjestelmiä käytätte nyt, niin vastaamme konkreettisella ehdotuksella.',
+      'Contact us': 'Ota yhteyttä',
+      'Our services': 'Palvelumme'
   }
-} as i18n;
-const t = useTranslations(i18n);
+};
+const t = useTranslations(i18n, Astro);
 ---
 
-<BaseLayout title="Free & Open Source Software Services">
+<BaseLayout title="Open source library systems, hosted and supported">
   <Hero />
   <Features />
   
   <!-- Final CTA Section before footer -->
-  <section class="py-32 bg-zinc-600 dark:bg-zinc-900 text-white text-center relative overflow-hidden">
+  <section class="py-32 bg-zinc-600 dark:bg-night-card text-white text-center relative overflow-hidden">
     <div class="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCI+CjxyZWN0IHdpZHRoPSIyNCIgaGVpZ2h0PSIyNCIgZmlsbD0ibm9uZSI+PC9yZWN0Pgo8Y2lyY2xlIGN4PSIxIiBjeT0iMSIgcj0iMSIgZmlsbD0icmdiYSgyNTUsMjU1LDI1NSwwLjE1KSI+PC9jaXJjbGU+Cjwvc3ZnPg==')] opacity-50"></div>
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl relative z-10 reveal-on-scroll">
-      <h2 class="text-4xl md:text-6xl font-heading font-extrabold mb-6 tracking-tight">{t('Ready to launch your project?')}</h2>
+      <h2 class="text-4xl md:text-6xl font-heading font-extrabold mb-6 tracking-tight">{t('Ready to move to open source?')}</h2>
       <p class="text-xl text-primary-100 dark:text-primary-200 mb-12">
-        {t('Let us help you get the most out of Free and Open Source Software.')}
+        {t('Tell us what your organization runs today and we will reply with a concrete proposal.')}
       </p>
       <div class="flex flex-col sm:flex-row justify-center gap-4">
-        <a href={resolvePath('/services/')} class="inline-flex items-center justify-center px-8 py-4 text-lg font-bold rounded-xl bg-white text-primary-600 hover:bg-zinc-50 hover:scale-105 transition-all shadow-2xl shadow-black/20">
-          {t('Our Services')}
+        <a href={resolvePath('/contact/')} class="inline-flex items-center justify-center px-8 py-4 text-lg font-bold rounded-xl bg-white text-primary-600 hover:bg-zinc-50 hover:scale-105 transition-all shadow-2xl shadow-black/20">
+          {t('Contact us')}
+        </a>
+        <a href={resolvePath('/services/')} class="inline-flex items-center justify-center px-8 py-4 text-lg font-bold rounded-xl border-2 border-white/40 text-white hover:bg-white/10 hover:scale-105 transition-all">
+          {t('Our services')}
         </a>
       </div>
     </div>

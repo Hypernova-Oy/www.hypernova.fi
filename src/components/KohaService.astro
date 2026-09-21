@@ -1,0 +1,102 @@
+---
+import Button from './Button.astro';
+import { resolvePath } from '../utils/navigation';
+import { useTranslations } from '../i18n/utils';
+
+const i18n = {
+  fi: {
+    'Cloud Hosting': '-',
+    'Service': 'pilvipalvelu',
+    'A cost-effective way to move your library to Koha. Our small, flexible and experienced team focuses on what really matters: a dependable everyday experience with the best library system in the world.': 'Kustannustehokas tie kirjastosi siirtämiseen Kohaan. Pieni mutta joustava ja kokenut tiimimme keskittyy olennaiseen: luotettavaan arkikokemukseen maailman parhaasta kirjastojärjestelmästä. Emme tuhlaa resursseja turhaan paperinpyöritykseen ja byrokratiaan.',
+    'Easy and reliable': 'Helppo ja luotettava',
+    'Koha Library System': 'Koha-kirjastojärjestelmä',
+    'runs in your web browser: nothing to install on staff workstations and no servers of your own to maintain. We take care of the infrastructure and monitor it in real time to ensure consistent user experience.': 'pyörii verkkoselaimellasi: mitään ei tarvitse asentaa työasemille eikä omia palvelimia ylläpitää. Me huolehdimme infrastruktuurista ja valvomme sitä reaaliajassa varmistaaksemme yhtenäisen käyttökokemuksen.',
+    'Secure and up to date': 'Turvallinen ja ajan tasalla',
+    'Automatic security updates. Encrypted daily backups stored in several locations. Feature updates twice a year. Encrypted connections and SSL certificates included.': 'Automaattiset tietoturvapäivitykset. Päivittäiset salatut varmuuskopiot useassa eri sijainnissa. Ominaisuuspäivitykset kaksi kertaa vuodessa. Salattu verkkoliikenne ja SSL-sertifikaatit sisältyvät palveluun.',
+    'GDPR and your data': 'GDPR ja henkilötietojen käsittely',
+    'We protect the data and rights of your patrons as required by the GDPR. As the data controller you keep full, unrestricted and free access to your own database. SSH access is included.': 'Suojaamme asiakkaidesi tiedot ja oikeudet GDPR:n edellyttämällä tavalla. Rekisterinpitäjänä sinulla on täysi, rajoittamaton ja maksuton pääsy omaan tietokantaasi. SSH-yhteys sisältyy palveluun.',
+    'Request a quote': 'Pyydä tarjous',
+    'Over a decade of Koha experience': 'Yli vuosikymmen Koha-kokemusta',
+    'Our Koha team has over a decade of experience with libraries of every size. We have hosted and supported large consortia, academic libraries, school libraries and small special libraries, each with its own way of running a library. Over the years we have contributed thousands of changes, features and translations to Koha, and built countless integrations to other systems using open standards and APIs - making Koha more capable and more accessible to everyone.': 'Koha-tiimillämme on yli vuosikymmenen kokemus hyvin erikokoisista kirjastoista. Olemme ylläpitäneet ja tukeneet suuria kirjastokimppoja, akateemisia kirjastoja, koulukirjastoja ja pieniä erikoiskirjastoja, joilla jokaisella on oma tapansa tehdä kirjastotyötä. Vuosien varrella olemme toteuttaneet Kohaan tuhansia muutoksia, ominaisuuksia ja käännöksiä sekä rakentaneet lukemattomia integraatioita muihin järjestelmiin avoimien standardien ja rajapintojen avulla. Näin Kohasta on tullut entistä monipuolisempi ja helpommin saavutettava.',
+    'Our clients range from large national organizations to the smallest village libraries. Hypernova has worked with': 'Asiakkaamme vaihtelevat suurista valtakunnallisista organisaatioista aina pieniin kyläkirjastoihin. Hypernova on tehnyt yhteistyötä muun muassa',
+    'the National Library of Finland': 'Kansalliskirjaston',
+    'and many other organizations running Koha around the world.': 'sekä lukuisten muiden Kohaa käyttävien organisaatioiden kanssa ympäri maailmaa.',
+    'This experience sharpens our problem solving and helps us find practical ways to improve how your library runs.': 'Tämä kokemus on hiouttanut ongelmanratkaisukykyämme ja auttaa meitä löytämään käytännöllisiä tapoja sujuvoittaa kirjastosi arkea.',
+  }
+};
+const t = useTranslations(i18n, Astro);
+---
+
+<section id="cloud-hosting-service" class="py-32 bg-zinc-50 dark:bg-night-soft border-y dark:border-night-line">
+  <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+    <div class="text-center max-w-3xl mx-auto mb-20 reveal-on-scroll">
+      <h2 class="text-4xl md:text-5xl font-heading font-extrabold text-zinc-900 dark:text-white mb-6">
+        Koha <span class="text-zinc-400 dark:text-zinc-400">{t('Cloud Hosting')}</span> {t('Service')}
+      </h2>
+      <p class="text-xl text-zinc-600 dark:text-zinc-400 font-sans">
+        {t('A cost-effective way to move your library to Koha. Our small, flexible and experienced team focuses on what really matters: a dependable everyday experience with the best library system in the world.')}
+      </p>
+    </div>
+
+    <div class="text-center max-w-8xl mx-auto mb-20 reveal-on-scroll">
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 lg:grid-rows-1 gap-6 max-w-7xl mx-auto">
+        <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0" style="transition-delay: 200ms;">
+          <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 text-accent-600 dark:text-zinc-100 rounded-2xl flex items-center justify-center mb-6" set:html={`        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 512.001 512.001" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g><path d="M344.381,143.771C254.765,56.017,102.37,103.776,79.825,227.7c-31.849,4.598-59.138,25.445-72.018,55.076
+			c-0.016,0.035-0.032,0.07-0.047,0.107c-26.687,61.602,18.784,130.232,85.51,130.232h282.267
+			c75.246,0,136.463-61.216,136.463-136.462C512,189.241,430.314,123.682,344.381,143.771z M375.537,381.12H93.271
+			c-69.246,0-84.534-98.263-18.714-119.456c14.753-4.65,43.01-7.348,74.38,21.892c6.464,6.024,16.586,5.667,22.61-0.794
+			c6.024-6.464,5.668-16.586-0.794-22.61c-17.93-16.712-38.071-27.33-58.484-31.453c22.034-99.077,147.374-131.851,215.247-56.305
+			c4.189,4.661,10.714,6.451,16.693,4.57c67.272-21.117,135.795,29.374,135.795,99.69
+			C480.005,334.256,433.141,381.12,375.537,381.12z"/></g></svg>`} />
+          <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('Easy and reliable')}</h3>
+          <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
+            <a href="#what-is-koha" class="dark:text-zinc-100 hover:text-zinc-600">{t('Koha Library System')}</a> {t('runs in your web browser: nothing to install on staff workstations and no servers of your own to maintain. We take care of the infrastructure and monitor it in real time to ensure consistent user experience.')}
+          </p>
+        </div>
+        <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0">
+          <div class="w-12 h-12 bg-zinc-100 dark:bg-zinc-600 text-zinc-600 dark:text-zinc-900 rounded-2xl flex items-center justify-center mb-6" set:html={`
+          <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" height="24px" width="24px" fill="currentColor" stroke="currentColor" viewBox="0 0 512 512" xml:space="preserve">
+<g>
+	<path class="st0" d="M165.865,85.55c23.636,0,42.779-19.159,42.779-42.77C208.644,19.142,189.501,0,165.865,0   c-23.636,0-42.779,19.142-42.779,42.779C123.086,66.391,142.229,85.55,165.865,85.55z"/>
+	<path class="st0" d="M222.061,97.624H109.669c-20.726,0-43.274,22.548-43.274,43.282v143.768c0,10.363,8.396,18.767,18.758,18.767   c10.363,0,18.775-8.404,18.775-18.767V166.469h8.651v320.88c0,13.616,11.035,24.651,24.644,24.651   c13.625,0,24.66-11.035,24.66-24.651V301.138h7.964v186.211c0,13.616,11.035,24.651,24.66,24.651   c13.609,0,24.644-11.035,24.644-24.651v-320.88h8.668v118.204c0,10.363,8.396,18.767,18.758,18.767   c10.379,0,18.759-8.404,18.759-18.767V140.906C265.335,120.172,242.787,97.624,222.061,97.624z"/>
+	<path class="st0" d="M373.041,256.72c19.206,0,34.758-15.568,34.758-34.751c0-19.206-15.552-34.759-34.758-34.759   c-19.206,0-34.758,15.552-34.758,34.759C338.283,241.152,353.835,256.72,373.041,256.72z"/>
+	<path class="st0" d="M412.989,278.117h-84.718c-15.616,0-32.616,16.992-32.616,32.624v75.482c0,7.812,6.333,14.145,14.137,14.145   c7.812,0,14.153-6.333,14.153-14.145v-56.212h6.525v163.407c0,10.267,8.316,18.582,18.566,18.582   c10.275,0,18.592-8.316,18.592-18.582v-94.785h6.005v94.785c0,10.267,8.316,18.582,18.582,18.582   c10.259,0,18.582-8.316,18.582-18.582V330.011h6.525v56.212c0,7.812,6.332,14.145,14.137,14.145   c7.828,0,14.144-6.333,14.144-14.145v-75.482C445.605,295.108,428.614,278.117,412.989,278.117z"/>
+</g>
+</svg>
+`} />
+          <div class="absolute inset-0 bg-gradient-to-br from-primary-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('Secure and up to date')}</h3>
+          <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
+            {t('Automatic security updates. Encrypted daily backups stored in several locations. Feature updates twice a year. Encrypted connections and SSL certificates included.')}
+          </p>
+        </div>
+  
+        <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0" style="transition-delay: 100ms;">
+          <div class="w-12 h-12 bg-accent-100 dark:bg-accent-900/40 text-accent-600 dark:text-green-400 rounded-2xl flex items-center justify-center mb-6" set:html={`<svg xmlns="http://www.w3.org/2000/svg" width="54px" height="54px" viewBox="-9 0 32 32" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M11.040 20.96c-0.6 0.24-1.2 0.32-1.84 0.32-2.12 0-3.92-1.24-4.76-3h4.72c0.48 0 0.84-0.4 0.84-0.84s-0.4-0.84-0.84-0.84h-5.24c-0.040-0.2-0.040-0.4-0.040-0.6s0-0.4 0.040-0.6h5.24c0.48 0 0.84-0.4 0.84-0.84s-0.4-0.84-0.84-0.84h-4.76c0.88-1.76 2.68-3 4.76-3 0.6 0 1.24 0.12 1.84 0.32 0.44 0.16 0.92-0.080 1.080-0.52s-0.080-0.92-0.52-1.080c-0.8-0.28-1.6-0.44-2.44-0.44-3.080 0-5.68 1.96-6.6 4.72h-1.68c-0.48 0-0.84 0.4-0.84 0.84s0.4 0.84 0.84 0.84h1.36c0 0.2-0.040 0.4-0.040 0.6s0 0.4 0.040 0.6h-1.36c-0.48 0-0.84 0.4-0.84 0.84s0.4 0.84 0.84 0.84h1.72c0.96 2.72 3.56 4.72 6.6 4.72 0.84 0 1.64-0.16 2.44-0.44 0.44-0.16 0.68-0.64 0.52-1.080s-0.64-0.68-1.080-0.52z"></path></svg>`} />
+          <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('GDPR and your data')}</h3>
+          <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
+            {t('We protect the data and rights of your patrons as required by the GDPR. As the data controller you keep full, unrestricted and free access to your own database. SSH access is included.')}
+          </p>
+        </div>
+    </div>
+    <Button href={resolvePath('/koha/#request-a-quote')} variant="primary" size="lg" class="w-full mt-12 sm:w-auto text-lg px-8 py-4 shadow-xl shadow-primary-500/20">
+      {t('Request a quote')}
+    </Button>
+    <div class="p-8 max-w-3xl mx-auto py-32 reveal-on-scroll">
+      <h2 class="text-4xl md:text-5xl font-heading font-extrabold text-zinc-900 dark:text-white mb-6">
+        {t('Over a decade of Koha experience')}
+      </h2>
+      <p class="text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
+        {t('Our Koha team has over a decade of experience with libraries of every size. We have hosted and supported large consortia, academic libraries, school libraries and small special libraries, each with its own way of running a library. Over the years we have contributed thousands of changes, features and translations to Koha, and built countless integrations to other systems using open standards and APIs - making Koha more capable and more accessible to everyone.')}
+      </p>
+      <p class="mt-5 text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
+        {t('Our clients range from large national organizations to the smallest village libraries. Hypernova has worked with')} <a href="https://www.kansalliskirjasto.fi" target="_blank">{t('the National Library of Finland')}</a> {t('and many other organizations running Koha around the world.')} 
+      </p>
+      <p class="mt-5 text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
+        {t('This experience sharpens our problem solving and helps us find practical ways to improve how your library runs.')}
+      </p>
+    </div>
+  </div>
+  </div>
+</section>
