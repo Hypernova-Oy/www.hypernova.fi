@@ -1,7 +1,19 @@
 ---
 import Button from './Button.astro';
+import KohaScreenshot from './KohaScreenshot.astro';
 import { resolvePath } from '../utils/navigation';
 import { useTranslations } from '../i18n/utils';
+
+interface Props {
+  /**
+   * Show the Koha staff interface screenshot above the service cards. The Koha page shows it
+   * higher up, under its own wordmark, so it leaves this section alone there; the hosting page
+   * has no such place of its own and gets it here.
+   */
+  showScreenshot?: boolean;
+}
+
+const { showScreenshot = false } = Astro.props;
 
 const i18n = {
   fi: {
@@ -36,6 +48,8 @@ const t = useTranslations(i18n, Astro);
         {t('A cost-effective way to move your library to Koha. Our small but flexible and experienced team focuses on what really matters: a dependable everyday experience with the best library system in the world.')}
       </p>
     </div>
+
+    {showScreenshot && <KohaScreenshot />}
 
     <div class="text-center max-w-8xl mx-auto mb-20 reveal-on-scroll">
 

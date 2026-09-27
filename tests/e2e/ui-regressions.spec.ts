@@ -823,3 +823,248 @@ test.describe('layout regressions', () => {
     }
   });
 });
+
+test.describe('koha staff interface screenshot', () => {
+  const figureSelector = '[data-koha-screenshot-figure]';
+  const screenshot = '[data-koha-screenshot]';
+  const option = (view: 'desktop' | 'mobile') => `[data-koha-screenshot-option="${view}"]`
+
+  /**
+   * The screenshots are large bitmaps, so `currentSrc` - the file the browser actually
+   * settled on - is the only reliable way to tell which view is on screen. It becomes
+   * readable once the image has been scrolled into view.
+   */
+  async function screenshotInView(page: Page): Promise<Locator> {
+    const image = page.locator(screenshot);
+    await image.scrollIntoViewIfNeeded();
+    await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).currentSrc)).not.toBe('');
+    return image;
+  }
+
+  /** Everything the layout promises about the painted screenshot, in one round trip. */
+  async function paintState(image: Locator) {
+    return image.evaluate((el) => {
+      const img = el as HTMLImageElement;
+      const panel = img.closest('[data-koha-screenshot-panel]') as HTMLElement;
+      const hint = document.querySelector('[data-koha-screenshot-pan-hint]') as HTMLElement | null;
+      const box = img.getBoundingClientRect();
+      return {
+        src: img.currentSrc,
+        naturalWidth: img.naturalWidth,
+        ratio: img.naturalWidth / img.naturalHeight,
+        boxWidth: box.width,
+        boxHeight: box.height,
+        panelWidth: panel.getBoundingClientRect().width,
+        // The frame animates between the two widths, so the settled value is the CSS one.
+        panelMaxWidth: parseFloat(getComputedStyle(panel).maxWidth),
+        // A frame that pans scrolls its own box, and only its own box.
+        panelScrollsSideways: panel.scrollWidth > panel.clientWidth + 1,
+        panelTabIndex: panel.getAttribute('tabindex'),
+        panHintShown: hint !== null && getComputedStyle(hint).display !== 'none',
+        reservedRatio: getComputedStyle(img).aspectRatio,
+        pageScrollsSideways: document.documentElement.scrollWidth > document.documentElement.clientWidth + 1,
+      };
+    });
+  }
+
+  test('the view that matches the viewport is the one that loads', async ({ page, isMobile }) => {
+    await page.goto('/koha/');
+    const image = await screenshotInView(page);
+    const view = isMobile ? 'mobile' : 'desktop';
+
+    await expect(page.locator(figureSelector)).toHaveAttribute('data-koha-screenshot-view', view);
+    expect(await image.evaluate((el) => (el as HTMLImageElement).currentSrc)).toContain(`en_koha_${view}`);
+    // The view that is on screen is the one announced as pressed.
+    await expect(page.locator(option(view))).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator(option(view === 'desktop' ? 'mobile' : 'desktop'))).toHaveAttribute('aria-pressed', 'false');
+  });
+
+  test('the view buttons switch between the two renditions', async ({ page }) => {
+    await page.goto('/koha/');
+    const figure = page.locator(figureSelector);
+    const image = await screenshotInView(page);
+
+    await expect(figure).toHaveAttribute('data-koha-screenshot-view', /^(desktop|mobile)$/);
+    const initial = (await figure.getAttribute('data-koha-screenshot-view')) as 'desktop' | 'mobile';
+    const target = initial === 'desktop' ? 'mobile' : 'desktop';
+
+    await page.locator(option(target)).click();
+
+    await expect(figure).toHaveAttribute('data-koha-screenshot-view', target);
+    await expect(page.locator(option(target))).toHaveAttribute('aria-pressed', 'true');
+    await expect(page.locator(option(initial))).toHaveAttribute('aria-pressed', 'false');
+    // Choosing a view really swaps the file: the browser re-runs its picture selection.
+    await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).currentSrc)).toContain(`koha_${target}`);
+  });
+
+  test('Finnish visitors get the Finnish staff interface screenshots', async ({ page, isMobile }) => {
+    await page.goto('/koha/?l=fi');
+    const image = await screenshotInView(page);
+
+    expect(await image.evaluate((el) => (el as HTMLImageElement).currentSrc)).toContain(
+      isMobile ? 'fi_koha_mobile' : 'fi_koha_desktop',
+    );
+  });
+
+  test('the screenshot scales with its panel and keeps the ratio of the decoded file', async ({ page }) => {
+    await page.goto('/koha/');
+    const image = await screenshotInView(page);
+    await expect.poll(async () => (await paintState(image)).naturalWidth).toBeGreaterThan(0);
+
+    const box = await image.boundingBox();
+    const painted = await paintState(image);
+
+    expect(box).not.toBeNull();
+    // Never wider than the card that frames it: a wide screenshot must not push the page sideways.
+    expect(box!.width).toBeLessThanOrEqual(painted.panelWidth + 1);
+    // The painted box matches the file the browser decoded, so nothing is stretched.
+    expect(box!.width / box!.height).toBeCloseTo(painted.ratio, 2);
+    // The space reserved before the file arrives matches as well, which is what keeps
+    // the scroll position stable while the screenshot is still loading.
+    const [reservedWidth, reservedHeight] = painted.reservedRatio.split('/').map((part) => Number(part.trim()));
+    expect(reservedWidth / reservedHeight).toBeCloseTo(painted.ratio, 3);
+    // No stretched-up bitmap: the file is at least as wide as the box it is drawn in.
+    expect(painted.naturalWidth).toBeGreaterThanOrEqual(box!.width);
+    expect(painted.pageScrollsSideways).toBe(false);
+  });
+
+  test('a forced view keeps its own ratio, and pans rather than shrinking where it must', async ({ page }) => {
+    await page.goto('/koha/');
+    const figure = page.locator(figureSelector);
+    const image = await screenshotInView(page);
+
+    const initial = (await figure.getAttribute('data-koha-screenshot-view')) as 'desktop' | 'mobile';
+    const target = initial === 'desktop' ? 'mobile' : 'desktop';
+    await page.locator(option(target)).click();
+    await expect(figure).toHaveAttribute('data-koha-screenshot-view', target);
+
+    // Wait for the rendition the visitor picked, not for the file the viewport asked for.
+    await expect.poll(async () => (await paintState(image)).src).toContain(`koha_${target}`);
+    await expect.poll(async () => (await paintState(image)).naturalWidth).toBeGreaterThan(0);
+
+    const painted = await paintState(image);
+    const box = await image.boundingBox();
+
+    // The painted box and the reserved box both follow the file that is on screen.
+    expect(box!.width / box!.height).toBeCloseTo(painted.ratio, 2);
+    const [reservedWidth, reservedHeight] = painted.reservedRatio.split('/').map((part) => Number(part.trim()));
+    expect(reservedWidth / reservedHeight).toBeCloseTo(painted.ratio, 3);
+    // The frame animates onto the width of the chosen view: phone sized on a wide screen,
+    // the full card for the desktop rendition.
+    await expect
+      .poll(async () => (await paintState(image)).panelMaxWidth, {
+        message: 'the frame settles on the width of the chosen view',
+      })
+      .toBeCloseTo((target === 'mobile' ? 20 : 72) * 16, -1);
+    expect(painted.panelWidth).toBeLessThanOrEqual(painted.panelMaxWidth + 1);
+
+    // A desktop capture squeezed into a phone-width frame is unreadable, so there the frame
+    // keeps a readable minimum width and pans instead of shrinking. Everywhere else the
+    // screenshot fits the frame exactly and the frame has nothing to scroll.
+    const phoneWidth = (page.viewportSize()?.width ?? 0) < 768;
+    if (target === 'desktop' && phoneWidth) {
+      expect(painted.panelScrollsSideways).toBe(true);
+      // 66rem: the capture is painted at roughly 80% of its logical size.
+      expect(box!.width).toBeGreaterThanOrEqual(66 * 16);
+      // A scroll container no keyboard can reach would be a pointer-only feature.
+      expect(painted.panelTabIndex).toBe('0');
+      expect(painted.panHintShown).toBe(true);
+    } else {
+      expect(painted.panelScrollsSideways).toBe(false);
+      expect(box!.width).toBeLessThanOrEqual(painted.panelWidth + 1);
+      expect(painted.panHintShown).toBe(false);
+    }
+
+    // Either way the forced view never widens the page.
+    expect(painted.pageScrollsSideways).toBe(false);
+  });
+
+  test('the screenshots sit above the sustainable choice copy', async ({ page }) => {
+    await page.goto('/koha/');
+    const figure = page.locator(figureSelector);
+    await expect(figure).toBeVisible();
+    await figure.scrollIntoViewIfNeeded();
+
+    // The heading the figure introduces is the one about the responsive interface.
+    await expect(page.locator('#kohaSection h2')).toHaveText(/Sustainable choice|Kestävä valinta/);
+
+    // Reading order: the cards come first, then the screenshot, then that copy.
+    const figureInBetween = await page.evaluate(() => {
+      const shot = document.querySelector('[data-koha-screenshot-figure]');
+      const card = document.querySelector('#kohaSection h3');
+      const heading = document.querySelector('#kohaSection h2');
+      if (!shot || !card || !heading) return false;
+      const afterCard = Boolean(card.compareDocumentPosition(shot) & Node.DOCUMENT_POSITION_FOLLOWING);
+      const beforeHeading = Boolean(shot.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING);
+      return afterCard && beforeHeading;
+    });
+    expect(figureInBetween).toBe(true);
+
+    const shotBox = await figure.boundingBox();
+    const cardBox = await page.locator('#kohaSection h3').first().boundingBox();
+    const headingBox = await page.locator('#kohaSection h2').boundingBox();
+    expect(shotBox).not.toBeNull();
+    expect(cardBox).not.toBeNull();
+    expect(headingBox).not.toBeNull();
+    // ... and it is painted between them, below all three cards and above the heading.
+    expect(shotBox!.y).toBeGreaterThan(cardBox!.y);
+    expect(shotBox!.y + shotBox!.height).toBeLessThanOrEqual(headingBox!.y);
+  });
+
+  test('the view buttons work after a client-side navigation to the page', async ({ page }) => {
+    // ClientRouter swaps the document instead of reloading it, so the page script has to
+    // pick up the figure it finds after the swap.
+    await page.goto('/services/');
+    await page.locator('a[href="/koha/"]').first().click();
+    await page.waitForURL('**/koha/');
+
+    const figure = page.locator(figureSelector);
+    await expect(figure).toHaveAttribute('data-koha-screenshot-view', /^(desktop|mobile)$/);
+
+    const image = await screenshotInView(page);
+    await page.locator(option('mobile')).click();
+
+    await expect(figure).toHaveAttribute('data-koha-screenshot-view', 'mobile');
+    await expect(page.locator(option('mobile'))).toHaveAttribute('aria-pressed', 'true');
+    await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).currentSrc)).toContain('koha_mobile');
+  });
+
+  test('the hosting page shows the same screenshot above its cards', async ({ page, isMobile }) => {
+    await page.goto('/koha-hosting/');
+    const figure = page.locator(figureSelector);
+    await expect(figure).toHaveCount(1);
+    await expect(figure).toBeVisible();
+
+    // Reading order: the section introduces itself, then shows the interface, then the cards.
+    const figureComesFirst = await page.evaluate(() => {
+      const shot = document.querySelector('[data-koha-screenshot-figure]');
+      const card = document.querySelector('#cloud-hosting-service h3');
+      if (!shot || !card) return false;
+      return Boolean(shot.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+    expect(figureComesFirst).toBe(true);
+
+    const image = await screenshotInView(page);
+    const view = isMobile ? 'mobile' : 'desktop';
+    await expect(figure).toHaveAttribute('data-koha-screenshot-view', view);
+    expect(await image.evaluate((el) => (el as HTMLImageElement).currentSrc)).toContain(`en_koha_${view}`);
+  });
+
+  test('the hosting page view buttons switch renditions in the visitor language', async ({ page }) => {
+    await page.goto('/koha-hosting/?l=fi');
+    const figure = page.locator(figureSelector);
+    const image = await screenshotInView(page);
+
+    // The figure speaks Finnish here too, buttons included.
+    await expect(page.locator(option('desktop'))).toContainText('Tietokonenäkymä');
+    await expect(page.locator(option('mobile'))).toContainText('Matkapuhelinnäkymä');
+
+    const initial = (await figure.getAttribute('data-koha-screenshot-view')) as 'desktop' | 'mobile';
+    const target = initial === 'desktop' ? 'mobile' : 'desktop';
+    await page.locator(option(target)).click();
+
+    await expect(figure).toHaveAttribute('data-koha-screenshot-view', target);
+    await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).currentSrc)).toContain(`fi_koha_${target}`);
+  });
+});
+

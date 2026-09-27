@@ -2,6 +2,7 @@
 import Badge from '../components/Badge.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Button from '../components/Button.astro';
+import KohaScreenshot from '../components/KohaScreenshot.astro';
 import KohaServiceComponent from '../components/KohaService.astro';
 
 import { Image } from 'astro:assets';
@@ -269,7 +270,15 @@ if (Astro.request.method === "POST") {
       <Button href="#cloud-hosting-service" variant="primary" size="lg" class="w-full sm:w-auto text-lg mt-12 px-8 py-4 shadow-xl shadow-primary-500/20">
         {t('Koha Cloud Hosting Service')}
       </Button>
-      <div class="p-8 max-w-3xl mx-auto py-32 reveal-on-scroll">
+      <!-- The screenshot sits directly above the "Sustainable choice" copy. That paragraph is
+           the one that says Koha works on desktops, tablets and phones, and the figure answers
+           it by showing both at once. The component carries the two renditions, the view switch
+           and the language pair, and the hosting page shows the very same figure above its
+           cards. -->
+      <div class="mt-20">
+        <KohaScreenshot />
+      </div>
+      <div class="p-8 max-w-3xl mx-auto pb-32 reveal-on-scroll">
         <h2 class="text-4xl md:text-5xl font-heading font-extrabold text-zinc-900 dark:text-white mb-6">
           {t('Sustainable choice')}
         </h2>

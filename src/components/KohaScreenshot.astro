@@ -1,0 +1,264 @@
+---
+/**
+ * The Koha staff interface screenshot, with a Desktop/Mobile view switch.
+ *
+ * Koha serves the same staff interface to every device, so the screenshot exists as two
+ * renditions of one instance: one drawn on a phone and one on a desktop. The viewport picks
+ * the matching one (see the <picture> below) and the two buttons let a visitor look at the
+ * other view without resizing the window. This is art direction rather than a width-based
+ * srcset, because the two renditions have different aspect ratios and the configured image
+ * service (passthroughImageService) does not resize or re-encode files.
+ *
+ * It is a component because more than one page has to answer "so what does Koha actually
+ * look like?" - the Koha page above its copy and the hosting page above its cards - and each
+ * shows it in the visitor's own language.
+ *
+ * The desktop renditions were captured with an empty band below the module grid and the
+ * trailing Suomi/English strip; both were cropped away so the frame holds nothing but the
+ * interface itself.
+ */
+import { useTranslations } from '../i18n/utils';
+import { FALLBACK_LANG, isLanguage, type Language } from '../i18n/ui';
+
+import enKohaDesktop from '../images/en_koha_desktop.png';
+import enKohaMobile from '../images/en_koha_mobile.png';
+import fiKohaDesktop from '../images/fi_koha_desktop.png';
+import fiKohaMobile from '../images/fi_koha_mobile.png';
+
+const i18n = {
+  fi: {
+    'Screenshot view': 'Kuvakaappauksen näkymä',
+    'Desktop view': 'Tietokonenäkymä',
+    'Mobile view': 'Matkapuhelinnäkymä',
+    'Scroll sideways to see the whole desktop view': 'Vieritä sivusuunnassa, niin näet koko tietokonenäkymän',
+    'The Koha staff interface on a desktop computer and on a mobile phone': 'Kohan virkailijakäyttöliittymä tietokoneella ja matkapuhelimessa',
+    'Koha staff interface home screen with the circulation, patrons, cataloging, acquisitions, reports and administration modules': 'Kohan virkailijakäyttöliittymän etusivu, jossa linkit lainaukseen, asiakkaisiin, kuvailuun, hankintoihin, raportteihin ja ylläpitoon'
+  }
+};
+const t = useTranslations(i18n, Astro);
+
+// Koha ships its own interface translations, so the screenshots exist in both languages.
+// Finnish is the only translated language: every other visitor gets the English renditions.
+const lang: Language = isLanguage(Astro.locals.lang) ? Astro.locals.lang : FALLBACK_LANG;
+const kohaDesktop = lang === 'fi' ? fiKohaDesktop : enKohaDesktop;
+const kohaMobile = lang === 'fi' ? fiKohaMobile : enKohaMobile;
+
+/*
+ * The two view buttons: one for the desktop rendition, one for the phone rendition. They are
+ * plain buttons rather than the Button component because their selected look is driven by
+ * the `aria-pressed` state the script at the bottom of this component keeps up to date,
+ * which the component's fixed variants cannot express.
+ */
+const viewOptionClass =
+  "inline-flex items-center gap-2 rounded-full border border-zinc-200 dark:border-night-line-strong bg-white/80 dark:bg-night-card/80 px-5 py-2 text-sm font-medium text-zinc-500 dark:text-zinc-400 transition-colors hover:border-zinc-300 dark:hover:border-zinc-600 hover:text-zinc-900 dark:hover:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-500 focus-visible:ring-offset-2 dark:focus-visible:ring-offset-night aria-pressed:font-semibold aria-pressed:border-primary-600 aria-pressed:bg-primary-600 aria-pressed:text-white dark:aria-pressed:border-primary-900 dark:aria-pressed:bg-primary-900 dark:aria-pressed:text-white";
+---
+
+<figure class="max-w-6xl mx-auto mb-20 reveal-on-scroll" data-koha-screenshot-figure>
+  <div
+    class="flex flex-wrap items-center justify-center gap-2 mb-6"
+    role="group"
+    aria-label={t('Screenshot view')}
+  >
+    <button type="button" data-koha-screenshot-option="desktop" aria-pressed="false" class={viewOptionClass}>
+      <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <rect x="2.5" y="4" width="19" height="12.5" rx="1.5" />
+        <path stroke-linecap="round" d="M9 20.5h6M12 16.5v4" />
+      </svg>
+      {t('Desktop view')}
+    </button>
+    <button type="button" data-koha-screenshot-option="mobile" aria-pressed="false" class={viewOptionClass}>
+      <svg class="w-4 h-4 shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+        <rect x="7" y="2.5" width="10" height="19" rx="2.5" />
+        <path stroke-linecap="round" d="M11 5.5h2M12 18.5h.01" />
+      </svg>
+      {t('Mobile view')}
+    </button>
+  </div>
+  <div
+    class="glass-panel rounded-3xl p-4 sm:p-6 mx-auto"
+    data-koha-screenshot-panel
+    aria-describedby="koha-screenshot-pan-hint"
+    style={`--koha-ratio-mobile: ${kohaMobile.width} / ${kohaMobile.height}; --koha-ratio-desktop: ${kohaDesktop.width} / ${kohaDesktop.height};`}
+  >
+    <picture>
+      <source media="(min-width: 768px)" srcset={kohaDesktop.src} />
+      <img
+        src={kohaMobile.src}
+        width={kohaMobile.width}
+        height={kohaMobile.height}
+        alt={t('Koha staff interface home screen with the circulation, patrons, cataloging, acquisitions, reports and administration modules')}
+        class="w-full h-auto rounded-2xl"
+        data-koha-screenshot
+        loading="eager"
+        fetchpriority="high"
+        decoding="async"
+      />
+    </picture>
+  </div>
+  <p
+    id="koha-screenshot-pan-hint"
+    data-koha-screenshot-pan-hint
+    class="mt-3 text-center text-sm text-zinc-500 dark:text-zinc-400 font-sans"
+  >
+    {t('Scroll sideways to see the whole desktop view')}
+  </p>
+  <figcaption class="mt-6 text-center text-base text-zinc-500 dark:text-zinc-400 font-sans">
+    {t('The Koha staff interface on a desktop computer and on a mobile phone')}
+  </figcaption>
+</figure>
+
+<style>
+  /*
+   * The two renditions are not the same shape, so the box that holds the screenshot has to
+   * follow the view that is on screen. Until the script has resolved a view (and without
+   * JavaScript) the viewport decides, exactly as the `media` attribute of the <picture>
+   * source does; after that the data attribute on the figure decides, so picture selection,
+   * reserved space and frame can never disagree.
+   *
+   * The ratios come from the imported files, so the reserved box matches the bitmap that
+   * arrives and nothing shifts while it loads.
+   */
+  [data-koha-screenshot] {
+    aspect-ratio: var(--koha-ratio-mobile);
+  }
+
+  [data-koha-screenshot-panel] {
+    max-width: 20rem; /* The w-80 phone frame for the phone rendition. */
+    transition: max-width 300ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  @media (min-width: 768px) {
+    [data-koha-screenshot] {
+      aspect-ratio: var(--koha-ratio-desktop);
+    }
+
+    [data-koha-screenshot-panel] {
+      max-width: 72rem; /* The max-w-6xl frame for the desktop rendition. */
+    }
+  }
+
+  [data-koha-screenshot-view='mobile'] [data-koha-screenshot] {
+    aspect-ratio: var(--koha-ratio-mobile);
+  }
+
+  [data-koha-screenshot-view='mobile'] [data-koha-screenshot-panel] {
+    max-width: 20rem;
+  }
+
+  [data-koha-screenshot-view='desktop'] [data-koha-screenshot] {
+    aspect-ratio: var(--koha-ratio-desktop);
+  }
+
+  [data-koha-screenshot-view='desktop'] [data-koha-screenshot-panel] {
+    max-width: 72rem;
+  }
+
+  /* The panning frame explains itself, so the hint is only painted where it pans. */
+  [data-koha-screenshot-pan-hint] {
+    display: none;
+  }
+
+  /*
+   * A phone-width frame cannot show a desktop-width capture and stay readable: the desktop
+   * files are 2x captures of a ~1329px viewport, so at panel width their text would land
+   * around 12% of its natural size. Forcing the desktop view on such a screen therefore
+   * keeps a readable minimum width - 66rem paints the capture at roughly 80% of its logical
+   * size - and the frame pans instead of shrinking. The frame scrolls, never the page.
+   */
+  @media (max-width: 767.98px) {
+    [data-koha-screenshot-view='desktop'] [data-koha-screenshot-panel] {
+      overflow-x: auto;
+      overscroll-behavior-x: contain; /* Don't hand a sideways swipe to browser history. */
+    }
+
+    [data-koha-screenshot-view='desktop'] [data-koha-screenshot] {
+      min-width: 66rem;
+    }
+
+    [data-koha-screenshot-view='desktop'] [data-koha-screenshot-pan-hint] {
+      display: block;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-koha-screenshot-panel] {
+      transition: none;
+    }
+  }
+</style>
+
+<script>
+  /**
+   * The Koha screenshot ships as two renditions of the same staff interface: one drawn on a
+   * phone and one on a desktop. The viewport picks the matching rendition by default (the
+   * `media` attribute of the <picture> source in the markup) and the two view buttons let a
+   * visitor force the other one, for example to check the phone layout on a desktop.
+   *
+   * Forcing a rendition means rewriting that `media` query: it is what makes the browser
+   * re-run its picture selection, so only one of the two files is ever fetched. `all`
+   * always matches `not all` never does.
+   */
+  function setupKohaScreenshotView() {
+    const figure = document.querySelector<HTMLElement>('[data-koha-screenshot-figure]');
+
+    // ClientRouter swaps the figure on navigation while the script stays installed.
+    if (!figure || figure.dataset.kohaScreenshotBound === 'true') return;
+
+    const source = figure.querySelector<HTMLSourceElement>('source');
+    const options = Array.from(figure.querySelectorAll<HTMLButtonElement>('[data-koha-screenshot-option]'));
+    if (!source || options.length === 0) return;
+
+    // Explicit types: apply() below closes over these, where narrowing is lost.
+    const root: HTMLElement = figure;
+    const rendition: HTMLSourceElement = source;
+    const buttons: HTMLButtonElement[] = options;
+    const frame = figure.querySelector<HTMLElement>('[data-koha-screenshot-panel]');
+    root.dataset.kohaScreenshotBound = 'true';
+
+    // The same width as the `media` the markup ships with, so "no choice made yet" behaves
+    // exactly like the CSS-only version of this figure.
+    const wideViewport = window.matchMedia('(min-width: 768px)');
+    // Empty until the visitor picks a view: until then the viewport keeps deciding.
+    let forced = '';
+
+    function apply() {
+      const view = forced || (wideViewport.matches ? 'desktop' : 'mobile');
+
+      rendition.media = view === 'desktop' ? 'all' : 'not all';
+      root.dataset.kohaScreenshotView = view;
+
+      buttons.forEach((button) => {
+        button.setAttribute('aria-pressed', String(button.dataset.kohaScreenshotOption === view));
+      });
+
+      // On a narrow screen the CSS gives a forced desktop view a readable minimum width and
+      // pans the frame (see the <style> block). A scroll container that no keyboard can reach
+      // is a pointer-only feature, so the frame becomes a tab stop exactly while it pans; the
+      // hint under it says the same thing in words.
+      if (frame) {
+        if (view === 'desktop' && !wideViewport.matches) {
+          frame.setAttribute('tabindex', '0');
+        } else {
+          frame.removeAttribute('tabindex');
+        }
+      }
+    }
+
+    buttons.forEach((button) => {
+      button.addEventListener('click', () => {
+        forced = button.dataset.kohaScreenshotOption === 'desktop' ? 'desktop' : 'mobile';
+        apply();
+      });
+    });
+
+    // Crossing the desktop breakpoint leaves apply() work to do either way: with no choice
+    // made yet the viewport decides the view, and with a forced view the frame starts or
+    // stops panning.
+    wideViewport.addEventListener('change', apply);
+
+    apply();
+  }
+
+  setupKohaScreenshotView();
+  document.addEventListener('astro:page-load', setupKohaScreenshotView);
+</script>
