@@ -16,7 +16,13 @@ const i18n: i18n = {
     'Company': 'Yritys',
     'Contact': 'Yhteystiedot',
     'Privacy Policy': 'Tietosuojaseloste',
-    'Terms of Service': 'Palveluehdot'
+    'Terms of Service': 'Palveluehdot',
+    // The credits line at the bottom. It is broken around the three links it carries, so
+    // each piece around a link is translated on its own and the names stay as they are.
+    'All rights reserved. Built on': 'Kaikki oikeudet pidätetään. Rakennettu',
+    ' web framework. Theme "': '-verkkokehyksellä. Teema "',
+    '", a fork of "': '", joka on "',
+    '".': '"-teeman haarautuma.'
   }
 };
 i18n['fi'][SITE_DESCRIPTION] = SITE_DESCRIPTION_I18N['fi'];
@@ -58,7 +64,7 @@ const t = useTranslations(i18n, Astro);
 
     <div class="border-t border-zinc-200 dark:border-night-line pt-8 flex flex-col md:flex-row items-center justify-between gap-4">
       <p class="text-sm text-zinc-500 dark:text-zinc-400">
-        &copy; {new Date().getFullYear()} Hypernova Oy. All rights reserved. Built on <a href="https://astro.build" class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors" target="_blank" rel="noopener noreferrer">Astro</a> web framework. Theme "<a href="https://github.com/Hypernova-Oy/www.hypernova.fi" class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors" target="_blank" rel="noopener noreferrer">hypernova</a>", a fork of "<a href="https://github.com/farrosfr/zenix" class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors" target="_blank" rel="noopener noreferrer">Zenix</a>".
+        &copy; {new Date().getFullYear()} Hypernova Oy. {t('All rights reserved. Built on')} <a href="https://astro.build" class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors" target="_blank" rel="noopener noreferrer">Astro</a>{t(' web framework. Theme "')}<a href="https://github.com/Hypernova-Oy/www.hypernova.fi" class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors" target="_blank" rel="noopener noreferrer">hypernova</a>{t('", a fork of "')}<a href="https://github.com/farrosfr/zenix" class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors" target="_blank" rel="noopener noreferrer">Zenix</a>{t('".')}
       </p>
       
       <!-- Social Icons -->

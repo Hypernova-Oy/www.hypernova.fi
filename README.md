@@ -172,6 +172,11 @@ const t = useTranslations(i18n, Astro);
 English keys are used as-is; missing Finnish entries fall back to English. Add new
 copy to the component's `fi` dictionary next to where it is rendered.
 
+`t()` returns text, so it cannot hold the markup of a sentence that carries a link:
+a sentence like that is broken into pieces around its links and each piece is
+translated where it sits. The credits line at the bottom of the footer is four
+entries for that reason.
+
 The language switcher is `src/components/LanguagePicker.astro`. It links to the same page
 with `?l=`, so changing language never leaves the page the visitor is on. The desktop nav
 bar holds it as a plain link; because that bar is hidden on a small screen, the mobile menu

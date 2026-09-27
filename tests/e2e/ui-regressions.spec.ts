@@ -816,6 +816,24 @@ test.describe('localization', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'fi');
     await expect(page.getByRole('heading', { name: 'Helppo ja luotettava' })).toBeVisible();
   });
+
+  test('the credits line in the footer follows the language, links and all', async ({ page }) => {
+    const footer = page.locator('body > footer').first();
+
+    await page.goto('/');
+    await expect(footer).toContainText('Hypernova Oy. All rights reserved. Built on Astro web framework.');
+    await expect(footer).toContainText('Theme "hypernova", a fork of "Zenix".');
+
+    // Reading the Finnish page is what sets the language cookie, so it comes second.
+    await page.goto('/?l=fi');
+    await expect(footer).toContainText('Kaikki oikeudet pidätetään. Rakennettu Astro-verkkokehyksellä.');
+    await expect(footer).toContainText('Teema "hypernova", joka on "Zenix"-teeman haarautuma.');
+
+    // The three links keep their names and their targets in either language.
+    await expect(footer.locator('a[href="https://astro.build"]')).toHaveText('Astro');
+    await expect(footer.locator('a[href="https://github.com/Hypernova-Oy/www.hypernova.fi"]')).toHaveText('hypernova');
+    await expect(footer.locator('a[href="https://github.com/farrosfr/zenix"]')).toHaveText('Zenix');
+  });
 });
 
 test.describe('forms', () => {
