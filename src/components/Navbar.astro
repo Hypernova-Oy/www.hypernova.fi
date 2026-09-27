@@ -102,8 +102,11 @@ const t = useTranslations(i18n, Astro);
 </header>
 
 <script>
+  // Must match THEME_KEY in the theme script in BaseLayout.astro.
+  const THEME_KEY = 'hypernova-theme';
+
   function setupTheme() {
-    const storedTheme = localStorage.getItem('theme');
+    const storedTheme = localStorage.getItem(THEME_KEY);
     if (storedTheme === 'dark' || storedTheme === 'light') {
       document.documentElement.classList.toggle('dark', storedTheme === 'dark');
     }
@@ -119,7 +122,7 @@ const t = useTranslations(i18n, Astro);
 
     function toggleTheme() {
       const isDark = document.documentElement.classList.toggle('dark');
-      localStorage.setItem('theme', isDark ? 'dark' : 'light');
+      localStorage.setItem(THEME_KEY, isDark ? 'dark' : 'light');
       updateIcons();
     }
 

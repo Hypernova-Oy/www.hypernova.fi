@@ -1,7 +1,13 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+/** Matches THEME_KEY in the theme script in BaseLayout.astro and the Navbar toggle. */
+const THEME_KEY = 'hypernova-theme';
+
 async function useTheme(page: Page, theme: 'light' | 'dark') {
-  await page.addInitScript((value) => localStorage.setItem('theme', value), theme);
+  await page.addInitScript((stored) => localStorage.setItem(stored.key, stored.theme), {
+    key: THEME_KEY,
+    theme,
+  });
 }
 
 /**
@@ -134,6 +140,54 @@ test.describe('head metadata', () => {
 });
 
 test.describe('theme', () => {
+  test.describe('light default', () => {
+    // Every test gets a fresh context, so nothing is stored yet.
+    test.use({ colorScheme: 'dark' });
+
+    test('white theme is the default for first-time visitors, even with a dark OS setting', async ({ page }) => {
+      await page.goto('/');
+      await page.waitForTimeout(600);
+
+      await expect(page.locator('html')).not.toHaveClass(/dark/);
+      await expect
+        .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).colorScheme))
+        .toBe('light');
+      // Dark mode stays opt-in: the default is applied, not pinned to storage.
+      expect(await page.evaluate((key) => localStorage.getItem(key), THEME_KEY)).toBeNull();
+
+      // Opting in still works from a fresh, unstored default.
+      await page.locator('[data-theme-toggle]:visible').first().click();
+      await expect(page.locator('html')).toHaveClass(/dark/);
+      await expect
+        .poll(() => page.evaluate((key) => localStorage.getItem(key), THEME_KEY))
+        .toBe('dark');
+    });
+
+    test('a legacy OS-derived theme entry cannot force dark mode', async ({ page }) => {
+      // Older builds stored the OS colour scheme in the 'theme' key on every visit,
+      // so a single dark-OS visit used to pin a browser to dark forever.
+      await page.addInitScript(() => localStorage.setItem('theme', 'dark'));
+      await page.goto('/');
+      await page.waitForTimeout(600);
+
+      await expect(page.locator('html')).not.toHaveClass(/dark/);
+      await expect
+        .poll(() => page.evaluate(() => getComputedStyle(document.documentElement).colorScheme))
+        .toBe('light');
+      await expect.poll(() => page.evaluate(() => localStorage.getItem('theme'))).toBeNull();
+
+      // A deliberate pick after the migration is honoured and survives a reload.
+      await page.locator('[data-theme-toggle]:visible').first().click();
+      await expect(page.locator('html')).toHaveClass(/dark/);
+      await expect
+        .poll(() => page.evaluate((key) => localStorage.getItem(key), THEME_KEY))
+        .toBe('dark');
+
+      await page.reload();
+      await expect(page.locator('html')).toHaveClass(/dark/);
+    });
+  });
+
   test('dark mode uses lifted surfaces instead of near-black', async ({ page }) => {
     await useTheme(page, 'dark');
     await page.goto('/');
@@ -199,7 +253,9 @@ test.describe('theme', () => {
       .poll(() => body.evaluate((el) => getComputedStyle(el).backgroundColor))
       .not.toBe(darkBodyColor);
 
-    await expect.poll(() => page.evaluate(() => localStorage.getItem('theme'))).toBe('light');
+    await expect
+      .poll(() => page.evaluate((key) => localStorage.getItem(key), THEME_KEY))
+      .toBe('light');
   });
 
   test('theme survives client-side navigation', async ({ page, isMobile }) => {

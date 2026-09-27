@@ -112,22 +112,34 @@ const lang = Astro.locals.lang;
 
     <ClientRouter />
 
-    <!-- Dark Mode initialization script to prevent FOUC and preserve theme across routes -->
+    <!-- Theme initialization script to prevent FOUC and preserve the theme across routes.
+         Light (white) is the default look: dark mode is opt-in and only applies once a
+         visitor picks it with the navbar toggle, never from the OS colour scheme. -->
     <script is:inline data-astro-rerun>
       (() => {
+        // Keep in sync with the theme toggle in Navbar.astro.
+        const THEME_KEY = 'hypernova-theme';
+        // Older builds followed the OS colour scheme and wrote the result into the
+        // 'theme' key for every visitor, so an entry there is not a deliberate pick.
+        // It is dropped once so it can no longer keep a browser stuck on dark.
+        const LEGACY_THEME_KEY = 'theme';
+
         const getPreferredTheme = () => {
-          if (typeof localStorage !== 'undefined' && localStorage.getItem('theme')) {
-            return localStorage.getItem('theme');
-          }
-          if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-            return 'dark';
+          if (typeof localStorage !== 'undefined') {
+            localStorage.removeItem(LEGACY_THEME_KEY);
+
+            const stored = localStorage.getItem(THEME_KEY);
+            if (stored === 'dark' || stored === 'light') {
+              return stored;
+            }
           }
           return 'light';
         };
 
+        // Only the navbar toggle persists a choice, so the default stays
+        // "whatever the visitor picked" instead of pinning the fallback.
         const applyTheme = (theme, root = document.documentElement) => {
           root.classList.toggle('dark', theme === 'dark');
-          window.localStorage.setItem('theme', theme);
         };
 
         applyTheme(getPreferredTheme());
@@ -136,16 +148,15 @@ const lang = Astro.locals.lang;
           window.__zenixThemeBound = true;
 
           document.addEventListener('astro:before-swap', (event) => {
-            const theme = localStorage.getItem('theme') || getPreferredTheme();
-            event.newDocument.documentElement.classList.toggle('dark', theme === 'dark');
+            event.newDocument.documentElement.classList.toggle('dark', getPreferredTheme() === 'dark');
           });
 
           document.addEventListener('astro:after-swap', () => {
-            applyTheme(localStorage.getItem('theme') || getPreferredTheme());
+            applyTheme(getPreferredTheme());
           });
 
           document.addEventListener('astro:page-load', () => {
-            applyTheme(localStorage.getItem('theme') || getPreferredTheme());
+            applyTheme(getPreferredTheme());
           });
         }
       })();
