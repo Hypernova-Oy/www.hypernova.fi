@@ -25,6 +25,9 @@ cp .env.example .env   # fill in the Redmine values, set FORM_TOKEN_SECRET
 npm run dev            # http://localhost:4321
 ```
 
+On a fresh Debian or Ubuntu server, `scripts/deploy/install.sh` does both of the above plus
+the service account, the systemd unit, Apache and TLS, and checks the result (see Deployment).
+
 ## Commands
 
 ```bash
@@ -193,9 +196,18 @@ visitor leaves our server:
   (the standalone Node server is a single process). The client address is the last
   `X-Forwarded-For` hop our Apache proxy appended, or the socket address. That last hop
   is used on purpose: behind a local proxy the socket address is always `127.0.0.1`, so
-  the proxy has to append the real client address (mod_proxy does this by default).
+  the proxy has to append the real client address (mod_proxy does this by default). On a
+  host behind `--behind-proxy` it is the edge proxy in front of Apache that saw the
+  visitor, so that mode turns mod_proxy's own hop off: otherwise its hop would be the
+  edge's address for every visitor and a single bucket would fill up for the whole
+  internet.
 - **Cross-site and content checks** - `Sec-Fetch-Site`/`Origin` must belong to us, and
   free text may not contain control characters, HTML/BBCode markup or more than 4 links.
+  Astro's own origin check (`security.checkOrigin`) is switched off in `astro.config.mjs`,
+  because it compares the browser's `https://` origin with the URL the Node adapter derived
+  from the plain HTTP socket behind the proxy, which turns every real submission into
+  `403 Cross-site POST form submissions are forbidden`. The check in `form-protection.ts`
+  compares host names instead, so it keeps working behind a proxy that ends TLS.
 - **Bounded fields** - every field is length-capped (inputs and textareas carry matching
   `maxlength`), stripped of control characters and single-line-normalised before it is
   stored in the form state or sent to Redmine.
@@ -275,8 +287,128 @@ reviewed before publishing.
 
 ## Deployment
 
-The site is server-rendered and is deployed behind Apache on the Hypernova servers.
-Build and run it as a long-lived Node process:
+The site is server-rendered and runs as a systemd service behind Apache on the Hypernova
+servers. `scripts/deploy/install.sh` sets that up on a fresh Debian or Ubuntu host in one
+command: it installs the packages, creates the service account, copies the code, writes
+`.env`, builds, installs the unit and the virtual host, requests a Let's Encrypt
+certificate and verifies the running site.
+
+```bash
+sudo bash scripts/deploy/install.sh                       # www.hypernova.fi, 127.0.0.1:4321
+sudo bash scripts/deploy/install.sh --domain staging.example.com --no-tls
+scripts/deploy/install.sh --dry-run                       # print the changes, make none
+```
+
+Every step is idempotent, so the same command deploys the next version: it syncs the code
+into `--dir`, reinstalls the dependencies, rebuilds, restarts `hypernova.service` and runs
+the checks again. The default source is the checkout this script lives in, because the site
+lives on the `hypernova.fi` branch of this repository while `origin/master` is still the
+upstream Zenix theme - run the script from an up-to-date checkout. To let the server pull
+its own updates, point it at a git remote whose branch holds the site instead:
+
+```bash
+sudo bash scripts/deploy/install.sh \
+  --repo https://github.com/Hypernova-Oy/www.hypernova.fi.git --branch hypernova.fi
+```
+
+The branch must exist on that remote (a run stops with a clear message when it does not) and
+the service account needs read access to it - a public URL, or a deploy key in its home
+directory. `origin` carries `master` only so far, so pushing the site branch there once is
+what turns the flow on. Later runs fetch and hard-reset `--dir` to that branch, so that
+command is also the update command.
+
+Copying the checkout leaves its `.git`, `node_modules`, `dist` and `.env` behind: the server
+keeps the `.env` it was given, and the build it produces, across deploys.
+
+| Option | Default | Effect |
+| --- | --- | --- |
+| `-d, --domain` | `www.hypernova.fi` | Public hostname (`ServerName`, certificate) |
+| `-p, --port`, `--host` | `4321`, `127.0.0.1` | Where the Node process listens |
+| `-s, --service` | `hypernova` | systemd unit and `/etc/apache2/sites-available/<name>.conf` |
+| `-u, --user`, `--dir` | `hypernova`, `/opt/hypernova/app` | Service account and the checkout it owns |
+| `-r, --repo`, `-b, --branch` | this checkout | Git remote and branch to deploy |
+| `--source` | this checkout | Tree to copy into `--dir` |
+| `-e, --env-file`, `-m, --email` | generated, none | Seed `.env` from a file; Let's Encrypt account for expiry mail |
+| `--no-packages`, `--no-apache`, `--no-tls`, `--dry-run` | - | Skip or rehearse parts of the run |
+| `--behind-proxy` | - | A proxy that ends TLS sits in front: serve plain HTTP, no certificate, no listener on `443`, keep that proxy's `X-Forwarded-*` chain |
+
+Every option also has a `HYPERNOVA_*` environment variable (see `--help`).
+
+The service account owns `--dir` with owner-only permissions, because `.env` is read while
+`npm run build` runs: the Redmine endpoint and project ids are baked into the server chunks,
+so the built bundle must not be world-readable. Keep `FORM_TOKEN_SECRET` stable across
+restarts and deploys so forms that are already open stay valid, and re-run the script after
+editing `.env` - the running service keeps the values it was built with.
+
+`--domain` reaches the bundle as `HYPERNOVA_SITE_URL`, which becomes the build's `site`:
+canonical links and the sitemap then point at the domain that is being deployed, not at
+production. The script also sets `HYPERNOVA_ALLOWED_HOSTS` to the domain and its `www` twin.
+That list is what the **dev and preview servers** accept as a `Host` (Vite's host check,
+`server.allowedHosts` in `astro.config.mjs`; without it a development machine reached through
+a container or LAN name gets `403 Blocked request`). The built server that the deployment
+runs does not look at the `Host` header, so what answers on a name is decided by Apache and
+the certificate.
+
+Apache gets `ProxyPreserveHost On` (the forms compare the request host) and `retry=0` on the
+proxy, so a stopped service fails fast instead of hanging. The `:80` redirect, `mod_ssl` and
+the certificate come from `certbot --apache`, which the script re-runs on every deploy.
+Without `--email` no expiry warnings are sent, and while the names do not resolve yet the
+site stays on plain HTTP with a warning instead of failing. In the mode below, none of that
+happens: this host gets no certificate and does not listen on `443`.
+
+Check the result at any time:
+
+```bash
+sudo systemctl status hypernova
+sudo journalctl -u hypernova -n 50
+curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4321/
+```
+
+The deploy ends by checking that the unit - not a leftover dev server - is what answers on
+`--port`, that the homepage renders in both languages, that a legacy URL redirects with `301`,
+that `/search-index.json` carries page text for every entry, that Apache proxies the domain
+to the process, and that a form submission posted the way a browser posts it (with
+`Origin: https://<domain>`) is rendered instead of refused. A port that something else holds
+fails the run, instead of reporting a green deploy while another process serves its own pages.
+
+### Behind a proxy that ends TLS
+
+Run the script with `--behind-proxy` when another machine terminates TLS for this one:
+
+```bash
+sudo bash scripts/deploy/install.sh --behind-proxy
+```
+
+This host then serves plain, unencrypted HTTP and owns no certificate. The script skips
+certbot, does not enable `mod_ssl`, disables it if an earlier deploy had enabled it, and
+leaves the virtual host on port `80` with no redirect to HTTPS. The module matters because
+Debian's `ports.conf` puts its `Listen 443` inside `<IfModule ssl_module>`: with `mod_ssl`
+gone, Apache has no listener on `443` at all. Point the proxy at `127.0.0.1:80` - or at
+`--host`:`--port` with `--no-apache`.
+
+Two things the proxy has to do:
+
+  * pass the visitor's address on in `X-Forwarded-For`, with its own address last, because the
+    rate limit counts the last hop;
+  * keep that hop private: anyone who can reach the target directly can send an
+    `X-Forwarded-For` of their own and step around the rate limit.
+
+The mode also tells Apache to keep the `X-Forwarded-For` chain the proxy sent
+(`ProxyAddHeaders Off`). On its own, mod_proxy appends a hop of its own, which behind an edge
+is that edge's address for every visitor: one bucket for the whole internet, and the sixth
+submission from anyone would be refused. The checks at the end of a proxy-mode run send the
+headers such a proxy adds, so what they verify is the path visitors take.
+
+A certificate or a certbot that an earlier run left on this host is no longer served. Nothing
+renews it while the site is in this mode, so stop the timer too unless another site on the
+host uses it: `sudo systemctl disable --now certbot.timer`.
+
+### Without the script
+
+### Without the script
+
+For another platform, or to see what the script does, build and run the site as a
+long-lived Node process:
 
 ```bash
 npm ci
@@ -284,26 +416,21 @@ npm run build          # emits dist/client and dist/server
 HOST=127.0.0.1 PORT=4321 npm start
 ```
 
-`.env` is read while `npm run build` runs - the Redmine endpoint and project ids are
-baked into the server chunks - so build on the machine (or with the values) that the
-deployment uses, and keep `FORM_TOKEN_SECRET` stable across restarts and deploys so
-open forms stay valid.
-
-The Node entry respects the `HOST` and `PORT` environment variables. Apache then
-proxies the domain to that process (mod_proxy + mod_ssl), including the legacy
-redirects that Astro answers itself:
+The Node entry respects the `HOST` and `PORT` environment variables, and Apache proxies the
+domain to that process (mod_proxy + mod_ssl), including the legacy redirects that Astro
+answers itself:
 
 ```apache
 <VirtualHost *:443>
   ServerName www.hypernova.fi
   ProxyPreserveHost On
-  ProxyPass / http://127.0.0.1:4321/
+  ProxyPass / http://127.0.0.1:4321/ retry=0
   ProxyPassReverse / http://127.0.0.1:4321/
 </VirtualHost>
 ```
 
-Keep the Redmine environment variables available to the service (for example in an
-`EnvironmentFile`) so the forms can create issues in production.
+Pass `HOST`/`PORT` to the process (the generated unit does): `/search-index.json` renders each
+page over `http://127.0.0.1:$PORT` to fill the searchable text.
 
 ### Refreshing the search index
 
