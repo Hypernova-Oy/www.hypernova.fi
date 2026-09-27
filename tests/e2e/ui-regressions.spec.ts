@@ -1200,6 +1200,42 @@ test.describe('layout regressions', () => {
     }
   });
 
+  test('the Koha logo never outgrows its desktop size', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'The check drives the viewport itself.');
+
+    // The logo is a wide file (768x220) with no width of its own, so it used to stretch to
+    // whatever row it sat in: a phone drew it wider than the desktop layout does.
+    const logo = () =>
+      page.evaluate(() => {
+        const image = document.querySelector('img[alt="Koha"]')!;
+        const box = image.getBoundingClientRect();
+        const cell = image.closest('div')!.getBoundingClientRect();
+
+        return { width: box.width, left: box.left - cell.left, right: cell.right - box.right };
+      });
+
+    for (const path of ['/koha/', '/koha-hosting/']) {
+      await page.setViewportSize({ width: 1280, height: 900 });
+      await page.goto(path);
+      const desktop = await logo();
+
+      for (const width of [768, 640, 393]) {
+        await page.setViewportSize({ width, height: 900 });
+        await page.goto(path);
+
+        const narrow = await logo();
+        const where = `${path} at ${width}px`;
+
+        // The cap keeps the narrower viewports at or under the desktop size, and leaves
+        // the logo in the middle of its cell rather than against one edge.
+        expect(narrow.width, `${where} draws a wider logo than the desktop layout`).toBeLessThanOrEqual(
+          desktop.width + 1,
+        );
+        expect(Math.abs(narrow.left - narrow.right), `${where} is not centred in its cell`).toBeLessThanOrEqual(1);
+      }
+    }
+  });
+
   test('form section labels stay centred inside their panel', async ({ page }) => {
     await useTheme(page, 'light');
 

@@ -110,6 +110,11 @@ section of `/koha/` that replaced them (`/koha-hosting-quote/` →
 Finnish URLs of the old site become the same page with the `?l=fi` language parameter
 (`/fi/lainuri-lainausautomaatti/` → `/lainuri-checkout-machine/?l=fi`).
 
+The Koha logo on `/koha/` and `/koha-hosting/` is a wide file (768x220) that carries no
+width of its own, so it is capped below `md` (`w-56`) and left to its grid cell above it.
+Without the cap it filled whatever row it sat in, which drew it wider on a phone than the
+desktop layout ever does.
+
 ## Search (command palette)
 
 The navbar search button and `Ctrl`/`Cmd` + `K` open the shared palette component
