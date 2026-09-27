@@ -37,6 +37,7 @@ npm run test        # Unit tests + Playwright regression tests
 npm run test:unit   # Node's built-in test runner (form protection logic)
 npm run test:e2e    # Playwright regression tests
 npm run bench:scroll # Chromium scroll-smoothness benchmark (needs a running server)
+npm run index:refresh # Build, restart the site and verify the search index (see Deployment)
 ```
 
 Playwright needs browsers installed once:
@@ -104,8 +105,8 @@ Legacy URLs are redirected in `astro.config.mjs` (for example
 
 The navbar search button and `Ctrl`/`Cmd` + `K` open the shared palette component
 (`src/components/CommandPalette.astro`). It fetches `/search-index.json` once per
-language and matches every word of the query against the title, the description and
-the hidden `keywords` of an entry.
+language and matches every word of the query against the title, the description, the
+hidden `keywords` and the `content` of an entry.
 
 `src/pages/search-index.json.ts` builds the index:
 
@@ -114,14 +115,34 @@ the hidden `keywords` of an entry.
   language;
 - `keywords`, which always holds both languages plus extra terms (for example
   `kirjasto`, `hosting`, `kulunvalvonta`), so a search matches in either language;
+- `content`, the text of the page itself in the visitor's language, so a page is found
+  by anything written on it (`maailman ensimmäinen`, `since 1999`) and not only by its
+  title, description or keywords;
 - `/blog/` and `/changelog/` plus their entries, but only once they have published
-  (non-draft) content.
+  (non-draft) content. Blog and changelog entries carry their own body text.
+
+`content` is not written twice anywhere: the server renders the page and
+`src/utils/search-content.ts` reads the `<main>` element of that answer back, in the
+same request that asks for the index. The head, the navbar and the footer are left out,
+because they are identical on every page and would make every page a match for
+"contact" or "language". A page that cannot be read (a render error, a timeout) keeps
+its title, description and keywords and is reported in the log, so a failure never
+takes the palette down with it. Every page is read once per process in a production
+build, and on every request in `npm run dev` so that copy changes show up immediately.
+
+The palette highlights every word of the query where it is visible: in the title, in the
+description, and - when the words are not part of those two - in a snippet of the page text,
+so it is clear why an entry matched. The snippet window around a match is chosen to hold as
+many of the query words as possible, which keeps a phrase (say `maailman ensimmäinen`) in one
+piece, and both it and the title/description highlight the words in the casing of the entry.
+A word that only `keywords` carries (`kirjasto` on an English page, for example) is still
+matched but cannot be highlighted, because it is not part of the visible copy.
 
 Because the payload depends on the language cookie, it is served with
 `Cache-Control: private` and `Vary: Cookie` and must not be cached by a shared proxy.
-Keep those headers when adding entries, and keep the entry shape
-(`title`, `description`, `keywords`, `slug`, `type`) - the palette renders those fields
-and links to `slug` directly.
+Keep those headers when adding entries, and keep the entry shape (`title`,
+`description`, `keywords`, `content`, `slug`, `type`) - the palette displays `title`,
+`description` and `type`, matches on `keywords` and `content`, and links to `slug`.
 
 ## Localization
 
@@ -277,6 +298,36 @@ redirects that Astro answers itself:
 
 Keep the Redmine environment variables available to the service (for example in an
 `EnvironmentFile`) so the forms can create issues in production.
+
+### Refreshing the search index
+
+`/search-index.json` (the data behind the command palette) is generated per request from the
+running bundle, so nothing is cached and nothing has to be purged: new content shows up once
+the service runs the new build. `scripts/refresh-search-index.sh` builds, restarts and verifies
+in one step, and is meant to run on the server that serves the site (it is also available as
+`npm run index:refresh -- <options>`):
+
+```bash
+scripts/refresh-search-index.sh                        # build, restart, verify
+scripts/refresh-search-index.sh --url https://www.hypernova.fi --service hypernova
+scripts/refresh-search-index.sh --restart "sudo systemctl restart hypernova"
+scripts/refresh-search-index.sh --no-build --no-restart   # only compare, change nothing
+```
+
+It starts the bundle just built on a spare port (`--probe-port`, default 4399) and compares
+`/search-index.json` for English and Finnish against the live URL. Every entry must carry
+`slug`, `title`, `description`, `keywords`, `content` and `type`, slugs must be unique, and
+the live payload must be identical to the fresh build for both languages. A service that was
+not restarted - or that still runs an older bundle - fails the run with the differing entry
+named, instead of silently serving a stale index. `Cache-Control: private, no-cache` and
+`Vary: Cookie` are reported as notes when the live headers drift from what the README
+describes. Exit status: `0` the live index matches the new build, `1` it does not, `2` the
+arguments or the environment are wrong.
+
+Both the live server and the probe server read the pages of the site themselves to fill
+`content` (once per process and language), so a run that reports a missing `content` means
+the pages could not be rendered - check the service log for the lines
+`Search index: no text for <path>`.
 
 ## Contributing and Collaboration
 

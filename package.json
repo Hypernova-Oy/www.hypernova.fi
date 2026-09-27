@@ -29,6 +29,7 @@
     "build": "astro build",
     "check": "astro check",
     "bench:scroll": "node scripts/scroll-bench.mjs",
+    "index:refresh": "bash scripts/refresh-search-index.sh",
     "start": "node ./dist/server/entry.mjs",
     "test": "npm run test:unit && npm run test:e2e",
     "test:unit": "node --test tests/unit/*.test.ts",

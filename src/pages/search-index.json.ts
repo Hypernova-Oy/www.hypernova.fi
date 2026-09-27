@@ -1,6 +1,7 @@
 import type { APIRoute } from 'astro';
 import { getCollection } from 'astro:content';
 import { FALLBACK_LANG, isLanguage, type Language } from '../i18n/ui';
+import { loadPageText, markdownToPlainText } from '../utils/search-content';
 
 type LocalizedText = Record<Language, string>;
 
@@ -122,7 +123,11 @@ const PAGES: PageEntry[] = [
 
 const localized = (value: LocalizedText, lang: Language) => value[lang] ?? value[FALLBACK_LANG];
 
-const toIndexEntry = (page: PageEntry, lang: Language) => ({
+/**
+ * The text of the page itself, so that a query finds a page by anything that is
+ * written on it and not only by its title, description or keywords.
+ */
+const toIndexEntry = (page: PageEntry, lang: Language, content = '') => ({
   title: localized(page.title, lang),
   description: localized(page.description, lang),
   keywords: [
@@ -132,18 +137,44 @@ const toIndexEntry = (page: PageEntry, lang: Language) => ({
     page.description.fi,
     page.keywords,
   ].join(' '),
+  content,
   slug: page.slug,
   type: page.type,
 });
 
-export const GET: APIRoute = async ({ locals }) => {
+/**
+ * Where the running server reaches itself to read the pages back. The loopback
+ * port the process was started with wins (`PORT` in the systemd unit); without
+ * it the origin of this request is used, which is the dev server and any other
+ * adapter.
+ */
+function selfOrigin(url: URL): string {
+  const port = process.env.PORT?.trim();
+
+  return port && /^\d+$/.test(port) ? `http://127.0.0.1:${port}` : url.origin;
+}
+
+export const GET: APIRoute = async ({ locals, url }) => {
   const lang: Language = isLanguage(locals.lang) ? locals.lang : FALLBACK_LANG;
 
   const posts = await getCollection('blog', ({ data }) => data.draft !== true);
   const changelog = await getCollection('changelog', ({ data }) => data.draft !== true);
 
+  // Every page is read in the language of this request, so the text a visitor
+  // can search is the text that visitor would read.
+  const pageText = await loadPageText({
+    origin: selfOrigin(url),
+    lang,
+    cache: import.meta.env.PROD,
+    slugs: [
+      ...PAGES.map((page) => page.slug),
+      ...(posts.length > 0 ? ['/blog/'] : []),
+      ...(changelog.length > 0 ? ['/changelog/'] : []),
+    ],
+  });
+
   const index = [
-    ...PAGES.map((page) => toIndexEntry(page, lang)),
+    ...PAGES.map((page) => toIndexEntry(page, lang, pageText.get(page.slug) ?? '')),
     // Only advertise the index pages once they actually have entries.
     ...(posts.length > 0
       ? [
@@ -158,7 +189,8 @@ export const GET: APIRoute = async ({ locals }) => {
               },
               keywords: 'blog blogi artikkelit articles kirjoitukset',
             },
-            lang
+            lang,
+            pageText.get('/blog/') ?? ''
           ),
         ]
       : []),
@@ -166,6 +198,7 @@ export const GET: APIRoute = async ({ locals }) => {
       title: post.data.title,
       description: post.data.description,
       keywords: [post.data.title, post.data.description, ...post.data.tags].join(' '),
+      content: markdownToPlainText(post.body ?? ''),
       slug: `/blog/${post.id}/`,
       type: 'Blog Post',
     })),
@@ -182,7 +215,8 @@ export const GET: APIRoute = async ({ locals }) => {
               },
               keywords: 'muutosloki changelog release notes päivitykset updates versio',
             },
-            lang
+            lang,
+            pageText.get('/changelog/') ?? ''
           ),
         ]
       : []),
@@ -191,6 +225,7 @@ export const GET: APIRoute = async ({ locals }) => {
       description:
         lang === 'fi' ? 'Palveluiden päivitys ja julkaisutiedote.' : 'Product update and release note.',
       keywords: [entry.data.version, entry.data.title, entry.data.type].join(' '),
+      content: markdownToPlainText(entry.body ?? ''),
       slug: '/changelog/',
       type: 'Changelog',
     })),

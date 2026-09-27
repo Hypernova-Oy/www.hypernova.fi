@@ -84,11 +84,14 @@ test.describe('public pages', () => {
       expect(typeof entry.description).toBe('string');
       expect(entry.keywords).toBeTruthy();
       expect(entry.slug.startsWith('/')).toBe(true);
+      // The text of the page itself, not just its one-line description.
+      expect(typeof entry.content).toBe('string');
+      expect(entry.content.length).toBeGreaterThan(100);
     }
   });
 
   test('search index follows the requested language', async ({ page }) => {
-    type Entry = { slug: string; title: string; keywords: string };
+    type Entry = { slug: string; title: string; keywords: string; content: string };
     const titleFor = (entries: Entry[], slug: string) => entries.find((entry) => entry.slug === slug);
 
     const english = (await (await page.goto('/search-index.json'))!.json()) as Entry[];
@@ -100,6 +103,10 @@ test.describe('public pages', () => {
     // Keywords keep both languages searchable whichever language is active.
     expect(titleFor(finnish, '/koha-hosting/')?.keywords).toContain('hosting');
     expect(titleFor(english, '/koha-hosting/')?.keywords).toContain('pilvipalvelu');
+
+    // The text of the pages is rendered in the language of the request.
+    expect(titleFor(english, '/koha/')?.content).toContain('in the world');
+    expect(titleFor(finnish, '/koha/')?.content).toContain('maailman ensimmäinen');
   });
 });
 
@@ -579,6 +586,25 @@ test.describe('navigation', () => {
     await expect(options).toHaveCount(0);
   });
 
+  test('command palette opens the row the arrow keys selected', async ({ page }) => {
+    await page.goto('/');
+    await page.keyboard.press('Control+k');
+
+    await page.locator('#search-input').fill('koha');
+    const options = page.locator('#search-results [role="option"]');
+    await expect(options.nth(1)).toBeVisible();
+
+    const selected = await options.nth(1).locator('a').getAttribute('href');
+    expect(selected).toBeTruthy();
+
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('ArrowDown');
+    await page.keyboard.press('Enter');
+
+    await page.waitForURL(`**${selected}`);
+    await expect(page.locator('#command-palette')).toBeHidden();
+  });
+
   test('command palette reports an empty result set', async ({ page }) => {
     await page.goto('/');
     await page.keyboard.press('Control+k');
@@ -608,6 +634,83 @@ test.describe('navigation', () => {
 
     await input.fill('zzzzzz');
     await expect(page.locator('#search-results')).toContainText('Ei tuloksia haulla.');
+  });
+
+  test('command palette finds a page by the text on it', async ({ page }) => {
+    await page.goto('/?l=fi');
+    await page.keyboard.press('Control+k');
+
+    // This sentence is only in the body copy of the Koha page: no title, no
+    // description and no keyword of any entry contains these words.
+    await page.locator('#search-input').fill('maailman ensimmäinen');
+
+    const options = page.locator('#search-results [role="option"]');
+    await expect(options).toHaveCount(1);
+    await expect(options.first().locator('a')).toHaveAttribute('href', '/koha/');
+
+    // The words are in the body, so the row shows the sentence that holds them and
+    // highlights both of them there.
+    const snippet = options.first().locator('.palette-snippet');
+    await expect(snippet).toBeVisible();
+    await expect(snippet).toContainText('maailman ensimmäinen');
+
+    const marks = snippet.locator('mark');
+    await expect(marks).toHaveCount(2);
+    await expect(marks.nth(0)).toHaveText(/^maailman$/i);
+    await expect(marks.nth(1)).toHaveText(/^ensimmäinen$/i);
+  });
+
+  test('command palette highlights the words it matched', async ({ page }) => {
+    await page.goto('/');
+    await page.keyboard.press('Control+k');
+
+    await page.locator('#search-input').fill('koha hosting');
+
+    // The row is picked by its link: with the snippet in place a text match would
+    // also hit the rows whose body copy mentions the page.
+    const row = page.locator('#search-results [role="option"]:has(a[href="/koha-hosting/"])');
+    await expect(row).toHaveCount(1);
+
+    // Each word is wrapped in the casing of the index entry, and the words around
+    // the marks keep their place.
+    const title = row.locator('.palette-title');
+    await expect(title).toContainText('Koha cloud hosting');
+
+    const marks = title.locator('mark');
+    await expect(marks).toHaveCount(2);
+    await expect(marks.nth(0)).toHaveText(/^koha$/i);
+    await expect(marks.nth(1)).toHaveText(/^hosting$/i);
+
+    await expect(row.locator('.palette-description mark').first()).toBeVisible();
+
+    // Nothing to point out in the body: both words are already in the title.
+    await expect(row.locator('.palette-snippet')).toHaveCount(0);
+  });
+
+  test('command palette matches the query as the plain text it is', async ({ page }) => {
+    await page.goto('/');
+
+    // Both words are in the body copy of a page and carry characters that mean
+    // something in a regular expression. They have to be highlighted as typed.
+    const queries = [
+      { query: 'source?', slug: '/', word: /^source\?$/i },
+      { query: '(GDPR)', slug: '/privacy/', word: /^\(GDPR\)$/i },
+    ];
+
+    for (const { query, slug, word } of queries) {
+      await page.keyboard.press('Control+k');
+
+      const input = page.locator('#search-input');
+      await expect(input).toBeVisible();
+      await input.fill(query);
+
+      const row = page.locator(`#search-results [role="option"]:has(a[href="${slug}"])`);
+      await expect(row).toHaveCount(1);
+      await expect(row.locator('.palette-snippet mark').first()).toHaveText(word);
+
+      await page.keyboard.press('Escape');
+      await expect(page.locator('#command-palette')).toBeHidden();
+    }
   });
 });
 

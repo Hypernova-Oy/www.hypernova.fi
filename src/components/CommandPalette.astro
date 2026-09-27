@@ -98,9 +98,14 @@ const t = useTranslations(i18n, Astro);
     background-color: var(--color-night-raise);
   }
 
-  /* The selected row sits on a lifted surface, so its description needs more light. */
+  /*
+   * The selected row sits on a lifted surface, so the description and the snippet
+   * that shows where a word was matched need more light.
+   */
   .dark #search-results [role='option']:hover .palette-description,
-  .dark #search-results [role='option'][aria-selected='true'] .palette-description {
+  .dark #search-results [role='option']:hover .palette-snippet,
+  .dark #search-results [role='option'][aria-selected='true'] .palette-description,
+  .dark #search-results [role='option'][aria-selected='true'] .palette-snippet {
     color: var(--color-primary-200);
   }
 
@@ -117,8 +122,28 @@ const t = useTranslations(i18n, Astro);
   }
 
   #search-results [role='option']:hover .palette-description,
-  #search-results [role='option'][aria-selected='true'] .palette-description {
+  #search-results [role='option']:hover .palette-snippet,
+  #search-results [role='option'][aria-selected='true'] .palette-description,
+  #search-results [role='option'][aria-selected='true'] .palette-snippet {
     color: var(--color-primary-100);
+  }
+
+  /*
+   * A word the query matched. The teal accent is the only chromatic brand colour,
+   * so the highlight is a pale teal on the light surfaces and a deep teal tint on
+   * the dark ones. Both read on the row itself and on the selected row (near-black
+   * in light mode, lifted in dark mode), so no selected-row variant is needed.
+   */
+  #search-results mark {
+    border-radius: 0.25rem;
+    padding: 0 0.15em;
+    background-color: var(--color-accent-100);
+    color: var(--color-accent-900);
+  }
+
+  .dark #search-results mark {
+    background-color: color-mix(in srgb, var(--color-accent-500) 30%, transparent);
+    color: var(--color-accent-100);
   }
 </style>
 
@@ -133,6 +158,15 @@ const t = useTranslations(i18n, Astro);
     const backdrop = palette?.querySelector('[data-command-backdrop]');
 
     if (!palette || !input || !resultsList || !helpState) return;
+
+    /*
+     * `astro:page-load` fires for the first load as well, so this runs twice on every
+     * page. Bail out here, before anything else is set up: a run that stopped halfway
+     * would still leave its own `toggleCommandPalette` published while the listeners
+     * stayed with the first run.
+     */
+    if (palette.dataset.searchBound === 'true') return;
+    palette.dataset.searchBound = 'true';
 
     window.__zenixSearchIndex = window.__zenixSearchIndex || [];
     window.__zenixSearchLoaded = window.__zenixSearchLoaded || false;
@@ -157,7 +191,7 @@ const t = useTranslations(i18n, Astro);
 
         const query = input.value.toLowerCase().trim();
         if (query) {
-          renderResults(getMatches(query));
+          renderResults(getMatches(query), query);
         }
       } catch (err) {
         console.error('Failed to load search index:', err);
@@ -165,12 +199,13 @@ const t = useTranslations(i18n, Astro);
     }
 
     function getMatches(query) {
-      const terms = query.split(/\s+/).filter(Boolean);
+      const terms = queryTerms(query);
       if (terms.length === 0) return [];
 
-      // `keywords` carries the searchable text of both languages.
+      // `keywords` carries the searchable text of both languages, `content` the
+      // text of the page itself in the language the visitor is reading.
       return window.__zenixSearchIndex.filter((item) => {
-        const haystack = [item.title, item.description, item.keywords]
+        const haystack = [item.title, item.description, item.keywords, item.content]
           .filter(Boolean)
           .join(' ')
           .toLowerCase();
@@ -241,9 +276,6 @@ const t = useTranslations(i18n, Astro);
       });
     }
 
-    if (palette.dataset.searchBound === 'true') return;
-    palette.dataset.searchBound = 'true';
-
     // Click the backdrop to close.
     palette.addEventListener('click', (e) => {
       if (e.target === palette || e.target === backdrop) {
@@ -263,7 +295,7 @@ const t = useTranslations(i18n, Astro);
         return;
       }
 
-      renderResults(getMatches(query));
+      renderResults(getMatches(query), query);
     });
 
     input.addEventListener('keydown', (e) => {
@@ -298,7 +330,93 @@ const t = useTranslations(i18n, Astro);
       })[char]);
     }
 
-    function renderResults(matches) {
+    /** The words of a query: every one of them has to match, and all of them are highlighted. */
+    function queryTerms(query) {
+      return query.split(/\s+/).filter(Boolean);
+    }
+
+    /**
+     * A pattern that finds any of the terms. The terms are typed by the visitor, so
+     * regular-expression syntax in them (a `?` or a bracket, for example) is escaped
+     * and matched as the plain text it is.
+     */
+    function termPattern(terms, flags) {
+      const escaped = terms.map((term) => term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'));
+      return new RegExp(escaped.join('|'), flags);
+    }
+
+    /**
+     * The text with every matched word wrapped in a <mark>. The text is escaped
+     * first, so neither the index nor the query can inject markup into the palette.
+     */
+    function highlight(text, terms) {
+      if (!text || terms.length === 0) return escapeHtml(text);
+
+      const pattern = termPattern(terms, 'gi');
+      let html = '';
+      let last = 0;
+
+      for (const match of text.matchAll(pattern)) {
+        html += escapeHtml(text.slice(last, match.index)) + `<mark>${escapeHtml(match[0])}</mark>`;
+        last = match.index + match[0].length;
+      }
+
+      return html + escapeHtml(text.slice(last));
+    }
+
+    /** How much text is shown around a matched word in a snippet. */
+    const SNIPPET_RADIUS = 50;
+
+    /**
+     * The slice of the page text shown around a match: SNIPPET_RADIUS characters
+     * each way, pulled back to word boundaries so that no word is cut in half.
+     */
+    function windowAround(text, index, length) {
+      let start = Math.max(0, index - SNIPPET_RADIUS);
+      let end = Math.min(text.length, index + length + SNIPPET_RADIUS);
+
+      if (start > 0) {
+        const space = text.indexOf(' ', start);
+        if (space !== -1 && space < index) start = space + 1;
+      }
+
+      if (end < text.length) {
+        const space = text.lastIndexOf(' ', end);
+        if (space > index + length) end = space;
+      }
+
+      return { start, end, text: text.slice(start, end).trim() };
+    }
+
+    /**
+     * A short piece of the page text around the words that the row itself does not
+     * show, so a match in the body of a page is visible and highlighted as well. The
+     * window holding most of those words wins, which keeps words that belong together
+     * (a phrase, for example) in one snippet. An empty string means the body text does
+     * not hold them: they matched a hidden keyword instead.
+     */
+    function bodySnippet(content, terms) {
+      if (!content || terms.length === 0) return '';
+
+      const pattern = termPattern(terms, 'gi');
+      let best = null;
+
+      for (const match of content.matchAll(pattern)) {
+        const window = windowAround(content, match.index, match[0].length);
+        const found = terms.filter((term) => window.text.toLowerCase().includes(term)).length;
+
+        if (!best || found > best.found) best = { ...window, found };
+        if (found === terms.length) break; // Every word is in view, nothing better to find.
+      }
+
+      if (!best) return '';
+
+      const lead = best.start > 0 ? '… ' : '';
+      const trail = best.end < content.length ? ' …' : '';
+      return `${lead}${highlight(best.text, terms)}${trail}`;
+    }
+
+    function renderResults(matches, query) {
       helpState.classList.add('hidden');
       resultsList.classList.remove('hidden');
       input.setAttribute('aria-expanded', 'true');
@@ -313,8 +431,17 @@ const t = useTranslations(i18n, Astro);
         return;
       }
 
+      const terms = queryTerms(query);
+
       resultsList.innerHTML = matches.map((item, index) => {
         const target = `${resolvePath}${item.slug.startsWith('/') ? item.slug.slice(1) : item.slug}`;
+
+        // A word that the title and the description do not show can only come from
+        // `keywords` or from the text of the page. The first case has nothing to
+        // point at, the second one gets a snippet of the sentence it was found in.
+        const visible = `${item.title} ${item.description}`.toLowerCase();
+        const hidden = terms.filter((term) => !visible.includes(term));
+        const snippet = hidden.length > 0 ? bodySnippet(item.content, hidden) : '';
 
         return `
         <li
@@ -328,8 +455,9 @@ const t = useTranslations(i18n, Astro);
               <span class="palette-badge-text text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase">${escapeHtml(item.type.charAt(0))}</span>
             </div>
             <div class="ml-4 flex-auto">
-              <p class="palette-title text-sm font-medium text-zinc-900 dark:text-white">${escapeHtml(item.title)}</p>
-              <p class="palette-description text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">${escapeHtml(item.description)}</p>
+              <p class="palette-title text-sm font-medium text-zinc-900 dark:text-white">${highlight(item.title, terms)}</p>
+              <p class="palette-description text-xs text-zinc-500 dark:text-zinc-400 line-clamp-1">${highlight(item.description, terms)}</p>
+              ${snippet ? `<p class="palette-snippet mt-0.5 text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2">${snippet}</p>` : ''}
             </div>
           </a>
         </li>
