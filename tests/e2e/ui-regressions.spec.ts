@@ -354,6 +354,49 @@ test.describe('head metadata', () => {
   });
 });
 
+test.describe('404 page', () => {
+  test('an unknown URL answers 404 with the not-found page', async ({ page }) => {
+    const response = await page.goto('/no-such-page/');
+
+    expect(response?.status()).toBe(404);
+    await expect(page.getByRole('heading', { name: 'Page not found' })).toBeVisible();
+    await expect(page.getByRole('link', { name: 'Back to the home page' })).toHaveAttribute('href', '/');
+  });
+
+  test('the not-found page follows the visitor language', async ({ page }) => {
+    await page.goto('/no-such-page/?l=fi');
+
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fi');
+    await expect(page.getByRole('heading', { name: 'Sivua ei löytynyt' })).toBeVisible();
+    await expect(page.locator('main')).toContainText('Valitettavasti emme löytäneet etsimääsi sivua.');
+    await expect(page.getByRole('link', { name: 'Takaisin etusivulle' })).toHaveAttribute('href', '/');
+  });
+
+  test('no page links to the blog, which has nothing published', async ({ page }) => {
+    const paths = [
+      '/',
+      '/services/',
+      '/koha/',
+      '/koha-hosting/',
+      '/toveri-access-control-device/',
+      '/lainuri-checkout-machine/',
+      '/contact/',
+      '/privacy/',
+      '/terms/',
+      '/changelog/',
+      '/no-such-page/',
+    ];
+
+    for (const path of paths) {
+      await page.goto(path);
+
+      // `/blog/` is still a route, but with nothing published it is not advertised
+      // anywhere: the not-found page was the only page that linked it.
+      await expect(page.locator('a[href^="/blog"]')).toHaveCount(0);
+    }
+  });
+});
+
 test.describe('theme', () => {
   test.describe('light default', () => {
     // Every test gets a fresh context, so nothing is stored yet.

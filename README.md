@@ -101,6 +101,7 @@ through the REST API. Copy `.env.example` to `.env` and set:
 | `/privacy/`, `/terms/` | SSR | Legal pages |
 | `/sitemap.xml`, `/robots.txt` | SSR | SEO data |
 | `/search-index.json` | SSR | Data for the command palette (see below) |
+| any unknown URL | SSR | `src/pages/404.astro`, answered with status 404 and translated |
 
 Legacy URLs are redirected in `astro.config.mjs`. The old standalone pages point at the
 section of `/koha/` that replaced them (`/koha-hosting-quote/` →
