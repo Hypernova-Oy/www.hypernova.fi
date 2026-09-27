@@ -125,6 +125,29 @@ test.describe('head metadata', () => {
     await expect(page.locator('meta[property="og:type"]')).toHaveAttribute('content', 'website');
     await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', 'https://www.hypernova.fi/');
     await expect(page.locator('meta[property="og:image"]')).toHaveAttribute('content', 'https://www.hypernova.fi/og-image.png');
+    // The card is composed by scripts/generate-og-image.mjs, so its size is known here and
+    // declared to the crawlers alongside the file itself.
+    await expect(page.locator('meta[property="og:image:width"]')).toHaveAttribute('content', '1200');
+    await expect(page.locator('meta[property="og:image:height"]')).toHaveAttribute('content', '630');
+    await expect(page.locator('meta[property="og:image:alt"]')).toHaveAttribute(
+      'content',
+      'Hypernova — Cost-effective Open Source Services',
+    );
+  });
+
+  test('the social preview image is the generated card', async ({ page }) => {
+    const card = await page.request.get('/og-image.png');
+    expect(card.status()).toBe(200);
+    expect(card.headers()['content-type']).toContain('image/png');
+
+    const png = await card.body();
+    // PNG signature, then the IHDR chunk: the size is the pair of big-endian 32-bit integers
+    // after the chunk header, so the file can be checked without an image library. The card is
+    // the Hypernova lockup, not the theme screenshot it used to be, and it is regenerated at
+    // this size by scripts/generate-og-image.mjs.
+    expect([...png.subarray(0, 8)]).toEqual([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    expect(png.readUInt32BE(16)).toBe(1200);
+    expect(png.readUInt32BE(20)).toBe(630);
   });
 
   test('inner pages get their own canonical and preview URLs', async ({ page }) => {

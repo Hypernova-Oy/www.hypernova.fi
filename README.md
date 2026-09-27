@@ -41,6 +41,7 @@ npm run test:unit   # Node's built-in test runner (form protection logic)
 npm run test:e2e    # Playwright regression tests
 npm run bench:scroll # Chromium scroll-smoothness benchmark (needs a running server)
 npm run index:refresh # Build, restart the site and verify the search index (see Deployment)
+npm run og:image    # Regenerate the social preview card (public/og-image.png)
 ```
 
 Playwright needs browsers installed once:

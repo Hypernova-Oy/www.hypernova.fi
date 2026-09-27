@@ -21,6 +21,15 @@ interface Props {
   author?: string;
 }
 
+/**
+ * The social preview card every page falls back to. It is composed at exactly this size by
+ * scripts/generate-og-image.mjs, which is what lets the og:image tags below declare its
+ * dimensions, so a crawler can lay out the large card before fetching the file.
+ */
+const DEFAULT_IMAGE = '/og-image.png';
+const DEFAULT_IMAGE_WIDTH = 1200;
+const DEFAULT_IMAGE_HEIGHT = 630;
+
 const i18n: i18n = {
   fi: {}
 };
@@ -30,7 +39,7 @@ const t = useTranslations(i18n, Astro);
 const {
   title,
   description = t(SITE_DESCRIPTION),
-  image = '/og-image.png',
+  image = DEFAULT_IMAGE,
   type = 'website',
   publishedDate,
   modifiedDate,
@@ -153,6 +162,13 @@ const lang = Astro.locals.lang;
     <meta property="og:type" content={type} />
     <meta property="og:url" content={canonicalURL} />
     <meta property="og:image" content={imageURL} />
+    {image === DEFAULT_IMAGE && (
+      <>
+        <meta property="og:image:width" content={String(DEFAULT_IMAGE_WIDTH)} />
+        <meta property="og:image:height" content={String(DEFAULT_IMAGE_HEIGHT)} />
+        <meta property="og:image:alt" content={`${SITE_TITLE} — ${SITE_DESCRIPTION}`} />
+      </>
+    )}
     <meta property="og:site_name" content={SITE_TITLE} />
     {type === 'article' && publishedDate && (
       <meta property="article:published_time" content={publishedDate.toISOString()} />
