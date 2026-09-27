@@ -191,6 +191,12 @@ open. The dismissal lives in `setupMobileMenu()` in `src/components/Navbar.astro
 `document` listener that looks the menu up again on each tap, because every navigation
 renders a new header.
 
+The bar is tight: from 768px up it shares the row with the logo and the controls, and the
+Finnish labels are the longest, so a hairline (`span[data-nav-separator]`) carries the
+separation between the items and the gaps around it are kept small (`gap-3 lg:gap-2`)
+until the row has room to breathe again (`xl:gap-5`). The hairlines start at `lg`, where
+the row stops wrapping its labels; the mobile menu draws its links as rows and has none.
+
 ## Forms
 
 `/koha/` and `/contact/` POST back to themselves. Validation errors are rendered

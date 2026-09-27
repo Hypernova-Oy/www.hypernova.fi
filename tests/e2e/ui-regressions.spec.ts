@@ -599,7 +599,35 @@ test.describe('navigation', () => {
 
     await expect(page.locator('header a', { hasText: 'Why FOSS' }).first()).toHaveAttribute('href', '/#whyfoss');
     await expect(page.locator('header a', { hasText: 'Services' }).first()).toHaveAttribute('href', '/services/');
+    await expect(page.locator('header').getByRole('link', { name: 'Koha', exact: true }).first()).toHaveAttribute('href', '/koha/');
     await expect(page.locator('header a', { hasText: 'Contact' }).first()).toHaveAttribute('href', '/contact/');
+  });
+
+  test('desktop navigation divides its links with a hairline', async ({ page, isMobile }) => {
+    await page.goto('/');
+
+    const dividers = page.locator('header nav [data-nav-separator]');
+
+    if (isMobile) {
+      // The collapsed menu stacks full-width rows, so it draws no dividers of its own.
+      await expect(dividers.first()).toBeHidden();
+      await page.getByRole('button', { name: 'Open main menu' }).click();
+      await expect(page.locator('#mobile-menu [data-nav-separator]')).toHaveCount(0);
+      return;
+    }
+
+    // Every item is divided off from the one before it, and the picker is divided
+    // off from the links, so the bar holds one divider per link.
+    await expect(dividers).toHaveCount(await page.locator('header nav > a').count());
+
+    const divider = dividers.first();
+    await expect(divider).toBeVisible();
+
+    const box = await divider.boundingBox();
+    expect(box).not.toBeNull();
+    // A hairline: a pixel wide and as tall as the labels it stands between.
+    expect(box!.width).toBeLessThanOrEqual(2);
+    expect(box!.height).toBeGreaterThanOrEqual(12);
   });
 
   test('mobile menu opens and closes', async ({ page, isMobile }) => {
@@ -1132,6 +1160,46 @@ test.describe('layout regressions', () => {
     }
   });
 
+  test('navigation bar keeps its links on one row', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'The collapsed menu replaces the bar on a small viewport.');
+
+    for (const path of ['/', '/?l=fi']) {
+      await page.goto(path);
+
+      const bar = await page.evaluate(() => {
+        const nav = document.querySelector('header nav')!;
+        // The picker keeps the language in use as a hidden link, which has no box to measure.
+        const links = [...nav.querySelectorAll('a')].filter((link) => link.getBoundingClientRect().height > 0);
+        const rows = links.map((link) => Math.round(link.getBoundingClientRect().top));
+
+        return { rows: new Set(rows).size, height: Math.round(nav.getBoundingClientRect().height) };
+      });
+
+      // The Finnish labels are the longest, and a bar that runs out of room wraps them
+      // onto more than one row instead of widening (which would reach the controls).
+      expect(bar.rows).toBe(1);
+      expect(bar.height).toBeLessThanOrEqual(40);
+    }
+  });
+
+  test('tablet widths do not scroll the page sideways', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'The check drives the viewport itself.');
+
+    // 768px is where the bar replaces the collapsed menu, so it is the tightest width
+    // the logo, the links and the controls have to share.
+    await page.setViewportSize({ width: 768, height: 900 });
+
+    for (const path of ['/', '/?l=fi']) {
+      await page.goto(path);
+
+      const overflow = await page.evaluate(
+        () => document.documentElement.scrollWidth - document.documentElement.clientWidth,
+      );
+
+      expect(overflow).toBeLessThanOrEqual(0);
+    }
+  });
+
   test('form section labels stay centred inside their panel', async ({ page }) => {
     await useTheme(page, 'light');
 
@@ -1388,7 +1456,9 @@ test.describe('koha staff interface screenshot', () => {
     // ClientRouter swaps the document instead of reloading it, so the page script has to
     // pick up the figure it finds after the swap.
     await page.goto('/services/');
-    await page.locator('a[href="/koha/"]').first().click();
+    // The service card in the body: the header links sit behind the closed menu on mobile,
+    // and this test runs on every platform.
+    await page.locator('main a[href="/koha/"]').first().click();
     await page.waitForURL('**/koha/');
 
     const figure = page.locator(figureSelector);
