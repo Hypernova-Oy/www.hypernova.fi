@@ -860,6 +860,25 @@ test.describe('localization', () => {
     await expect(page.getByRole('heading', { name: 'Helppo ja luotettava' })).toBeVisible();
   });
 
+  test('the two Koha calls to action follow the language', async ({ page }) => {
+    // The row below the screenshot: our hosting service next to the demo instance a library
+    // can try before it talks to us.
+    const hosting = page.locator('#kohaSection a[href="#cloud-hosting-service"]');
+    const demo = page.locator('#kohaSection a[href="https://fi-demointra.koha.fi"]');
+
+    await page.goto('/koha/');
+    await expect(hosting).toHaveText('Koha Cloud Hosting Service');
+    await expect(demo).toHaveText('Try Koha for free');
+
+    // The demo instance is a site of its own, so the link leaves this one.
+    await expect(demo).toHaveAttribute('target', '_blank');
+    await expect(demo).toHaveAttribute('rel', /noopener/);
+
+    await page.goto('/koha/?l=fi');
+    await expect(hosting).toHaveText('Koha-pilvipalvelu');
+    await expect(demo).toHaveText('Kokeile Kohaa ilmaiseksi');
+  });
+
   test('the credits line in the footer follows the language, links and all', async ({ page }) => {
     const footer = page.locator('body > footer').first();
 
@@ -1242,6 +1261,32 @@ test.describe('koha staff interface screenshot', () => {
     // ... and it is painted between them, below all three cards and above the heading.
     expect(shotBox!.y).toBeGreaterThan(cardBox!.y);
     expect(shotBox!.y + shotBox!.height).toBeLessThanOrEqual(headingBox!.y);
+  });
+
+  test('the screenshot sits above the two buttons that follow it', async ({ page }) => {
+    await page.goto('/koha/');
+    const figure = page.locator(figureSelector);
+    const buttons = page.locator('#kohaSection a[href="#cloud-hosting-service"]');
+
+    await expect(figure).toBeVisible();
+    await expect(buttons).toBeVisible();
+    await buttons.scrollIntoViewIfNeeded();
+
+    // Reading order: the cards, then the interface itself, then the two ways forward.
+    const figureAboveButtons = await page.evaluate(() => {
+      const shot = document.querySelector('[data-koha-screenshot-figure]');
+      const button = document.querySelector('#kohaSection a[href="#cloud-hosting-service"]');
+      if (!shot || !button) return false;
+      return Boolean(shot.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING);
+    });
+    expect(figureAboveButtons).toBe(true);
+
+    const shotBox = await figure.boundingBox();
+    const buttonBox = await buttons.boundingBox();
+    expect(shotBox).not.toBeNull();
+    expect(buttonBox).not.toBeNull();
+    // ... and it is painted above the row, the figure's own bottom margin being the gap.
+    expect(shotBox!.y + shotBox!.height).toBeLessThanOrEqual(buttonBox!.y);
   });
 
   test('the view buttons work after a client-side navigation to the page', async ({ page }) => {

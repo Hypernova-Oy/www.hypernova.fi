@@ -34,6 +34,7 @@ const i18n = {
     'Customizable': 'Mukautuu tarpeisiinne',
     'Koha can be configured in hundreds of ways, which makes it suitable for any type of library. It also supports many open standards and integrates with countless other systems.': 'Koha on erittäin mukautuva järjestelmä. Se sisältää satoja asetuksia, joiden ansiosta Kohan voi konfiguroida palvelemaan minkä tyyppistä kirjastoa tahansa. Koha tukee useita avoimia standardeja, ja sen voi integroida lukemattomiin muihin järjestelmiin, mukaan lukien Finna, Finto ja Melinda. Koska Koha on vapaata koodia, kuka tahansa voi laajentaa ja jatkokehittää sitä.',
     'Koha Cloud Hosting Service': 'Koha-pilvipalvelu',
+    'Try Koha for free': 'Kokeile Kohaa ilmaiseksi',
     'Sustainable choice': 'Kestävä valinta',
     'Koha is a library system that has been in active development since 1999. Backed by thousands of libraries around the world, its community keeps Koha in step with modern standards and technologies. Koha has a responsive interface that works on desktops, tablets and phones, and it connects to other systems through a range of APIs.': 'Koha on pitkäikäinen kirjastojärjestelmä, joka on ollut aktiivisessa kehityksessä vuodesta 1999 alkaen. Kohan takana on maailmanlaajuisesti tuhansia kirjastoja, joiden muodostama yhteisö pitää huolen siitä, että Koha on tietoturvallinen ja tukee moderneja standardeja ja teknologioita. Kohassa on responsiivinen käyttöliittymä, joka soveltuu kaikentyyppisille laitteille, kuten tietokoneille, matkapuhelimille ja lainausautomaateille. Kohan voi yhdistää muihin järjestelmiin lukuisten rajapintojen avulla.',
     'One of the main strengths of Koha is that nobody "owns" its source code. The GPLv3 licence gives everyone the right to copy and modify the software. Unlike proprietary systems, no vendor can decide that Koha is finished and push a library to buy a new system. Anyone can take a copy of Koha at any time and continue its development. Koha lives as long as its community keeps it going. And there is no sign of that slowing down. That is why we often say Koha will probably be the last library system your library will ever need.': 
@@ -267,18 +268,30 @@ if (Astro.request.method === "POST") {
           </p>
         </div>
       </div>
-      <Button href="#cloud-hosting-service" variant="primary" size="lg" class="w-full sm:w-auto text-lg mt-12 px-8 py-4 shadow-xl shadow-primary-500/20">
-        {t('Koha Cloud Hosting Service')}
-      </Button>
-      <!-- The screenshot sits directly above the "Sustainable choice" copy. That paragraph is
-           the one that says Koha works on desktops, tablets and phones, and the figure answers
-           it by showing both at once. The component carries the two renditions, the view switch
-           and the language pair, and the hosting page shows the very same figure above its
-           cards. -->
+      <!-- The screenshot comes before the row of buttons below it: the page says what Koha is
+           (the three cards), then shows the interface itself, and only then offers the two ways
+           forward - our hosting service, or a demo instance to try first. It still reads above
+           the "Sustainable choice" copy as well; that paragraph is the one about the responsive
+           interface, and the figure answers it by showing a desktop and a phone at once. The
+           component carries the two renditions, the view switch and the language pair, and the
+           hosting page shows the very same figure above its cards. -->
       <div class="mt-20">
         <KohaScreenshot />
       </div>
-      <div class="p-8 max-w-3xl mx-auto pb-32 reveal-on-scroll">
+      <!-- No margin of its own: the figure above ends in `mb-20` and that is the gap this row
+           wants. `sm:` puts the two choices side by side as soon as they fit, and wrapping keeps
+           a narrow desktop window from pushing them out of the section. -->
+      <div class="flex flex-col sm:flex-row flex-wrap justify-center items-center gap-4">
+        <Button href="#cloud-hosting-service" variant="primary" size="lg" class="w-full sm:w-auto text-lg px-8 py-4 shadow-xl shadow-primary-500/20">
+          {t('Koha Cloud Hosting Service')}
+        </Button>
+        <!-- A demo instance on its own host, for libraries that want to see Koha before they
+             talk to us, so this link leaves the site. -->
+        <Button href="https://fi-demointra.koha.fi" target="_blank" rel="noopener noreferrer" variant="outline" size="lg" class="w-full sm:w-auto text-lg px-8 py-4">
+          {t('Try Koha for free')}
+        </Button>
+      </div>
+      <div class="p-8 max-w-3xl mx-auto pb-32 mt-12 reveal-on-scroll">
         <h2 class="text-4xl md:text-5xl font-heading font-extrabold text-zinc-900 dark:text-white mb-6">
           {t('Sustainable choice')}
         </h2>

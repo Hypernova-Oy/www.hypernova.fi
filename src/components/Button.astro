@@ -1,7 +1,15 @@
 ---
 import type { HTMLAttributes } from 'astro/types';
 
-interface Props extends HTMLAttributes<'button'> {
+/**
+ * The component renders an `<a>` when it is given an `href` and a `<button>` otherwise, so it
+ * takes the attributes of both. The anchor half is what `target` and `rel` on a link that
+ * leaves the site need, while `type` stays the button one so `<Button type="submit">` keeps
+ * its meaning.
+ */
+type ButtonAttributes = HTMLAttributes<'button'> & Omit<HTMLAttributes<'a'>, 'href' | 'type'>;
+
+interface Props extends ButtonAttributes {
   href?: string;
   variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
