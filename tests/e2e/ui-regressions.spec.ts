@@ -617,6 +617,42 @@ test.describe('navigation', () => {
     await expect(menu).toBeHidden();
   });
 
+  test('clicking outside the open mobile menu collapses it', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'Mobile menu only renders on small viewports.');
+
+    await page.goto('/');
+
+    const menu = page.locator('#mobile-menu');
+    const outside = page.getByRole('heading', { level: 1 });
+
+    await page.getByRole('button', { name: 'Open main menu' }).click();
+    await expect(menu).toBeVisible();
+
+    // The hero heading is plain text below the menu, so a tap on it is a tap beside
+    // the menu and not a link that leaves the page.
+    await outside.scrollIntoViewIfNeeded();
+    await outside.click();
+
+    await expect(menu).toBeHidden();
+    await expect(page).toHaveURL('/');
+
+    // A tap on the menu itself, away from its links, leaves it open.
+    await page.locator('#mobile-menu-btn').click();
+    await expect(menu).toBeVisible();
+    await menu.locator('p', { hasText: 'Language' }).click();
+    await expect(menu).toBeVisible();
+
+    // A tap on one of the menu's own links puts it away, including a link that only
+    // scrolls the page it is already on (Astro does not re-render the navbar for those).
+    await menu.locator('a', { hasText: 'Why FOSS' }).click();
+    await expect(menu).toBeHidden();
+    await expect(page).toHaveURL('/#whyfoss');
+
+    // The button still opens the menu afterwards.
+    await page.locator('#mobile-menu-btn').click();
+    await expect(menu).toBeVisible();
+  });
+
   test('the language switcher is in the mobile menu', async ({ page, isMobile }) => {
     test.skip(!isMobile, 'The picker in the desktop nav bar is not visible on a small viewport.');
 

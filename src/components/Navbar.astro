@@ -152,10 +152,33 @@ const t = useTranslations(i18n, Astro);
       // Use a fresh button to avoid multiple listeners
       const newBtn = mobileMenuBtn.cloneNode(true);
       mobileMenuBtn.parentNode?.replaceChild(newBtn, mobileMenuBtn);
-      
+
       newBtn.addEventListener('click', () => {
         mobileMenu.classList.toggle('hidden');
       });
+
+      // The menu is a panel of the sticky header that covers the top of the page, so a tap
+      // that is not asking to stay puts it away again: anywhere beside the menu, and any of
+      // its own links. The button toggles, so its own taps belong to the handler above, and
+      // a tap on the menu's caption or its padding is still the visitor reading the menu.
+      if (!window.__zenixMobileMenuOutsideBound) {
+        window.__zenixMobileMenuOutsideBound = true;
+
+        // Bound to the document, not the menu, because every navigation renders a new
+        // header: the elements are looked up again for each tap.
+        document.addEventListener('click', (event) => {
+          const menu = document.getElementById('mobile-menu');
+          const button = document.getElementById('mobile-menu-btn');
+          const target = event.target;
+
+          if (!menu || menu.classList.contains('hidden')) return;
+          if (!(target instanceof Element)) return;
+          if (button?.contains(target)) return;
+          if (menu.contains(target) && !target.closest('a')) return;
+
+          menu.classList.add('hidden');
+        });
+      }
     }
   }
 

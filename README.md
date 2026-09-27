@@ -184,6 +184,13 @@ bar holds it as a plain link; because that bar is hidden on a small screen, the 
 renders the same component as full-width rows (`variant="menu"`), next to the navigation
 links it would otherwise be missing from.
 
+The mobile menu is a panel of the sticky header, so it covers the top of the page it is
+open over and puts itself away unless the tap asks to stay: a tap beside the menu, or on
+one of its links, closes it, while a tap on the menu's own caption or padding leaves it
+open. The dismissal lives in `setupMobileMenu()` in `src/components/Navbar.astro` as one
+`document` listener that looks the menu up again on each tap, because every navigation
+renders a new header.
+
 ## Forms
 
 `/koha/` and `/contact/` POST back to themselves. Validation errors are rendered
