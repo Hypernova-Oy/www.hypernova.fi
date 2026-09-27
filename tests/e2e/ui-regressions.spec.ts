@@ -1319,6 +1319,68 @@ test.describe('layout regressions', () => {
       }
     }
   });
+
+  test('the company and billing details span their panel', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'The check drives the viewport itself.');
+
+    await useTheme(page, 'light');
+
+    // The panel is a column flex container, so the grid inside it cannot carry the `mx-auto`
+    // of the panels around it: an auto inline margin would size the grid to its content and
+    // centre it, leaving the right half of the panel empty from `md` up. The grid is `w-full`.
+    const details = () =>
+      page.evaluate(() => {
+        const panel = document.querySelector('#contact-info .glass-panel')!;
+        const grid = panel.querySelector(':scope > .grid')!;
+        const style = getComputedStyle(panel);
+        const box = panel.getBoundingClientRect();
+
+        return {
+          gridLeft: Math.round(grid.getBoundingClientRect().left),
+          gridRight: Math.round(grid.getBoundingClientRect().right),
+          innerLeft: Math.round(box.left + parseFloat(style.borderLeftWidth) + parseFloat(style.paddingLeft)),
+          innerRight: Math.round(box.right - parseFloat(style.borderRightWidth) - parseFloat(style.paddingRight)),
+          columns: [...grid.children].map((column) => {
+            const rect = column.getBoundingClientRect();
+            return { top: Math.round(rect.top), width: Math.round(rect.width) };
+          }),
+          rows: [...grid.querySelectorAll(':scope > div > dl > div')].map((row) => ({
+            label: row.querySelector('dt')!.getBoundingClientRect().top,
+            value: row.querySelector('dd')!.getBoundingClientRect().top,
+          })),
+        };
+      });
+
+    for (const width of [1280, 1024, 768]) {
+      await page.setViewportSize({ width, height: 900 });
+      await page.goto('/contact/');
+
+      const panel = await details();
+      const where = `at ${width}px`;
+
+      // No auto inline margin: the grid runs the width of the panel's content box.
+      expect(panel.gridLeft, `${where} the grid is inset from the panel's left edge`).toBe(panel.innerLeft);
+      expect(panel.gridRight, `${where} the grid stops short of the panel's right edge`).toBe(panel.innerRight);
+
+      // Two columns level with each other and equally wide, from `md` up.
+      expect(panel.columns, `${where} the details are not in two columns`).toHaveLength(2);
+      expect(panel.columns[0].top, `${where} the two columns are not on one row`).toBe(panel.columns[1].top);
+      expect(Math.abs(panel.columns[0].width - panel.columns[1].width), `${where} the columns differ in width`).toBeLessThanOrEqual(1);
+
+      // Every detail is a label above its own value, in both columns.
+      expect(panel.rows, `${where} no detail rows were found`).toHaveLength(6);
+      for (const row of panel.rows) {
+        expect(row.label, `${where} a value sits at or above its label`).toBeLessThan(row.value);
+      }
+    }
+
+    // A phone stacks the two columns instead.
+    await page.setViewportSize({ width: 393, height: 900 });
+    await page.goto('/contact/');
+
+    const phone = await details();
+    expect(phone.columns[0].top, 'the two columns share a row on a phone').toBeLessThan(phone.columns[1].top);
+  });
 });
 
 test.describe('koha staff interface screenshot', () => {

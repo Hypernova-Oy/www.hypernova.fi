@@ -28,11 +28,11 @@ const i18n = {
     'instead - it asks for the details we need to send you a quote.': '- se kysyy tiedot, jotka tarvitsemme tarjouksen lähettämiseen.',
     'VAT ID': 'Y-tunnus',
     'FI29256763': '2925676-3',
-    'Our postal address is': 'Postiosoitteemme on',
+    'Postal address': 'Postiosoite',
     'FINLAND': 'SUOMI',
     'PO box': 'PL',
     'Billing information': 'Laskutustiedot',
-    'E-invoice number / EDI code': 'Verkkolaskuosoite/OVT-tunnus',
+    'E-invoice number / EDI code': 'Verkkolaskuosoite / OVT-tunnus',
     'E-invoice operator': 'Verkkolaskuoperaattori',
     'Contact information': 'Yhteystiedot',
     'Name': 'Nimi',
@@ -171,25 +171,73 @@ if (Astro.request.method === "POST") {
     <div class="max-w-8xl mx-auto mb-16 reveal-on-scroll">
       <div class="grid grid-cols-1 lg:grid-rows-1 gap-6 max-w-7xl mx-auto">
         <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0">
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 lg:grid-rows-1 gap-6 max-w-7xl mx-auto">
+          <!-- w-full, not mx-auto: this panel is a column flex container, so an auto inline
+               margin would shrink the grid to its content and centre it, leaving the panel
+               half empty above 768px. -->
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 lg:grid-rows-1 gap-6 w-full">
             <div class="col-span-1">
-              <h3 class="text-3xl brand-font font-bold text-zinc-900 dark:text-white mb-4 z-10">hypernova</h3>
-              <p>{t('VAT ID')}: <span class="font-bold">{t('FI29256763')}</span></p>
-              <p>{t('Our postal address is')}</p>
-              <address class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10 left-1/2">
-                Hypernova Oy<br />
-                {t('PO box')} 16<br />
-                80101, Joensuu, {t('FINLAND')}<br />
-              </address>
+              <h3 class="text-3xl brand-font font-bold text-zinc-900 dark:text-white mb-6 z-10">hypernova</h3>
+              <!--
+                Label above value, one row per detail. The old block put the VAT ID at body
+                size, then the sentence "Our postal address is", then the address in a larger
+                grey - three styles in one column, with no two values starting at the same
+                place. A short uppercase label in front of each value gives the two columns
+                the same shape, and stacked rows (rather than a side-by-side label column)
+                leave the IBAN room on a narrow screen.
+              -->
+              <dl class="space-y-6">
+                <div>
+                  <dt class="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-primary-200 mb-1">
+                    {t('VAT ID')}
+                  </dt>
+                  <dd class="font-mono text-lg text-zinc-600 dark:text-zinc-400">{t('FI29256763')}</dd>
+                </div>
+                <div>
+                  <dt class="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-primary-200 mb-1">
+                    {t('Postal address')}
+                  </dt>
+                  <dd>
+                    <!-- <address> is italic by default; the billing column next to it never was. -->
+                    <address class="not-italic text-lg text-zinc-600 dark:text-zinc-400 leading-relaxed">
+                      Hypernova Oy<br />
+                      {t('PO box')} 16<br />
+                      80101 Joensuu<br />
+                      {t('FINLAND')}
+                    </address>
+                  </dd>
+                </div>
+              </dl>
             </div>
-            <div class="col-span-1">
-              <h4 class="text-2xl text-zinc-900 dark:text-white mb-4 z-10">{t('Billing information')}</h4>
-              <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
-                {t('E-invoice number / EDI code')}: 003729256763<br />
-                {t('E-invoice operator')}: 003723327487 (Apix Messaging Oy)<br />
-                IBAN: FI50 7997 7996 3875 56<br />
-                BIC: HOLVFIHH
-              </p>
+            <div class="col-span-1 md:border-l md:border-zinc-200 md:pl-8 dark:md:border-night-line">
+              <h4 class="text-2xl text-zinc-900 dark:text-white mb-6 z-10">{t('Billing information')}</h4>
+              <!-- Codes stay verbatim: they are copied into an invoicing system, so nothing
+                   here is spaced out or wrapped for looks. font-mono keeps the columns of
+                   digits aligned and marks them as data rather than prose. -->
+              <dl class="space-y-6">
+                <div>
+                  <dt class="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-primary-200 mb-1">
+                    {t('E-invoice number / EDI code')}
+                  </dt>
+                  <dd class="font-mono text-lg text-zinc-600 dark:text-zinc-400">003729256763</dd>
+                </div>
+                <div>
+                  <dt class="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-primary-200 mb-1">
+                    {t('E-invoice operator')}
+                  </dt>
+                  <dd class="text-lg text-zinc-600 dark:text-zinc-400">
+                    <span class="font-mono">003723327487</span>
+                    <span class="text-base text-zinc-500 dark:text-primary-200">(Apix Messaging Oy)</span>
+                  </dd>
+                </div>
+                <div>
+                  <dt class="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-primary-200 mb-1">IBAN</dt>
+                  <dd class="font-mono text-lg text-zinc-600 dark:text-zinc-400">FI50 7997 7996 3875 56</dd>
+                </div>
+                <div>
+                  <dt class="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-primary-200 mb-1">BIC</dt>
+                  <dd class="font-mono text-lg text-zinc-600 dark:text-zinc-400">HOLVFIHH</dd>
+                </div>
+              </dl>
             </div>
           </div>
         </div>

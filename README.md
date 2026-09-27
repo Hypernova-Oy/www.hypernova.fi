@@ -115,6 +115,17 @@ width of its own, so it is capped below `md` (`w-56`) and left to its grid cell 
 Without the cap it filled whatever row it sat in, which drew it wider on a phone than the
 desktop layout ever does.
 
+The company and billing details on `/contact/` are one panel with two columns from `md` up:
+the VAT ID and the postal address on the left, the four billing codes on the right, and the
+billing column divided from the other by a hairline. Each detail is a label above its value
+in a `<dl>`, which is what lets a code be found by its name instead of by reading the
+sentence around it, and keeps both columns the same shape. The codes (IBAN, BIC, EDI number,
+operator) are copied off the page into an invoicing system, so they stay verbatim and are set
+in `font-mono` rather than spaced out or wrapped for looks. The grid itself is `w-full` and
+not `mx-auto` like the panels around it: the panel is a column flex container, so an auto
+inline margin there sizes the grid to its content and centres it, which left the right half
+of the panel empty above 768px.
+
 ## Search (command palette)
 
 The navbar search button and `Ctrl`/`Cmd` + `K` open the shared palette component
