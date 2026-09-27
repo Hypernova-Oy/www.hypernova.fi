@@ -341,7 +341,9 @@ if (Astro.request.method === "POST") {
       <form method="POST" action="#request-a-quote" novalidate data-validate style={formSent && errors.form.length === 0 ? 'display:none': ''} >
         <div class="glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-3xl p-8 flex flex-col relative transform shadow-2xl shadow-primary-500/10 reveal-on-scroll" style="transition-delay: 100ms;">
           <div class="grid md:grid-cols-4 sm:grid-cols-1 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform" >
-            <div class="absolute -top-4 -translate-x-1/2">
+            <!-- The section label straddles the top border of its panel. It is centred on the
+                 panel and wraps inside it, so it never hangs off the edge of a narrow screen. -->
+            <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Contact information')}</Badge> 
             </div>
             <label class="p-3 mt-5 col-span-1">{t('Name')}</label><input type="text" name="name" maxlength="120" class="form-field mt-5 p-3 col-span-1" value={formData.name} required data-error-message={t('Please enter your name. ')} /><div class="md:col-span-2"></div>
@@ -360,7 +362,7 @@ if (Astro.request.method === "POST") {
             <p id="koha-error-email" class="col-span-1 md:col-span-4 text-red-800" data-error-for="email" hidden></p>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-4 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
-            <div class="absolute -top-4 -translate-x-1/2">
+            <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Catalog and user details')}</Badge> 
             </div>
             <h3 class="col-span-1 md:col-span-4">{t('Please enter the number of')}</h3>
@@ -371,13 +373,13 @@ if (Astro.request.method === "POST") {
             <label class="p-3 mt-5 col-span-1">{t('Librarians')}</label><input type="text" name="librarians" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1"  value={formData.librarians} /><div class="md:col-span-2"></div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-4 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
-            <div class="absolute -top-4 -translate-x-1/2">
+            <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Current system')}</Badge> 
             </div>
             <label class="p-3 mt-5 col-span-1">{t('Current library system')}</label><input type="text" name="current_ils" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.records} /><div class="md:col-span-2"></div>
         </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
-            <div class="absolute -top-4 -translate-x-1/2">
+            <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Your library')}</Badge> 
             </div>
             <p class="col-span-2 mb-3">{t('Describe your library and its daily work. Do not worry about being too formal. Tell us what kind of material your library manages, what types of patrons you serve, what circulation rules you use, what your library building is like and how it affects your shelving locations, and so on.')}</p>
@@ -386,7 +388,7 @@ if (Astro.request.method === "POST") {
             <textarea name="about_my_library" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="form-field p-3 sm:col-span-1 col-span-2">{formData.about_my_library}</textarea>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
-            <div class="absolute -top-4 -translate-x-1/2">
+            <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Additional services and integrations')}</Badge> 
             </div>
             <p class="col-span-2 mt-10 lg:mt-3 mb-3">{t('Do you have checkout machines that need to be connected to Koha? Does your library system talk to other systems - for example SSO authentication (Azure/Google/other), mail servers (O365/Gmail/other) for library notifications, or online resources behind authentication?')}</p>
@@ -396,7 +398,7 @@ if (Astro.request.method === "POST") {
             <textarea name="additional_services" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="form-field p-3 sm:col-span-1 col-span-2">{formData.additional_services}</textarea>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
-            <div class="absolute -top-4 -translate-x-1/2">
+            <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Ready?')}</Badge> 
             </div>
             <Button type="submit" class="border-2 col-span-2 border-primary-500">{t('Submit')}</Button>

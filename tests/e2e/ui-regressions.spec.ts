@@ -1095,6 +1095,44 @@ test.describe('layout regressions', () => {
       expect(clipped).toBe(false);
     }
   });
+
+  test('form section labels stay centred inside their panel', async ({ page }) => {
+    await useTheme(page, 'light');
+
+    for (const path of ['/koha/', '/contact/', '/koha/?l=fi', '/contact/?l=fi']) {
+      await page.goto(path);
+
+      const rows = await page.evaluate(() => {
+        const viewport = document.documentElement.clientWidth;
+
+        return [...document.querySelectorAll('form [data-form-section]')].map((wrapper) => {
+          const badge = wrapper.querySelector('span')!;
+          const label = badge.getBoundingClientRect();
+          const panel = wrapper.parentElement!.getBoundingClientRect();
+
+          return {
+            label: badge.textContent!.trim(),
+            left: label.left,
+            right: label.right,
+            center: label.left + label.width / 2,
+            panelCenter: panel.left + panel.width / 2,
+            viewport,
+            clipped: badge.scrollWidth > badge.clientWidth + 1 || badge.scrollHeight > badge.clientHeight + 1,
+          };
+        });
+      });
+
+      expect(rows.length).toBeGreaterThan(0);
+
+      for (const row of rows) {
+        const where = `${path} "${row.label}"`;
+        expect(row.left, `${where} starts off the left edge`).toBeGreaterThanOrEqual(0);
+        expect(row.right, `${where} runs past the right edge`).toBeLessThanOrEqual(row.viewport);
+        expect(Math.abs(row.center - row.panelCenter), `${where} is not centred on its panel`).toBeLessThanOrEqual(1.5);
+        expect(row.clipped, `${where} is clipped`).toBe(false);
+      }
+    }
+  });
 });
 
 test.describe('koha staff interface screenshot', () => {
