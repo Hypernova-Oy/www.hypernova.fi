@@ -315,7 +315,8 @@ The branch must exist on that remote (a run stops with a clear message when it d
 the service account needs read access to it - a public URL, or a deploy key in its home
 directory. `origin` carries `master` only so far, so pushing the site branch there once is
 what turns the flow on. Later runs fetch and hard-reset `--dir` to that branch, so that
-command is also the update command.
+command is also the update command. Add `--auto-update` to have the server run that command
+by itself (see below).
 
 Copying the checkout leaves its `.git`, `node_modules`, `dist` and `.env` behind: the server
 keeps the `.env` it was given, and the build it produces, across deploys.
@@ -331,6 +332,7 @@ keeps the `.env` it was given, and the build it produces, across deploys.
 | `-e, --env-file`, `-m, --email` | generated, none | Seed `.env` from a file; Let's Encrypt account for expiry mail |
 | `--no-packages`, `--no-apache`, `--no-tls`, `--dry-run` | - | Skip or rehearse parts of the run |
 | `--behind-proxy` | - | A proxy that ends TLS sits in front: serve plain HTTP, no certificate, no listener on `443`, keep that proxy's `X-Forwarded-*` chain |
+| `--auto-update`, `--auto-update-every` | off, `5` minutes | A cron job on the server repeats the same command and deploys the commits it finds on `--branch` |
 
 Every option also has a `HYPERNOVA_*` environment variable (see `--help`).
 
@@ -403,7 +405,56 @@ A certificate or a certbot that an earlier run left on this host is no longer se
 renews it while the site is in this mode, so stop the timer too unless another site on the
 host uses it: `sudo systemctl disable --now certbot.timer`.
 
-### Without the script
+### Following the branch on its own
+
+`--auto-update` leaves the server to deploy the branch by itself:
+
+```bash
+sudo bash scripts/deploy/install.sh --behind-proxy --auto-update \
+  --repo https://github.com/Hypernova-Oy/www.hypernova.fi.git --branch hypernova.fi
+```
+
+A cron job in `/etc/cron.d/<unit>-auto-update` then runs the same installer every five minutes
+(`--auto-update-every MINUTES`, 1-59; the package `cron` is installed and started if it is
+missing). The job carries the flags of the run that installed it, so an automatic deploy is
+the same deploy as a manual one - same `--dir`, same unit, same `--behind-proxy` - and it adds
+`--if-changed` and `--no-packages`, so an unattended run never stops to install packages.
+
+Each run first asks the remote for the branch. While that still points at the revision in
+`--dir`, the run stops right there and changes nothing; otherwise it updates the code,
+reinstalls the dependencies, rebuilds, restarts the unit and runs the checks, exactly as a
+manual run does. `/etc/cron.d/<unit>-auto-update` is written again by every later run, so
+`--auto-update-every`, `--branch` and the like are changed by re-running the installer.
+
+An unattended run must not leave a revision that does not work answering the domain. When the
+build fails, or when any of the checks fails, the run puts back the revision that was live
+before the pull, builds it and restarts the unit, and says so in the log. That run ends as a
+failure rather than as a success, so the journal shows the difference between a deploy that
+happened and one that was undone. The next run of the job tries again, so a fixed commit is
+deployed without anyone touching the server; a remote that cannot be reached is not read as
+"nothing to deploy" either - such a run stops with a warning and leaves the checkout alone.
+
+What the job did is in the journal, tagged per unit, and it stops in two ways:
+
+```bash
+sudo journalctl -t hypernova-auto-update -n 50
+sudo bash scripts/deploy/install.sh ... --no-auto-update   # also removes the job
+sudo rm /etc/cron.d/hypernova-auto-update                  # the same, without a re-run
+```
+
+Two things to keep in mind:
+
+  * the fetch runs as the service account, so a private remote needs a deploy key in that
+    account's home directory (`--user`, `--home`); a public URL needs nothing;
+  * only what is committed and pushed to the branch is deployed - the pull overwrites local
+    edits in `--dir`, so make changes in a checkout and push them.
+
+This needs the git flow, because the job has to know what the remote holds. A `--dir` that was
+filled by copying a checkout (the default flow) is turned into a clone of the branch by the
+first run that uses `--repo`/`--branch`: git refuses to clone into a directory that is not
+empty, so such a directory is initialized, fetched and hard-reset instead. `.env`,
+`node_modules` and the built bundle are ignored by git and survive that, and the service is
+rebuilt and restarted from the branch in the same run.
 
 ### Without the script
 

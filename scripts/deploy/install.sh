@@ -19,6 +19,12 @@
 # Every step is idempotent, and each one is skipped when it is already in place, so a re-run
 # is quick.
 #
+# With --auto-update the server also follows that branch on its own: a cron job runs this same
+# script every few minutes with --if-changed, which stops immediately when the branch has not
+# moved. A run that pulls a revision which does not build, or does not pass the checks, puts
+# back the revision that was live before it, so an unattended deploy cannot leave a broken
+# build answering the domain.
+#
 # The layout follows the facts of this project (see "Deployment" in README.md):
 #   * `.env` is read while `npm run build` runs, so the Redmine settings and
 #     FORM_TOKEN_SECRET are baked into the server bundle. The file therefore has to exist
@@ -39,7 +45,11 @@
 #
 # Exit status: 0 = the site is deployed and answering, 1 = it is not (or the arguments or
 # the environment are wrong).
-set -euo pipefail
+#
+# errtrace (the -E) matters here: an automatic deploy arms a handler for a failed step in one
+# function, and that handler has to fire for a failure inside another one - the build, or the
+# checks that follow it - which it does not do without -E.
+set -Eeuo pipefail
 
 # --- what is deployed where; every value can also come from the environment -----------
 DOMAIN="${HYPERNOVA_DOMAIN:-www.hypernova.fi}"   # public hostname (ServerName)
@@ -58,6 +68,9 @@ WITH_PACKAGES="${HYPERNOVA_PACKAGES:-1}"
 WITH_APACHE="${HYPERNOVA_APACHE:-1}"
 WITH_TLS="${HYPERNOVA_TLS:-1}"
 WITH_PROXY="${HYPERNOVA_BEHIND_PROXY:-0}"  # a proxy that ends TLS sits in front of this host
+WITH_AUTO_UPDATE="${HYPERNOVA_AUTO_UPDATE:-0}"  # a cron job that follows the branch
+AUTO_UPDATE_EVERY="${HYPERNOVA_AUTO_UPDATE_EVERY:-5}"  # minutes between those runs
+IF_CHANGED="${HYPERNOVA_IF_CHANGED:-0}"  # stop right away when the branch has not moved
 DRY_RUN="${HYPERNOVA_DRY_RUN:-0}"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
@@ -70,13 +83,37 @@ REQUIRED_NODE="${REQUIRED_NODE:-22.12.0}"
 # Set while running, reported at the end.
 REDMINE_NOT_CONFIGURED=0
 
+# The revision an automated run found in --dir, kept so that a pull that turns out badly can
+# be undone (see auto_update_rollback). That function runs at most once per run.
+PREVIOUS_REVISION=""
+ROLLBACK_DONE=0
+
+# What the git flow settled on, so that the cron job below can name the remote and the branch
+# itself instead of hoping the deployed checkout still answers those questions.
+RESOLVED_REPO=""
+RESOLVED_BRANCH=""
+
+# The cron job that follows the branch, and the journal tag it logs under.
+CRON_NAME=""
+CRON_LOG_TAG=""
+CRON_INTERVAL_TEXT=""
+
 # The Node.js that the unit starts and that the build runs with. ensure_node() replaces it
 # with the Node.js that is actually installed.
 NODE_BIN=/usr/bin/node
 
 info() { printf '==> %s\n' "$*"; }
 warn() { printf '!!! %s\n' "$*" >&2; }
-fail() { printf '!!! %s\n' "$*" >&2; exit 1; }
+
+# A failure in an automated run has to hand the domain back to a revision that works, so such
+# a run undoes its pull before it exits: no one is watching that run.
+fail() {
+  printf '!!! %s\n' "$*" >&2
+  if [ "$IF_CHANGED" -eq 1 ] && [ -n "$PREVIOUS_REVISION" ]; then
+    auto_update_rollback
+  fi
+  exit 1
+}
 
 # Runs a command, or prints it in a dry run.
 run() {
@@ -186,28 +223,40 @@ Usage: sudo bash scripts/deploy/install.sh [options]
       --behind-proxy    A proxy that ends TLS sits in front of this host: serve plain HTTP
                         (no certificate, no listener on 443) and keep that proxy's
                         X-Forwarded-For chain
+      --auto-update     Let the server follow --branch by itself: a cron job repeats this
+                        script every few minutes and deploys the commits it finds
+      --auto-update-every MINUTES
+                        How often that job runs (default: 5; 1-59)
+      --no-auto-update  Remove the job an earlier run installed
+      --if-changed      What that job passes: stop right away when --branch has not moved
       --dry-run         Print every change instead of making it
   -h, --help            Show this help
 
 The default is to copy the checkout this script lives in into --dir. With --repo or
 --branch the code is cloned from that git remote instead, and a later run of the same
-command updates it - that needs the branch to exist on the remote.
+command updates it - that needs the branch to exist on the remote. --auto-update builds
+on that flow, because the job has to know what the remote holds.
 
 Environment: HYPERNOVA_DOMAIN, HYPERNOVA_PORT, HYPERNOVA_HOST, HYPERNOVA_SERVICE,
 HYPERNOVA_USER, HYPERNOVA_HOME, HYPERNOVA_DIR, HYPERNOVA_BRANCH, HYPERNOVA_REPO,
 HYPERNOVA_SOURCE, HYPERNOVA_ENV_FILE, HYPERNOVA_EMAIL, HYPERNOVA_PACKAGES,
-HYPERNOVA_APACHE, HYPERNOVA_TLS, HYPERNOVA_BEHIND_PROXY, HYPERNOVA_DRY_RUN.
+HYPERNOVA_APACHE, HYPERNOVA_TLS, HYPERNOVA_BEHIND_PROXY, HYPERNOVA_AUTO_UPDATE,
+HYPERNOVA_AUTO_UPDATE_EVERY, HYPERNOVA_IF_CHANGED, HYPERNOVA_DRY_RUN.
 USAGE
 }
 
-# Kept for the hint at the end of the run: repeating the command has to reproduce this
-# deployment, and the mode flags are part of it (--behind-proxy decides how the virtual host
-# is rendered, --no-apache whether Apache is touched at all). One-shot flags are left out, so
-# a rehearsed run does not suggest rehearsing the next deploy too. Flags only: settings that
-# came from HYPERNOVA_* variables are not part of the command line.
+# Kept for the hint at the end of the run, and reused as the command line of the cron job, so
+# that an automatic deploy is the same deploy as a manual one. Repeating the command has to
+# reproduce this deployment, and the mode flags are part of it (--behind-proxy decides how the
+# virtual host is rendered, --no-apache whether Apache is touched at all). One-shot flags are
+# left out, so a rehearsed run does not suggest rehearsing the next deploy too, and
+# --if-changed stays out because the job adds it itself. Flags only: settings that came from
+# HYPERNOVA_* variables are not part of the command line.
 RERUN_ARGS=()
 for argument in "$@"; do
-  [ "$argument" = "--dry-run" ] && continue
+  case "$argument" in
+    --dry-run | --if-changed) continue ;;
+  esac
   RERUN_ARGS+=("$argument")
 done
 
@@ -228,6 +277,10 @@ while [ $# -gt 0 ]; do
     --no-apache) WITH_APACHE=0; shift ;;
     --no-tls) WITH_TLS=0; shift ;;
     --behind-proxy) WITH_PROXY=1; shift ;;
+    --auto-update) WITH_AUTO_UPDATE=1; shift ;;
+    --auto-update-every) AUTO_UPDATE_EVERY="${2:?--auto-update-every needs a value}"; shift 2 ;;
+    --no-auto-update) WITH_AUTO_UPDATE=0; shift ;;
+    --if-changed) IF_CHANGED=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; fail "Unknown option: $1" ;;
@@ -240,6 +293,42 @@ done
 if [ "$WITH_PROXY" -eq 1 ]; then
   WITH_TLS=0
 fi
+
+# The automatic deploy watches a branch, so --auto-update needs the git flow: without
+# --repo/--branch it follows the branch of the checkout it was started from, and the remote
+# that checkout came from. --if-changed, which the job passes, only means anything there.
+if [ "$WITH_AUTO_UPDATE" -eq 1 ] && [ -z "$REPO" ] && [ -z "$BRANCH" ]; then
+  BRANCH="$(git -C "$CHECKOUT_DIR" branch --show-current 2>/dev/null || true)"
+  [ -n "$BRANCH" ] \
+    || fail "--auto-update follows a branch, so it needs --repo/--branch (this is not a checkout)."
+  info "no --branch given; the automatic deploy will follow $BRANCH"
+fi
+if [ "$IF_CHANGED" -eq 1 ] && [ -z "$REPO" ] && [ -z "$BRANCH" ]; then
+  fail "--if-changed asks a git remote what it holds, so it needs --repo/--branch."
+fi
+
+if [ "$WITH_AUTO_UPDATE" -eq 1 ]; then
+  case "$AUTO_UPDATE_EVERY" in
+    '' | *[!0-9]*) fail "--auto-update-every has to be a number of minutes, got \"$AUTO_UPDATE_EVERY\"" ;;
+  esac
+  { [ "$AUTO_UPDATE_EVERY" -ge 1 ] && [ "$AUTO_UPDATE_EVERY" -le 59 ]; } \
+    || fail "--auto-update-every has to be between 1 and 59, got $AUTO_UPDATE_EVERY"
+  if [ "$((60 % 10#$AUTO_UPDATE_EVERY))" -ne 0 ]; then
+    warn "--auto-update-every $AUTO_UPDATE_EVERY does not divide an hour, so the job does not"
+    warn "start evenly spaced (cron reads */$AUTO_UPDATE_EVERY)."
+  fi
+
+  CRON_INTERVAL_TEXT="every $AUTO_UPDATE_EVERY minutes"
+  if [ "$AUTO_UPDATE_EVERY" -eq 1 ]; then
+    CRON_INTERVAL_TEXT="every minute"
+  fi
+fi
+
+# A unit name may hold a dot, and cron ignores a file in /etc/cron.d that does. These two are
+# worked out whatever the run was asked for: a run that is told to remove the job
+# (--no-auto-update) has to name the same file that the run which installed it wrote.
+CRON_NAME="${SERVICE//[!a-zA-Z0-9_-]/-}-auto-update"
+CRON_LOG_TAG="$SERVICE-auto-update"
 
 # --- sanity, before anything is changed ------------------------------------------------
 [ -f "$CHECKOUT_DIR/package.json" ] \
@@ -299,9 +388,9 @@ if [ "$DRY_RUN" -eq 1 ]; then
 fi
 info "Deploying to $APP_DIR as $APP_USER, serving $DOMAIN ($HOST:$PORT) as unit $SERVICE."
 
-# --- 1/10 packages ---------------------------------------------------------------------
+# --- 1/11 packages ---------------------------------------------------------------------
 install_packages() {
-  info "[1/10] System packages"
+  info "[1/11] System packages"
 
   if [ "$WITH_PACKAGES" -eq 0 ]; then
     info "--no-packages: assuming every package is already installed."
@@ -311,6 +400,8 @@ install_packages() {
   local wanted=(ca-certificates curl git gnupg rsync) package
   [ "$WITH_APACHE" -eq 1 ] && wanted+=(apache2)
   [ "$WITH_TLS" -eq 1 ] && wanted+=(certbot python3-certbot-apache)
+  # The daemon that reads /etc/cron.d, where the automatic deploy puts its job.
+  [ "$WITH_AUTO_UPDATE" -eq 1 ] && wanted+=(cron)
 
   # sharp ships prebuilt binaries for these architectures; anywhere else it is compiled
   # while `npm ci` runs.
@@ -335,12 +426,12 @@ install_packages() {
   run env DEBIAN_FRONTEND=noninteractive apt-get install -y "${missing[@]}"
 }
 
-# --- 2/10 Node.js ----------------------------------------------------------------------
+# --- 2/11 Node.js ----------------------------------------------------------------------
 # The unit starts one absolute binary, so Node.js has to live outside a user's shell setup:
 # an nvm install under a home directory does not work for a service (and ProtectHome=yes
 # below blocks it anyway). A distribution Node.js is accepted when it is new enough.
 ensure_node() {
-  info "[2/10] Node.js $REQUIRED_NODE or newer"
+  info "[2/11] Node.js $REQUIRED_NODE or newer"
 
   local candidate
   for candidate in /usr/bin/node /usr/local/bin/node; do
@@ -383,9 +474,9 @@ ensure_node() {
   fi
 }
 
-# --- 3/10 service account --------------------------------------------------------------
+# --- 3/11 service account --------------------------------------------------------------
 ensure_account() {
-  info "[3/10] Service account and directories"
+  info "[3/11] Service account and directories"
 
   # 750: the built bundle carries the Redmine API key, so only the service account may read
   # the application directory. .env is 600 inside it. The directories are created before the
@@ -410,14 +501,14 @@ protect_app_dir() {
   run chmod -R go-rwx "$APP_DIR"
 }
 
-# --- 4/10 application code --------------------------------------------------------------
+# --- 4/11 application code --------------------------------------------------------------
 # Two ways to get the code into place:
 #   * copy the checkout this script was run from (the default, and the only way that works
 #     before the branch has been pushed anywhere);
 #   * --repo/--branch clone from, and later update from, a git remote, so that re-running
 #     the script on the server deploys a new version on its own.
 sync_code() {
-  info "[4/10] Application code"
+  info "[4/11] Application code"
 
   if [ -n "$REPO" ] || [ -n "$BRANCH" ]; then
     sync_code_from_git
@@ -473,7 +564,60 @@ sync_code_from_git() {
     info "no --branch given; using $branch"
   fi
 
+  RESOLVED_REPO="$repo"
+  RESOLVED_BRANCH="$branch"
+
+  # The job is described as watching --repo, and it fetches through the origin of the
+  # checkout in --dir: worth a word when those are not the same place, because then the
+  # branch that gets deployed is the one that checkout follows, not the one that was named.
+  # The later messages name the remote that is really asked, so they stay true either way.
+  local fetch_from="$repo"
+  if [ "$DRY_RUN" -eq 0 ] && [ -d "$APP_DIR/.git" ]; then
+    local deployed_origin
+    deployed_origin="$(app_run 'git remote get-url origin' 2>/dev/null || true)"
+    deployed_origin="$(printf '%s' "$deployed_origin" | sed 's|^git@\([^:]*\):|https://\1/|')"
+    if [ -n "$deployed_origin" ] && [ "$deployed_origin" != "$repo" ]; then
+      warn "$APP_DIR fetches from $deployed_origin, not from $repo: it keeps its own origin."
+      fetch_from="$deployed_origin"
+    fi
+  fi
+
+  # --if-changed is how the cron job starts: ask the remote whether the branch moved, and stop
+  # without touching anything when it did not. A quiet run every few minutes, and work only
+  # when there is something to deploy.
+  if [ "$IF_CHANGED" -eq 1 ] && [ -d "$APP_DIR/.git" ]; then
+    if [ "$DRY_RUN" -eq 1 ]; then
+      printf '  + stop here unless origin/%s holds a revision other than the one in %s\n' \
+        "$branch" "$APP_DIR"
+    else
+      local deployed remote
+      # A remote that cannot be reached is not "nothing to deploy": say so, change nothing,
+      # and let the next run of the job try again.
+      if ! app_run 'git fetch --prune origin'; then
+        warn "Could not reach $fetch_from for $branch; $APP_DIR was left as it is."
+        exit 1
+      fi
+      deployed="$(app_run 'git rev-parse HEAD')"
+      if ! remote="$(app_run "git rev-parse origin/$branch")"; then
+        warn "$fetch_from has no branch $branch any more; $APP_DIR was left as it is."
+        exit 1
+      fi
+      if [ "$deployed" = "$remote" ]; then
+        info "origin/$branch is still at ${remote:0:12}; nothing to deploy."
+        exit 0
+      fi
+      info "origin/$branch moved to ${remote:0:12}, deployed was ${deployed:0:12}"
+    fi
+  fi
+
   if [ -d "$APP_DIR/.git" ]; then
+    if [ "$IF_CHANGED" -eq 1 ] && [ "$DRY_RUN" -eq 0 ]; then
+      # What is live now, for auto_update_rollback. From here on this run has changed the
+      # code on disk, so every later failure has to undo that: the trap is set for an
+      # automated run only, where no one is watching it happen.
+      PREVIOUS_REVISION="$(app_run 'git rev-parse HEAD')"
+      trap 'auto_update_rollback' ERR
+    fi
     info "updating $APP_DIR from origin/$branch"
     # As the service account: the checkout belongs to it, and root's git refuses a
     # repository that another user owns ("dubious ownership").
@@ -497,13 +641,27 @@ sync_code_from_git() {
     fi
   fi
 
+  # --dir may already hold a deployment that was copied there (the checkout flow above): git
+  # refuses to clone into a directory that is not empty, so that directory becomes a checkout
+  # of the branch instead. `.env`, node_modules and the build are ignored by git and stay.
+  # app_run() prints these instead of running them in a dry run.
+  if [ -n "$(ls -A "$APP_DIR" 2>/dev/null)" ]; then
+    info "$APP_DIR holds no checkout; making it one (keeps .env, node_modules and the build)"
+    app_run "git init --quiet --initial-branch='$branch'"
+    app_run "git remote add origin '$repo' 2>/dev/null || git remote set-url origin '$repo'"
+    app_run 'git fetch --prune origin'
+    app_run "git reset --hard origin/$branch"
+    app_run 'git clean -fd'
+    return 0
+  fi
+
   info "cloning $repo (branch $branch) into $APP_DIR"
   run git clone --branch "$branch" "$repo" "$APP_DIR"
 }
 
-# --- 5/10 environment -------------------------------------------------------------------
+# --- 5/11 environment -------------------------------------------------------------------
 ensure_env_file() {
-  info "[5/10] Environment file"
+  info "[5/11] Environment file"
 
   local template="$APP_DIR/.env.example" secret
 
@@ -531,9 +689,9 @@ ensure_env_file() {
   fi
 }
 
-# --- 6/10 build -------------------------------------------------------------------------
+# --- 6/11 build -------------------------------------------------------------------------
 build_app() {
-  info "[6/10] Dependencies and production build"
+  info "[6/11] Dependencies and production build"
 
   app_run 'npm ci --no-audit --no-fund'
   app_run 'npm run build'
@@ -545,7 +703,7 @@ build_app() {
   info "bundle built into $APP_DIR/dist"
 }
 
-# --- 7/10 systemd unit ------------------------------------------------------------------
+# --- 7/11 systemd unit ------------------------------------------------------------------
 render_unit() {
   cat <<UNIT
 [Unit]
@@ -604,7 +762,7 @@ UNIT
 }
 
 install_unit() {
-  info "[7/10] systemd unit $SERVICE.service"
+  info "[7/11] systemd unit $SERVICE.service"
 
   local unit="/etc/systemd/system/$SERVICE.service" temporary
   temporary="$(mktemp --suffix=.service)"
@@ -627,7 +785,7 @@ install_unit() {
   run systemctl restart "$SERVICE"
 }
 
-# --- 8/10 Apache ------------------------------------------------------------------------
+# --- 8/11 Apache ------------------------------------------------------------------------
 # The virtual host that serves $DOMAIN. With --behind-proxy it keeps what the proxy in front
 # sent; without one, mod_proxy has to add the client address itself, because Apache is then
 # the process that sees the visitor.
@@ -684,7 +842,7 @@ APACHE
 }
 
 configure_apache() {
-  info "[8/10] Apache virtual host for $DOMAIN"
+  info "[8/11] Apache virtual host for $DOMAIN"
 
   if [ "$WITH_APACHE" -eq 0 ]; then
     info "--no-apache: leaving Apache alone."
@@ -727,9 +885,9 @@ configure_apache() {
   run systemctl reload apache2
 }
 
-# --- 9/10 TLS ---------------------------------------------------------------------------
+# --- 9/11 TLS ---------------------------------------------------------------------------
 obtain_certificate() {
-  info "[9/10] TLS for $DOMAIN"
+  info "[9/11] TLS for $DOMAIN"
 
   if [ "$WITH_PROXY" -eq 1 ]; then
     info "skipped: the proxy in front ends TLS"
@@ -767,7 +925,7 @@ obtain_certificate() {
   fi
 }
 
-# --- 10/10 checks -----------------------------------------------------------------------
+# --- 10/11 checks -----------------------------------------------------------------------
 # /search-index.json is the one route that reads the pages of the site back from
 # http://127.0.0.1:$PORT, so it proves both that the server can reach itself and that the
 # index it serves is complete - for every language.
@@ -801,7 +959,7 @@ check_search_index() {
 }
 
 verify_deployment() {
-  info "[10/10] Checking the deployment"
+  info "[10/11] Checking the deployment"
 
   if [ "$DRY_RUN" -eq 1 ]; then
     info "would wait for http://127.0.0.1:$PORT/, check both languages and the search index"
@@ -936,6 +1094,134 @@ verify_deployment() {
   fi
 }
 
+# --- 11/11 automatic deploys ------------------------------------------------------------
+# --auto-update leaves a cron job that repeats this script with --if-changed, so the server
+# follows the branch on its own. The job is written from the flags of the run that installed
+# it (RERUN_ARGS), which is what makes an automatic deploy the same deploy as a manual one:
+# the same --dir, the same unit, the same --behind-proxy.
+#
+# Such a run can still end on a revision that does not work, and no one is watching it. It then
+# undoes its own pull: auto_update_rollback puts back the revision that was live before
+# the pull, builds it and restarts the unit, so the domain keeps answering, and the run ends
+# there reporting failure - what it was asked to deploy is not live. The job runs again a few
+# minutes later and picks up the fix.
+auto_update_rollback() {
+  # Reachable from fail() and from the ERR trap, and has to happen at most once.
+  [ "$ROLLBACK_DONE" -eq 0 ] || return 0
+  ROLLBACK_DONE=1
+  trap - ERR
+
+  # Nothing was pulled, or this is a rehearsal that changed nothing in the first place.
+  if [ "$DRY_RUN" -eq 1 ] || [ -z "$PREVIOUS_REVISION" ]; then
+    return 0
+  fi
+
+  # The recovery has to run to its end even when a step of it fails.
+  set +e
+  warn "the revision just deployed did not work out; putting ${PREVIOUS_REVISION:0:12} back"
+
+  if ! app_run "git reset --hard $PREVIOUS_REVISION"; then
+    warn "Could not reset $APP_DIR to $PREVIOUS_REVISION: put that checkout right by hand."
+    exit 1
+  fi
+  app_run 'git clean -fd'
+
+  if app_run 'npm ci --no-audit --no-fund' \
+    && app_run 'npm run build' \
+    && systemctl restart "$SERVICE" \
+    && wait_for_http "http://127.0.0.1:$PORT/" 60; then
+    protect_app_dir
+    info "$SERVICE is back on ${PREVIOUS_REVISION:0:12} and answers on $HOST:$PORT."
+  else
+    warn "$SERVICE did not come up on ${PREVIOUS_REVISION:0:12} either:"
+    warn "journalctl -u $SERVICE -n 50"
+  fi
+
+  # The run ends here, and it ends as a failure: it was told to deploy a revision that did not
+  # work, the earlier `set +e` has turned off exit-on-error, and the steps that would follow
+  # (the unit, Apache, the job) are about this deployment rather than about that revision.
+  warn "this run did not deploy; the job runs again and picks up a fix."
+  exit 1
+}
+
+# True when the command line kept for the next runs already carries $1.
+rerun_has() {
+  local option="$1" argument
+  for argument in "${RERUN_ARGS[@]}"; do
+    [ "$argument" = "$option" ] && return 0
+  done
+  return 1
+}
+
+# The cron job itself. It names the remote and the branch, because cron starts the script from
+# another directory and a run that is given everything behaves exactly like the run that
+# installed it. It adds --no-packages, so an unattended run never stops to install packages.
+# `flock` keeps a slow build from overlapping the next run.
+render_cron_job() {
+  local arguments=("${RERUN_ARGS[@]}") rendered="" argument
+  rerun_has --repo || arguments+=(--repo "$RESOLVED_REPO")
+  rerun_has --branch || arguments+=(--branch "$RESOLVED_BRANCH")
+  rerun_has --auto-update || arguments+=(--auto-update)
+  rerun_has --if-changed || arguments+=(--if-changed)
+  rerun_has --no-packages || arguments+=(--no-packages)
+
+  for argument in "${arguments[@]}"; do
+    rendered="$rendered \"$argument\""
+  done
+
+  cat <<CRON
+# Automatic deploys for $SERVICE, written by scripts/deploy/install.sh out of the flags of the
+# run that installed it: re-run that command to change this file, or run the installer with
+# --no-auto-update to stop following the branch.
+#
+# $CRON_INTERVAL_TEXT this job asks
+#   $RESOLVED_REPO
+# for $RESOLVED_BRANCH and deploys only when that branch holds a revision other than the one
+# in $APP_DIR: the code is updated, the dependencies reinstalled, the bundle rebuilt, the unit
+# restarted and the result checked. A revision that fails is replaced by the one that was live
+# before it. Everything it prints lands in the journal:
+#
+#   journalctl -t $CRON_LOG_TAG -n 50
+SHELL=/bin/bash
+PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+MAILTO=""
+*/$AUTO_UPDATE_EVERY * * * * root flock -n "/run/$CRON_NAME.lock" bash "$APP_DIR/scripts/deploy/install.sh"$rendered 2>&1 | systemd-cat -t $CRON_LOG_TAG
+CRON
+}
+
+install_auto_update() {
+  info "[11/11] Automatic deploys"
+  local job="/etc/cron.d/$CRON_NAME"
+
+  if [ "$WITH_AUTO_UPDATE" -eq 0 ]; then
+    info "--auto-update was not given: the next version is deployed by re-running this script."
+    if [ -f "$job" ]; then
+      info "removing $job: this deployment no longer follows the branch on its own."
+      run rm -f "$job"
+    fi
+    return 0
+  fi
+
+  if write_config 644 root:root "$job" < <(render_cron_job); then
+    info "$CRON_INTERVAL_TEXT: $job looks for commits on $RESOLVED_BRANCH"
+    info "what those runs did: journalctl -t $CRON_LOG_TAG"
+  else
+    info "$job is already up to date"
+  fi
+
+  # The file is read only while a cron daemon is running on this host.
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf '  + systemctl enable --now cron\n'
+    return 0
+  fi
+  if systemctl list-unit-files --type=service 2>/dev/null | grep -q '^cron\.service'; then
+    run systemctl enable --now cron
+  elif ! pgrep -x cron >/dev/null 2>&1; then
+    warn "Nothing is reading /etc/cron.d on this host, so $job will not run."
+    warn "Install the cron package (re-run without --no-packages) or move the job to a timer."
+  fi
+}
+
 # --- run --------------------------------------------------------------------------------
 install_packages
 ensure_node
@@ -947,6 +1233,12 @@ install_unit
 configure_apache
 obtain_certificate
 verify_deployment
+# The revision that was pulled is answering, so a failure from here on (writing the job below)
+# is no reason to put the one before it back.
+trap - ERR
+PREVIOUS_REVISION=""
+# Last, so that a first install which does not come up does not leave a job that keeps trying.
+install_auto_update
 
 # --- what was done, and what to do next -------------------------------------------------
 # The command that repeats this deployment, with the flags it was started with.
@@ -969,6 +1261,24 @@ Editing .env does not change the running site: the Redmine settings and FORM_TOK
 are read while npm run build runs. Re-run this script afterwards, or run
 scripts/refresh-search-index.sh on the server, which builds, restarts and checks the index.
 SUMMARY
+
+if [ "$WITH_AUTO_UPDATE" -eq 1 ]; then
+  cat <<AUTOMATIC
+
+This deployment follows $RESOLVED_BRANCH on its own: $CRON_INTERVAL_TEXT cron runs
+this same installer with --if-changed, which stops as soon as it sees that the branch has not
+moved, and otherwise updates the code, reinstalls the dependencies, rebuilds, restarts
+$SERVICE and checks the result. A revision that fails those checks is replaced by the one that
+was live before it.
+
+  what it did   journalctl -t $CRON_LOG_TAG -n 50
+  the job       /etc/cron.d/$CRON_NAME
+  stop it       re-run the command above with --no-auto-update, or: rm /etc/cron.d/$CRON_NAME
+
+Only what is committed and pushed to $RESOLVED_BRANCH is deployed, and local edits in
+$APP_DIR are overwritten by the pull.
+AUTOMATIC
+fi
 
 if [ "$REDMINE_NOT_CONFIGURED" -eq 1 ]; then
   warn "The Redmine values in $APP_DIR/.env are empty, so the quote and contact forms"
