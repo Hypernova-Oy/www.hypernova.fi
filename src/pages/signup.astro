@@ -10,10 +10,10 @@ import { resolvePath } from '../utils/navigation';
     <div class="container mx-auto grid max-w-6xl grid-cols-1 items-center gap-12 px-4 sm:px-6 lg:grid-cols-[1fr_460px] lg:px-8">
       <div class="max-w-2xl">
         <p class="mb-4 text-sm font-bold uppercase tracking-widest text-primary-600 dark:text-primary-400">Demo register screen</p>
-        <h1 class="mb-6 font-heading text-4xl font-extrabold leading-tight tracking-tight text-slate-900 dark:text-white md:text-6xl">
+        <h1 class="mb-6 font-heading text-4xl font-extrabold leading-tight tracking-tight text-zinc-900 dark:text-white md:text-6xl">
           Start from the template, then wire your own auth.
         </h1>
-        <p class="text-lg leading-8 text-slate-600 dark:text-slate-400">
+        <p class="text-lg leading-8 text-zinc-600 dark:text-zinc-400">
           This registration page shows the theme's form treatment without pretending to create real accounts.
         </p>
         <div class="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -22,27 +22,27 @@ import { resolvePath } from '../utils/navigation';
         </div>
       </div>
 
-      <div class="glass-panel rounded-2xl p-6 shadow-xl shadow-slate-900/5 dark:shadow-black/20 sm:p-8">
+      <div class="glass-panel rounded-2xl p-6 shadow-xl shadow-zinc-900/5 dark:shadow-black/20 sm:p-8">
         <div class="mb-6 rounded-xl border border-primary-200 bg-primary-50 px-4 py-3 text-sm text-primary-800 dark:border-primary-900/60 dark:bg-primary-950/40 dark:text-primary-200">
           Demo only. Use this as a UI starting point for Supabase, Clerk, Auth.js, or your own backend.
         </div>
-        <h2 class="mb-6 font-heading text-2xl font-bold text-slate-900 dark:text-white">Create account</h2>
+        <h2 class="mb-6 font-heading text-2xl font-bold text-zinc-900 dark:text-white">Create account</h2>
         <form class="space-y-5" action={REPOSITORY_URL} method="get">
           <div>
-            <label for="name" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Name</label>
-            <input id="name" name="name" type="text" autocomplete="name" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white" placeholder="Your name" />
+            <label for="name" class="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Name</label>
+            <input id="name" name="name" type="text" autocomplete="name" class="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white" placeholder="Your name" />
           </div>
           <div>
-            <label for="email" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Email</label>
-            <input id="email" name="email" type="email" autocomplete="email" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white" placeholder="you@example.com" />
+            <label for="email" class="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Email</label>
+            <input id="email" name="email" type="email" autocomplete="email" class="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white" placeholder="you@example.com" />
           </div>
           <div>
-            <label for="password" class="mb-2 block text-sm font-medium text-slate-700 dark:text-slate-300">Password</label>
-            <input id="password" name="password" type="password" autocomplete="new-password" class="w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-slate-900 outline-none transition-colors placeholder:text-slate-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-slate-700 dark:bg-slate-900 dark:text-white" placeholder="Demo password" />
+            <label for="password" class="mb-2 block text-sm font-medium text-zinc-700 dark:text-zinc-300">Password</label>
+            <input id="password" name="password" type="password" autocomplete="new-password" class="w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-zinc-900 outline-none transition-colors placeholder:text-zinc-400 focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 dark:border-zinc-700 dark:bg-zinc-900 dark:text-white" placeholder="Demo password" />
           </div>
           <Button type="submit" class="w-full">View GitHub Repo</Button>
         </form>
-        <p class="mt-6 text-center text-sm text-slate-500 dark:text-slate-400">
+        <p class="mt-6 text-center text-sm text-zinc-500 dark:text-zinc-400">
           Already have an account?
           <a href={resolvePath('/login/')} class="font-medium text-primary-600 hover:text-primary-500 dark:text-primary-400">Sign in</a>
         </p>

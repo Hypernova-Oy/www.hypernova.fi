@@ -9,13 +9,13 @@ import { resolvePath } from '../utils/navigation';
   aria-modal="true"
 >
   <!-- Backdrop -->
-  <div data-command-backdrop class="fixed inset-0 z-0 bg-slate-900/60 backdrop-blur-sm transition-opacity" aria-hidden="true"></div>
+  <div data-command-backdrop class="fixed inset-0 z-0 bg-zinc-900/60 backdrop-blur-sm transition-opacity" aria-hidden="true"></div>
 
   <!-- Palette -->
-  <div class="relative z-10 mx-auto max-w-2xl transform divide-y divide-slate-100 dark:divide-slate-800 overflow-hidden rounded-2xl bg-white dark:bg-slate-900 shadow-2xl ring-1 ring-slate-900/5 transition-all">
+  <div class="relative z-10 mx-auto max-w-2xl transform divide-y divide-zinc-100 dark:divide-zinc-800 overflow-hidden rounded-2xl bg-white dark:bg-zinc-900 shadow-2xl ring-1 ring-zinc-900/5 transition-all">
     <div class="relative">
       <svg
-        class="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-slate-400"
+        class="pointer-events-none absolute left-4 top-3.5 h-5 w-5 text-zinc-400"
         viewBox="0 0 20 20"
         fill="currentColor"
         aria-hidden="true"
@@ -28,7 +28,7 @@ import { resolvePath } from '../utils/navigation';
       <input
         type="text"
         id="search-input"
-        class="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-slate-900 dark:text-white placeholder:text-slate-400 focus:ring-0 sm:text-sm"
+        class="h-12 w-full border-0 bg-transparent pl-11 pr-4 text-zinc-900 dark:text-white placeholder:text-zinc-400 focus:ring-0 sm:text-sm"
         placeholder="Search for articles, updates, and more..."
         role="combobox"
         aria-expanded="false"
@@ -48,7 +48,7 @@ import { resolvePath } from '../utils/navigation';
     <!-- Empty state / Help -->
     <div id="search-help" class="px-6 py-14 text-center sm:px-14">
       <svg
-        class="mx-auto h-6 w-6 text-slate-400"
+        class="mx-auto h-6 w-6 text-zinc-400"
         fill="none"
         viewBox="0 0 24 24"
         stroke-width="1.5"
@@ -60,8 +60,8 @@ import { resolvePath } from '../utils/navigation';
           stroke-linejoin="round"
           d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z"></path>
       </svg>
-      <p class="mt-4 text-sm text-slate-900 dark:text-white font-medium">No recent searches</p>
-      <p class="mt-2 text-sm text-slate-500">Quickly find blog posts and product updates by typing.</p>
+      <p class="mt-4 text-sm text-zinc-900 dark:text-white font-medium">No recent searches</p>
+      <p class="mt-2 text-sm text-zinc-500">Quickly find blog posts and product updates by typing.</p>
     </div>
   </div>
 </div>
@@ -163,7 +163,7 @@ import { resolvePath } from '../utils/navigation';
       if (matches.length === 0) {
         resultsList.innerHTML = `
           <li class="px-4 py-14 text-center sm:px-14">
-            <p class="text-sm text-slate-500">No results found for that query.</p>
+            <p class="text-sm text-zinc-500">No results found for that query.</p>
           </li>
         `;
         return;
@@ -176,12 +176,12 @@ import { resolvePath } from '../utils/navigation';
           tabindex="-1"
         >
           <a href="${resolvePath}${item.slug.startsWith('/') ? item.slug.slice(1) : item.slug}" class="flex items-center">
-            <div class="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-slate-100 dark:bg-slate-800 group-hover:bg-white/20">
-              <span class="text-xs font-bold text-slate-500 dark:text-slate-400 group-hover:text-white uppercase">${item.type.charAt(0)}</span>
+            <div class="flex h-10 w-10 flex-none items-center justify-center rounded-lg bg-zinc-100 dark:bg-zinc-800 group-hover:bg-white/20">
+              <span class="text-xs font-bold text-zinc-500 dark:text-zinc-400 group-hover:text-white uppercase">${item.type.charAt(0)}</span>
             </div>
             <div class="ml-4 flex-auto">
-              <p class="text-sm font-medium text-slate-900 dark:text-white group-hover:text-white">${item.title}</p>
-              <p class="text-xs text-slate-500 dark:text-slate-400 group-hover:text-primary-100 line-clamp-1">${item.description}</p>
+              <p class="text-sm font-medium text-zinc-900 dark:text-white group-hover:text-white">${item.title}</p>
+              <p class="text-xs text-zinc-500 dark:text-zinc-400 group-hover:text-primary-100 line-clamp-1">${item.description}</p>
             </div>
           </a>
         </li>

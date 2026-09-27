@@ -1,0 +1,30 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import KohaServiceComponent from '../components/KohaService.astro';
+import { resolvePath } from '../utils/navigation';
+
+import { Image } from 'astro:assets';
+import kohaLogo from "../images/koha.webp";
+import { base64 } from 'astro:schema';
+
+export const prerender = false;
+---
+
+<BaseLayout title="Koha Cloud Hosting Service" description="Koha Library System Cloud Hosting Service">
+  <div class="bg-zinc-50 dark:bg-[#0c0c0f] border-b border-zinc-200 dark:border-zinc-800 py-16 md:py-24 transition-colors">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl text-center">
+      <h1 class="text-4xl md:text-5xl font-bold text-zinc-900 dark:text-white mb-4">Koha Cloud Hosting Service</h1>
+      
+      <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-8 max-w-6xl mx-auto mt-10">
+        <div></div>
+        <div><a href={resolvePath('/koha/')} target="_blank"><Image src={kohaLogo} alt="Koha" style="" /></a></div>
+        <div></div>
+      </div>
+    </div>
+
+    <KohaServiceComponent />
+  </div>
+
+  
+  
+</BaseLayout>

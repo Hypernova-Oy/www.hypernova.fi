@@ -1,0 +1,86 @@
+---
+import Badge from '../components/Badge.astro';
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Button from '../components/Button.astro';
+
+import { Image } from 'astro:assets';
+import lainuri1 from "../images/lainuri.png";
+import lainuri2 from "../images/lainuri-prototype.jpeg";
+import { useTranslations } from '../i18n/utils';
+
+export const prerender = false;
+
+const i18n = {
+  fi: {
+    'Lainuri Checkout Machine': 'Lainuri-lainausautomaatti',
+    'Free and Open Source and Hardware “plug & play” Checkout Machine': 'Vapaan ja avoimen lähdekoodin ja laitteiston "plug & play"-lainausautomaatti',
+    'It features a quick and easy installation without having to spend a significant amount of work for your staff, unlike traditional SIP2 machines. You can save up to 10 hours of installation work. The device is using common and open standards for easy and effective usability, installability and maintainability': 'Lainuri mahdollistaa helpon käyttöönoton sitomatta tarpeettomasti henkilökunnan voimavaroja perinteisten lainausautomaattien käyttöönottojen tavoin. Voit säästää jopa 10 tuntia omaa työtä käyttöönottovaiheessa. Lainuri käyttää yleisiä ja avoimia standardeja saumattoman käytettävyyden, asennettavuuden ja ylläpidettävyyden mahdollistamiseksi',
+    'Lainuri is Finnish quality design. Therefore we provide a two-year warranty for the device': 'Lainuri on suomalaista suunnittelu- ja laatutyötä. Siksi tarjoamme sille kahden vuoden takuajan',
+    'Let your staff relax and choose Lainuri! We send the device by mail – you plug it in. No hassle!': 'Säästä henkilökuntaasi, valitse Lainuri. Me laitamme Lainurin Postiin – Te laitatte töpselin seinään. Ei turhaa turaamista',
+    'Slip printer compactly integrated inside the covers. Many types of cover materials': 'Kuittitulostin kompaktisti laitteen sisällä. Useita materiaalivaihtoehtoja',
+    'Lainuri at our workshop': 'Lainuri kehityspajalla',
+    'Multiple casing materials are available at our partner’s catalog. We will also engrave your logo onto the device’s case': 'Valitse oma materiaali ja väri yhteistyökumppanimme materiaalipankista. Lainurit valmistetaan omalla logollasi kaiverrettuna',
+    'Lainuri can be installed on a table or via standard VESA 100 mount to a wall, pillar or where-ever. It requires a wireless internet connection and a power socket': 'Lainuri voidaan asentaa joko pöydälle, tai standardilla VESA 100 -kiinnityksellä seinään, kirjahyllyyn, pilariin tai mihin vaan. Lainuri tarvitsee langattoman internet-yhteyden, sekä virtapistokkeen',
+    'Lainuri is licensed with CERN OHL and GPLv3 licenses. Our clients have full rights to modify Lainuri software or hardware, as long as the new and/or modified documents are publicly shared. The complete device itself will be property of our client. Please note the device contains components to which patents and/or copyrights may apply by their original manufacturers': 'Lainuri on soveltuvin osin CERN OHL- ja GPL3-lisensoitu. Tämä tarkoittaa käytännössä sitä, että asiakkaalla on täysi oikeus tehdä mitä tahansa muutoksia Lainurin ohjelmistoon tai laitteistoon, niillä edellytyksin että tehdyt/muokatut dokumentit, piirrustukset, kaaviot ja ohjelmakoodi jaetaan vapaasti saataville. Laite itsessään, kokoonpannussa ja asennetussa muodossaan, on kokonaisuudessaan tilaajan omaisuutta ilman minkäänlaisia patentti- tai tekijänoikeusvaateita toimittajalta. Laite sisältää valmiita komponentteja, joiden tekijänoikeudet säilyvät niiden alkuperäisillä omistajilla',
+    'Contact us': 'Ota yhteyttä'
+  }
+} as i18n;
+const t = useTranslations(i18n);
+---
+
+<BaseLayout title={t('Lainuri Checkout Machine')} description={t('Free and Open Source and Hardware “plug & play” Checkout Machine')}>
+    <div class="bg-zinc-50 dark:bg-[#0c0c0f] border-b border-zinc-200 dark:border-zinc-800 py-16 md:py-24 transition-colors">
+      <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl text-center">
+        <h1 class="text-4xl md:text-5xl font-bold text-zinc-900 dark:text-white mb-4">{t('Lainuri Checkout Machine')}</h1>
+        <p class="text-xl text-zinc-600 dark:text-zinc-400">
+          {t('Free and Open Source and Hardware “plug & play” Checkout Machine')}
+        </p>
+      </div>
+    </div>
+    <section id="lainuri-info" class="py-16 bg-zinc-50 dark:bg-[#0c0c0f]">
+    <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+        <div class="max-w-8xl mx-auto mb-16 reveal-on-scroll">
+        <div class="grid grid-cols-1 lg:grid-rows-1 gap-6 max-w-7xl mx-auto">
+            <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0">
+            <div class="grid grid-cols-1 lg:grid-rows-1 gap-6 max-w-7xl mx-auto">
+                <div class="col-span-1">
+                    <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
+                        {t('It features a quick and easy installation without having to spend a significant amount of work for your staff, unlike traditional SIP2 machines. You can save up to 10 hours of installation work. The device is using common and open standards for easy and effective usability, installability and maintainability')}.
+                    </p>
+                    <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
+                        {t('Lainuri is Finnish quality design. Therefore we provide a two-year warranty for the device')}.
+                    </p>
+                    <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
+                        {t('Let your staff relax and choose Lainuri! We send the device by mail – you plug it in. No hassle!')}
+                    </p>
+                    <div class="grid grid-cols-2 grid-rows-1 gap-6 mx-12">
+                        <div class="col-span-2 lg:col-span-1">
+                            <Image src={lainuri1} alt={t('Lainuri Checkout Machine')} height=500 />
+                            <p class="lg:col-span-1 gap-6">{t('Slip printer compactly integrated inside the covers. Many types of cover materials')}.</p>
+                        </div>
+                        <div class="col-span-2 lg:col-span-1 gap-6 mx-12">
+                            <Image src={lainuri2} alt={t('Lainuri Checkout Machine')} height=500 />
+                            <p class="lg:col-span-1 gap-6">{t('Lainuri at our workshop')}.</p>
+                        </div>
+
+                    </div>
+                    <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10 my-12">
+                        {t('Multiple casing materials are available at our partner’s catalog. We will also engrave your logo onto the device’s case')}.
+                    </p>
+                    <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
+                        {t('Lainuri can be installed on a table or via standard VESA 100 mount to a wall, pillar or where-ever. It requires a wireless internet connection and a power socket')}.
+                    </p>
+                    <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
+                        {t('Lainuri is licensed with CERN OHL and GPLv3 licenses. Our clients have full rights to modify Lainuri software or hardware, as long as the new and/or modified documents are publicly shared. The complete device itself will be property of our client. Please note the device contains components to which patents and/or copyrights may apply by their original manufacturers')}.
+                    </p>
+                    <Button href="/contact/#form" variant="primary" size="lg" class="w-full mt-12 sm:w-auto text-lg px-8 py-4 shadow-xl shadow-primary-500/20">
+                        {t('Contact us')}
+                    </Button>
+                </div>
+            </div>
+        </div>
+        </div>
+    </div>
+    </section>
+
+</BaseLayout>

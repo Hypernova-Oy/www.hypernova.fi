@@ -6,8 +6,10 @@ import '../styles/global.css';
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
 import CommandPalette from '../components/CommandPalette.astro';
-import { SITE_TITLE, SITE_DESCRIPTION, SITE_URL } from '../config';
+import { SITE_TITLE, SITE_DESCRIPTION, SITE_DESCRIPTION_I18N, SITE_URL } from '../config';
 import { resolvePath } from '../utils/navigation';
+import { langConfig } from '../i18n/ui';
+import { useTranslations } from '../i18n/utils';
 
 interface Props {
   title: string;
@@ -19,9 +21,15 @@ interface Props {
   author?: string;
 }
 
+const i18n = {
+  fi: {}
+} as i18n;
+i18n['fi'][SITE_DESCRIPTION] = SITE_DESCRIPTION_I18N['fi'];
+const t = useTranslations(i18n);
+
 const {
   title,
-  description = SITE_DESCRIPTION,
+  description = t(SITE_DESCRIPTION),
   image = '/og-image.png',
   type = 'website',
   publishedDate,
@@ -68,10 +76,31 @@ const structuredData =
         description,
         url: siteURL,
       };
+
+let lang;
+const langParam = Astro.url.searchParams.get("l");
+const langCookie = Astro.cookies.get('language');
+if (typeof langParam === 'string' && langParam.length > 0 && langParam !== 'null') {
+  lang = langParam;
+} else if (typeof langCookie !== 'undefined') {
+  lang = langCookie.value;
+} else if (typeof lang === 'undefined') {
+  lang = typeof Astro.preferredLocale === 'string' ? Astro.preferredLocale : 'gb';
+}
+if (!Astro.request.headers.has('Sec-Purpose') || Astro.request.headers.get('Sec-Purpose') !== 'prefetch') {
+  if (Astro.cookies.has('language')) {
+    if (langCookie.value !== lang) {
+      Astro.response.headers.append('set-cookie', 'language='+lang+'; path=/;');
+    }
+  } else {
+    Astro.response.headers.append('set-cookie', 'language='+lang+'; path=/;');
+  }
+}
+langConfig.currentLang = lang;
 ---
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang={lang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
@@ -94,12 +123,6 @@ const structuredData =
     {type === 'article' && (modifiedDate ?? publishedDate) && (
       <meta property="article:modified_time" content={(modifiedDate ?? publishedDate)?.toISOString()} />
     )}
-
-    <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:site" content="@farrosfr_" />
-    <meta name="twitter:title" content={fullTitle} />
-    <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={imageURL} />
 
     <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
     
@@ -146,7 +169,7 @@ const structuredData =
       })();
     </script>
   </head>
-  <body class="flex flex-col min-h-screen bg-slate-50 text-slate-900 transition-colors duration-300 dark:bg-[#09090b] dark:text-slate-100">
+  <body class="flex flex-col min-h-screen bg-zinc-50 text-zinc-900 transition-colors duration-300 dark:bg-[#09090b] dark:text-zinc-100">
     <CommandPalette />
     <Navbar />
     <main class="flex-grow">

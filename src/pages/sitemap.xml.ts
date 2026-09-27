@@ -9,13 +9,11 @@ type SitemapEntry = {
 
 const staticEntries: SitemapEntry[] = [
   { path: '/' },
-  { path: '/login/' },
-  { path: '/signup/' },
-  { path: '/pricing/' },
-  { path: '/blog/' },
-  { path: '/changelog/' },
+  { path: '/koha/' },
+  { path: '/lainuri-checkout-machine/' },
   { path: '/privacy/' },
-  { path: '/terms/' },
+  { path: '/services/' },
+  { path: '/toveri-access-control-device/' },
 ];
 
 const escapeXml = (value: string) =>

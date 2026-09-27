@@ -1,0 +1,17 @@
+---
+import { langConfig, languages } from '../i18n/ui';
+import "flag-icons/css/flag-icons.min.css";
+
+const currentLang = langConfig.currentLang;
+---
+<ul>
+  {Object.entries(languages).map(([lang, label]) => (
+    <li>
+      {lang!==currentLang ? (
+        <a href={`?l=${lang}`}><span class={`fi fi-${lang}`}></span> {label}</a>
+      ) : (
+        <a href={`?l=${lang}`} class="hidden">{label}</a>
+      )}
+    </li>
+  ))}
+</ul>
