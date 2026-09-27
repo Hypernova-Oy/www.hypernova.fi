@@ -185,7 +185,11 @@ entries for that reason.
 
 The language switcher is `src/components/LanguagePicker.astro`. It links to the same page
 with `?l=`, so changing language never leaves the page the visitor is on. The desktop nav
-bar holds it as a plain link; because that bar is hidden on a small screen, the mobile menu
+bar holds it as a pill of its own (`variant="inline"`, the default): the bar around it is
+bare text, so the picker carries the fill, the inset and the size of a control - the fill
+and the text size of a link it is not, one taken from the theme's solid-control colour
+(`primary-600`) and one matching the labels it follows, instead of the 16px a bare link
+would inherit beside them. Because that bar is hidden on a small screen, the mobile menu
 renders the same component as full-width rows (`variant="menu"`), next to the navigation
 links it would otherwise be missing from.
 
@@ -201,6 +205,9 @@ Finnish labels are the longest, so a hairline (`span[data-nav-separator]`) carri
 separation between the items and the gaps around it are kept small (`gap-3 lg:gap-2`)
 until the row has room to breathe again (`xl:gap-5`). The hairlines start at `lg`, where
 the row stops wrapping its labels; the mobile menu draws its links as rows and has none.
+The picker's pill costs the row about 15px more than the bare link did, which the tightest
+row (`lg`, Finnish labels, `English` in the picker) still has to spare - measured at 768,
+1024 and 1280px, in both languages.
 
 ## Forms
 

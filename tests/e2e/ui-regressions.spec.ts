@@ -1170,7 +1170,12 @@ test.describe('layout regressions', () => {
         const nav = document.querySelector('header nav')!;
         // The picker keeps the language in use as a hidden link, which has no box to measure.
         const links = [...nav.querySelectorAll('a')].filter((link) => link.getBoundingClientRect().height > 0);
-        const rows = links.map((link) => Math.round(link.getBoundingClientRect().top));
+        // The picker is a pill, so it stands taller than the bare labels beside it: one row
+        // is the links sharing a centre, not a top edge.
+        const rows = links.map((link) => {
+          const box = link.getBoundingClientRect();
+          return Math.round(box.top + box.height / 2);
+        });
 
         return { rows: new Set(rows).size, height: Math.round(nav.getBoundingClientRect().height) };
       });
@@ -1179,6 +1184,47 @@ test.describe('layout regressions', () => {
       // onto more than one row instead of widening (which would reach the controls).
       expect(bar.rows).toBe(1);
       expect(bar.height).toBeLessThanOrEqual(40);
+    }
+  });
+
+  test('the language switcher reads as a control, not another link', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'The picker in the desktop nav bar is not visible on a small viewport.');
+
+    for (const theme of ['light', 'dark'] as const) {
+      await useTheme(page, theme);
+      await page.goto('/');
+
+      const picker = page.locator('header nav a[href="?l=fi"]');
+      await expect(picker).toBeVisible();
+
+      const shape = await picker.evaluate((el) => {
+        const style = getComputedStyle(el);
+        const label = document.querySelector('header nav a:not([href^="?l="])')!;
+        const labelStyle = getComputedStyle(label);
+        const box = el.getBoundingClientRect();
+
+        return {
+          fill: style.backgroundColor,
+          panel: getComputedStyle(document.querySelector('header')!).backgroundColor,
+          padding: parseFloat(style.paddingLeft),
+          radius: parseFloat(style.borderTopLeftRadius),
+          fontSize: style.fontSize,
+          labelFontSize: labelStyle.fontSize,
+          height: Math.round(box.height),
+          labelHeight: Math.round(label.getBoundingClientRect().height),
+        };
+      });
+
+      // A surface of its own, unlike the bare labels: filled, inset from its own edge and
+      // rounded, standing taller than the line the links sit on.
+      expect(shape.fill, `${theme}: the picker draws no fill of its own`).not.toBe('rgba(0, 0, 0, 0)');
+      expect(shape.fill, `${theme}: the picker blends into the bar behind it`).not.toBe(shape.panel);
+      expect(shape.padding, `${theme}: the picker has no room around its flag`).toBeGreaterThanOrEqual(4);
+      expect(shape.radius, `${theme}: the picker is not rounded`).toBeGreaterThan(0);
+      expect(shape.height, `${theme}: the picker is no taller than a bare link`).toBeGreaterThan(shape.labelHeight);
+
+      // Sized as a link next to the links, rather than inheriting the larger body text.
+      expect(shape.fontSize, `${theme}: the picker is set larger than the links`).toBe(shape.labelFontSize);
     }
   });
 
