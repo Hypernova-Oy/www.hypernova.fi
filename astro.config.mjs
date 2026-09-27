@@ -35,9 +35,24 @@ export default defineConfig({
     service: passthroughImageService(),
     domains: ['i.pravatar.cc']
   },
+  // Legacy URLs from the previous site. The Finnish pages of the old site become the
+  // same page on this site with the `?l=fi` language parameter, and the old standalone
+  // quote/hosting pages point at the matching section of `/koha/`.
   redirects: {
-    "/lainuri-self-checkout-machine/": "/lainuri-checkout-machine/",
+    // Finnish legacy URLs.
+    "/fi/": "/?l=fi",
+    "/fi/koha/": "/koha/?l=fi",
+    "/fi/koha-yllapitopalvelu/": "/koha/?l=fi#cloud-hosting-service",
+    "/fi/koha-yllapito-tarjouspyynto/": "/koha/?l=fi#request-a-quote",
     "/fi/lainuri-lainausautomaatti/": "/lainuri-checkout-machine/?l=fi",
+    "/fi/ota-yhteytta/": "/contact/?l=fi",
+    "/fi/tietosuojaseloste/": "/privacy/?l=fi",
+    "/fi/toveri-kulunvalvontalaite/": "/toveri-access-control-device/?l=fi",
+    "/fi/yhteystiedot/": "/contact/?l=fi",
+    // English legacy URLs.
+    "/koha-hosting-quote/": "/koha/#request-a-quote",
+    "/lainuri-self-checkout-machine/": "/lainuri-checkout-machine/",
+    "/privacy-policy/": "/privacy/",
   },
   vite: {
     plugins: [tailwindcss()]

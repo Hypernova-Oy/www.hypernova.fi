@@ -46,11 +46,32 @@ test.describe('public pages', () => {
     });
   }
 
-  test('legacy Lainuri URLs redirect to the checkout machine page', async ({ page }) => {
-    const response = await page.goto('/lainuri-self-checkout-machine/');
-    expect(response?.status()).toBeLessThan(400);
-    expect(new URL(page.url()).pathname).toBe('/lainuri-checkout-machine/');
-  });
+  // The URLs the previous site served, and where each of them lands now. Astro answers
+  // every one of them with a permanent redirect (the `redirects` block in astro.config.mjs).
+  const legacyRedirects: Array<{ from: string; to: string }> = [
+    { from: '/lainuri-self-checkout-machine/', to: '/lainuri-checkout-machine/' },
+    { from: '/privacy-policy/', to: '/privacy/' },
+    { from: '/koha-hosting-quote/', to: '/koha/#request-a-quote' },
+    { from: '/fi/', to: '/?l=fi' },
+    { from: '/fi/koha/', to: '/koha/?l=fi' },
+    { from: '/fi/koha-yllapitopalvelu/', to: '/koha/?l=fi#cloud-hosting-service' },
+    { from: '/fi/koha-yllapito-tarjouspyynto/', to: '/koha/?l=fi#request-a-quote' },
+    { from: '/fi/lainuri-lainausautomaatti/', to: '/lainuri-checkout-machine/?l=fi' },
+    { from: '/fi/ota-yhteytta/', to: '/contact/?l=fi' },
+    { from: '/fi/tietosuojaseloste/', to: '/privacy/?l=fi' },
+    { from: '/fi/toveri-kulunvalvontalaite/', to: '/toveri-access-control-device/?l=fi' },
+    { from: '/fi/yhteystiedot/', to: '/contact/?l=fi' },
+  ];
+
+  for (const { from, to } of legacyRedirects) {
+    test(`legacy URL ${from} redirects to ${to}`, async ({ page }) => {
+      const response = await page.goto(from);
+      expect(response?.status()).toBeLessThan(400);
+
+      const landed = new URL(page.url());
+      expect(`${landed.pathname}${landed.search}${landed.hash}`).toBe(to);
+    });
+  }
 
   test('sitemap and robots point at the Hypernova domain', async ({ page }) => {
     const sitemap = await page.goto('/sitemap.xml');

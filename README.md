@@ -102,8 +102,12 @@ through the REST API. Copy `.env.example` to `.env` and set:
 | `/sitemap.xml`, `/robots.txt` | SSR | SEO data |
 | `/search-index.json` | SSR | Data for the command palette (see below) |
 
-Legacy URLs are redirected in `astro.config.mjs` (for example
-`/lainuri-self-checkout-machine/` → `/lainuri-checkout-machine/`).
+Legacy URLs are redirected in `astro.config.mjs`. The old standalone pages point at the
+section of `/koha/` that replaced them (`/koha-hosting-quote/` →
+`/koha/#request-a-quote`) or at the page that took their place (`/privacy-policy/` →
+`/privacy/`, `/lainuri-self-checkout-machine/` → `/lainuri-checkout-machine/`), and the
+Finnish URLs of the old site become the same page with the `?l=fi` language parameter
+(`/fi/lainuri-lainausautomaatti/` → `/lainuri-checkout-machine/?l=fi`).
 
 ## Search (command palette)
 
