@@ -15,6 +15,7 @@ const i18n = {
       'Koha Cloud Hosting': 'Koha-pilvipalvelu',
       'Contact': 'Yhteystiedot',
       'Search': 'Haku',
+      'Language': 'Kieli',
       'Open main menu': 'Avaa päävalikko',
   }
 };
@@ -96,8 +97,16 @@ const t = useTranslations(i18n, Astro);
           {t(link.label)}
         </a>
       ))}
-    
-  </div>
+    </div>
+
+    <!--
+      The picker in the nav bar is hidden on a small screen, so the languages are
+      offered here as well instead of being out of reach on a phone.
+    -->
+    <div class="border-t border-zinc-200 px-2 pt-2 pb-3 sm:px-3 dark:border-night-line">
+      <p class="px-3 text-xs font-bold text-zinc-500 dark:text-zinc-400 uppercase">{t('Language')}</p>
+      <LanguagePicker variant="menu" />
+    </div>
   </div>
 </header>
 

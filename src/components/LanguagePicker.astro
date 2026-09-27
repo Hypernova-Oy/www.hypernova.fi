@@ -2,13 +2,29 @@
 import { languages } from '../i18n/ui';
 import "flag-icons/css/flag-icons.min.css";
 
+interface Props {
+  /**
+   * `inline` is the bare link the desktop nav bar lays out next to its own links.
+   * `menu` draws a full-width row, so the picker inside the mobile menu is as easy
+   * to tap as the navigation links above it: Tailwind's preflight leaves a bare
+   * `a` unstyled, with no padding to aim at.
+   */
+  variant?: 'inline' | 'menu';
+}
+
+const { variant = 'inline' } = Astro.props;
 const currentLang = Astro.locals.lang;
+
+const linkClass =
+  variant === 'menu'
+    ? 'flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-primary-600 dark:text-zinc-300 dark:hover:bg-night-raise dark:hover:text-primary-400'
+    : undefined;
 ---
-<ul>
+<ul class={variant === 'menu' ? 'space-y-1' : undefined}>
   {Object.entries(languages).map(([lang, label]) => (
     <li>
       {lang!==currentLang ? (
-        <a href={`?l=${lang}`}><span class={`fi fi-${lang}`}></span> {label}</a>
+        <a href={`?l=${lang}`} class={linkClass}><span class={`fi fi-${lang}`}></span> {label}</a>
       ) : (
         <a href={`?l=${lang}`} class="hidden">{label}</a>
       )}

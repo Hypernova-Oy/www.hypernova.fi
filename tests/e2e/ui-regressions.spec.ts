@@ -530,6 +530,31 @@ test.describe('navigation', () => {
     await expect(menu).toBeHidden();
   });
 
+  test('the language switcher is in the mobile menu', async ({ page, isMobile }) => {
+    test.skip(!isMobile, 'The picker in the desktop nav bar is not visible on a small viewport.');
+
+    await page.goto('/');
+    await page.getByRole('button', { name: 'Open main menu' }).click();
+
+    const menu = page.locator('#mobile-menu');
+    await expect(menu.getByText('Language', { exact: true })).toBeVisible();
+
+    // The page is English, so the menu offers Finnish (the current language stays hidden).
+    const finnish = menu.locator('a[href="?l=fi"]');
+    await expect(finnish).toBeVisible();
+    await expect(finnish).toContainText('Suomi');
+
+    await finnish.click();
+
+    // The choice applies to the page the visitor is on, and the fresh navbar closes the menu.
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fi');
+    await expect(menu).toBeHidden();
+
+    await page.getByRole('button', { name: 'Avaa päävalikko' }).click();
+    await expect(menu.getByText('Kieli', { exact: true })).toBeVisible();
+    await expect(menu.locator('a[href="?l=gb"]')).toContainText('English');
+  });
+
   test('command palette opens with Ctrl+K and closes with Escape', async ({ page }) => {
     await page.goto('/');
     const palette = page.locator('#command-palette');

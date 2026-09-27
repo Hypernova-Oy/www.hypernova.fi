@@ -164,6 +164,12 @@ const t = useTranslations(i18n, Astro);
 English keys are used as-is; missing Finnish entries fall back to English. Add new
 copy to the component's `fi` dictionary next to where it is rendered.
 
+The language switcher is `src/components/LanguagePicker.astro`. It links to the same page
+with `?l=`, so changing language never leaves the page the visitor is on. The desktop nav
+bar holds it as a plain link; because that bar is hidden on a small screen, the mobile menu
+renders the same component as full-width rows (`variant="menu"`), next to the navigation
+links it would otherwise be missing from.
+
 ## Forms
 
 `/koha/` and `/contact/` POST back to themselves. Validation errors are rendered
