@@ -8,7 +8,7 @@ import { useTranslations } from '../i18n/utils';
 const i18n = {
   fi: {
       'Ready to move to open source?': 'Valmiina siirtymään avoimeen lähdekoodiin?',
-      'Tell us what your organization runs today and we will reply with a concrete proposal.': 'Kerro, mitä järjestelmiä käytätte nyt, niin vastaamme konkreettisella ehdotuksella.',
+      'Get in touch to explore how open-source software can support your organization.': 'Mietitää yhdessä miten vapaa ja avoin lähdekoodi voi olla organisaatiosi tukena.',
       'Contact us': 'Ota yhteyttä',
       'Our services': 'Palvelumme'
   }
@@ -26,7 +26,7 @@ const t = useTranslations(i18n, Astro);
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl relative z-10 reveal-on-scroll">
       <h2 class="text-4xl md:text-6xl font-heading font-extrabold mb-6 tracking-tight">{t('Ready to move to open source?')}</h2>
       <p class="text-xl text-primary-100 dark:text-primary-200 mb-12">
-        {t('Tell us what your organization runs today and we will reply with a concrete proposal.')}
+        {t('Get in touch to explore how open-source software can support your organization.')}
       </p>
       <div class="flex flex-col sm:flex-row justify-center gap-4">
         <a href={resolvePath('/contact/')} class="inline-flex items-center justify-center px-8 py-4 text-lg font-bold rounded-xl bg-white text-primary-600 hover:bg-zinc-50 hover:scale-105 transition-all shadow-2xl shadow-black/20">

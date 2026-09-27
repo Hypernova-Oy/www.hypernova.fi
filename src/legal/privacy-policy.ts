@@ -55,8 +55,8 @@ export const privacyPolicy: LegalDocument = {
         {
           kind: 'p',
           text: {
-            gb: 'We have not appointed a Data Protection Officer, because our processing does not meet the criteria of Article 37 GDPR. Privacy matters are handled by our management team, and you can reach them with the contact form at www.hypernova.fi/contact/ or by post at the address above.',
-            fi: 'Meillä ei ole tietosuojavastaavaa, koska käsittelytoimintamme eivät täytä tietosuoja-asetuksen 37 artiklan kriteerejä. Tietosuoja-asioita hoitaa johtomme, ja tavoitat heidät osoitteessa www.hypernova.fi/contact/ olevalla yhteydenottolomakkeella tai postitse yllä olevaan osoitteeseen.',
+            gb: 'Data Protection Officer Lari Taskula. Reach us with the contact form at www.hypernova.fi/contact/ or by post at the address above.',
+            fi: 'Tietosuojavastaava Lari Taskula. Tavoitat tietosuojavastaavan osoitteessa www.hypernova.fi/contact/ olevalla yhteydenottolomakkeella tai postitse yllä olevalla osoitteella.',
           },
         },
       ],
@@ -185,13 +185,13 @@ export const privacyPolicy: LegalDocument = {
           kind: 'ul',
           items: {
             gb: [
-              'Data centre and hosting services: Hetzner Finland Oy (Helsinki, Finland). Our servers and backups are located in the EEA.',
+              'Data centre and hosting services: Hetzner Finland Oy (Tuusula, Finland). Our servers and backups are located in the EEA.',
               'Our own systems: this website, our support and ticketing system (Redmine) and our email run on our own servers in Finland.',
               'IT support and maintenance partners, bound by confidentiality and data processing agreements.',
               'Public authorities, such as the tax authority, where we are legally obliged to disclose data.',
             ],
             fi: [
-              'Konesali- ja hostingpalvelut: Hetzner Finland Oy (Helsinki, Suomi). Palvelimemme ja varmuuskopiomme sijaitsevat ETA-alueella.',
+              'Konesali- ja hostingpalvelut: Hetzner Finland Oy (Tuusula, Suomi). Palvelimemme ja varmuuskopiomme sijaitsevat ETA-alueella.',
               'Omat järjestelmämme: tämä verkkosivusto, tuki- ja tikettijärjestelmämme (Redmine) sekä sähköpostimme toimivat omilla palvelimillamme Suomessa.',
               'IT-tuki- ja ylläpitokumppanit, joita sitovat salassapito- ja henkilötietojen käsittelysopimukset.',
               'Viranomaiset, kuten verohallinto, silloin kun lainsäädäntö velvoittaa meidät luovuttamaan tietoja.',
@@ -213,8 +213,8 @@ export const privacyPolicy: LegalDocument = {
         {
           kind: 'p',
           text: {
-            gb: 'We primarily process personal data within the European Economic Area and our data centre is located in Helsinki, Finland. If personal data is transferred outside the EEA, we ensure an adequate level of protection as required by Chapter V of the GDPR, for example by using the European Commission standard contractual clauses together with a transfer impact assessment, or on the basis of an adequacy decision.',
-            fi: 'Käsittelemme henkilötietoja ensisijaisesti Euroopan talousalueella, ja konesalimme sijaitsee Helsingissä. Jos henkilötietoja siirretään ETA-alueen ulkopuolelle, varmistamme tietosuoja-asetuksen V luvun edellyttämän riittävän suojan tason esimerkiksi Euroopan komission vakiosopimuslausekkeilla ja siirtoa koskevalla vaikutustenarvioinnilla tai tietosuojan riittävyyttä koskevan päätöksen perusteella.',
+            gb: 'We primarily process personal data within the European Economic Area and our data centre is located in Tuusula, Finland. If personal data is transferred outside the EEA, we ensure an adequate level of protection as required by Chapter V of the GDPR, for example by using the European Commission standard contractual clauses together with a transfer impact assessment, or on the basis of an adequacy decision.',
+            fi: 'Käsittelemme henkilötietoja ensisijaisesti Euroopan talousalueella, ja konesalimme sijaitsee Tuusulassa. Jos henkilötietoja siirretään ETA-alueen ulkopuolelle, varmistamme tietosuoja-asetuksen V luvun edellyttämän riittävän suojan tason esimerkiksi Euroopan komission vakiosopimuslausekkeilla ja siirtoa koskevalla vaikutustenarvioinnilla tai tietosuojan riittävyyttä koskevan päätöksen perusteella.',
           },
         },
       ],
