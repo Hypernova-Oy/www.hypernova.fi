@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
 /** Matches THEME_KEY in the theme script in BaseLayout.astro and the Navbar toggle. */
@@ -126,6 +127,169 @@ test.describe('head metadata', () => {
     await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', 'https://www.hypernova.fi/koha-hosting/');
     await expect(page.locator('meta[property="og:type"]')).toHaveAttribute('content', 'website');
     await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', /Hypernova$/);
+  });
+
+  /**
+   * SHA-256 of the icon served by https://www.hypernova.fi/ (the site it was migrated
+   * from). The mark is a raster file, so the hash is what pins "same favicon as
+   * production"; updating the icon means updating this expectation on purpose.
+   */
+  const PRODUCTION_FAVICON_SHA256 = '9174dedddfc895dcd1fa931c740ac45cd1ee9342cea7ea4642b4fae08864bfa2';
+
+  test('the favicon is the Hypernova mark served in production', async ({ page }) => {
+    // The raster links now follow the reported scheme, so pin this test to light chrome.
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.goto('/');
+
+    await expect(page.locator('link[rel="icon"][type="image/png"]')).toHaveAttribute('href', '/favicon.png');
+    await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/favicon.png');
+    // The Astro starter icon that used to be linked here must not come back: the only
+    // SVG icon is the Hypernova mark itself (see the colour-scheme test below).
+    await expect(page.locator('link[rel="icon"][href$=".svg"]')).toHaveAttribute('href', '/favicon.svg');
+
+    const png = await page.request.get('/favicon.png');
+    expect(png.status()).toBe(200);
+    expect(png.headers()['content-type']).toContain('image/png');
+    expect(createHash('sha256').update(await png.body()).digest('hex')).toBe(PRODUCTION_FAVICON_SHA256);
+
+    const ico = await page.request.get('/favicon.ico');
+    expect(ico.status()).toBe(200);
+    const icoBody = await ico.body();
+    // A real ICO container (the previous file was a PNG renamed to .ico) holding the
+    // 16x16 and 32x32 renditions, so /favicon.ico shows the same mark when requested by name.
+    expect([...icoBody.subarray(0, 4)]).toEqual([0, 0, 1, 0]);
+    expect(icoBody.readUInt16LE(4)).toBe(2);
+  });
+
+  /**
+   * The tab icon carries one rendition of the mark per colour scheme and picks between
+   * them with `prefers-color-scheme`, so the mark stays visible on light and on dark
+   * browser chrome. Both renditions are embedded in the one SVG file, and the raster
+   * links next to it point at the matching PNG/ICO, because Chromium's tab icon comes
+   * from a raster rather than from the theme-aware SVG.
+   */
+  test('the favicon follows the browser colour scheme', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'light' });
+    await page.goto('/');
+
+    // Declared first, and scalable, for the browsers that pick the SVG.
+    const icons = page.locator('link[rel~="icon"]');
+    await expect(icons).toHaveCount(3);
+    await expect(icons.first()).toHaveAttribute('href', '/favicon.svg');
+    await expect(icons.first()).toHaveAttribute('type', 'image/svg+xml');
+    await expect(icons.first()).toHaveAttribute('sizes', 'any');
+
+    // The rasters declare the light rendition themselves, so a browser without
+    // JavaScript (or with `media`-ignoring icon selection) still shows that one.
+    const raster = page.locator('#favicon-raster');
+    const legacy = page.locator('#favicon-legacy');
+    await expect(raster).toHaveAttribute('href', '/favicon.png');
+    await expect(legacy).toHaveAttribute('href', '/favicon.ico');
+
+    const svg = await (await page.request.get('/favicon.svg')).text();
+    expect(svg).toContain('@media (prefers-color-scheme: dark)');
+    // The Astro starter icon that used to live at this path must not come back.
+    expect(svg).not.toContain('0 0 128 128');
+
+    const renditions = [...svg.matchAll(/base64,([A-Za-z0-9+/=]+)"/g)].map((match) => Buffer.from(match[1], 'base64'));
+    expect(renditions).toHaveLength(2);
+    // The light rendition is the production file itself, embedded unchanged.
+    expect(createHash('sha256').update(renditions[0]).digest('hex')).toBe(PRODUCTION_FAVICON_SHA256);
+
+    // A scheme change while the tab is open swaps both raster links, so the icon keeps
+    // up with the browser chrome without a reload.
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await expect(raster).toHaveAttribute('href', '/favicon-dark.png');
+    await expect(legacy).toHaveAttribute('href', '/favicon-dark.ico');
+
+    const darkPng = await page.request.get('/favicon-dark.png');
+    expect(darkPng.status()).toBe(200);
+    expect(darkPng.headers()['content-type']).toContain('image/png');
+
+    const darkIco = await page.request.get('/favicon-dark.ico');
+    expect(darkIco.status()).toBe(200);
+    const darkIcoBody = await darkIco.body();
+    // Same container shape as /favicon.ico: 16x16 and 32x32 renditions of the mark.
+    expect([...darkIcoBody.subarray(0, 4)]).toEqual([0, 0, 1, 0]);
+    expect(darkIcoBody.readUInt16LE(4)).toBe(2);
+
+    await page.emulateMedia({ colorScheme: 'light' });
+    await expect(raster).toHaveAttribute('href', '/favicon.png');
+    await expect(legacy).toHaveAttribute('href', '/favicon.ico');
+
+    /**
+     * Decodes an icon the way the browser does and measures how light the mark comes
+     * out. The query string is cache-busting: without it Chromium reuses the decode
+     * from the previous colour scheme instead of rendering the file again.
+     */
+    let probe = 0;
+    const measure = async (source: string) =>
+      page.evaluate(async (url) => {
+        const image = new Image();
+        image.src = url;
+        await image.decode();
+
+        const canvas = document.createElement('canvas');
+        canvas.width = 32;
+        canvas.height = 32;
+        const context = canvas.getContext('2d')!;
+        context.drawImage(image, 0, 0, 32, 32);
+        const { data } = context.getImageData(0, 0, 32, 32);
+
+        let sum = 0;
+        let opaque = 0;
+        for (let index = 0; index < data.length; index += 4) {
+          if (data[index + 3] < 8) continue;
+          sum += 0.2126 * data[index] + 0.7152 * data[index + 1] + 0.0722 * data[index + 2];
+          opaque += 1;
+        }
+        return { mean: sum / opaque, opaque };
+      }, source);
+
+    const rendered = async (colorScheme: 'light' | 'dark') => {
+      await page.emulateMedia({ colorScheme });
+      probe += 1;
+      return measure(`/favicon.svg?rendered=${colorScheme}-${probe}`);
+    };
+
+    // The rasters the tab actually shows carry the same two renditions.
+    expect((await measure(`/favicon.png?measured=${(probe += 1)}`)).mean).toBeLessThan(90);
+    expect((await measure(`/favicon-dark.png?measured=${(probe += 1)}`)).mean).toBeGreaterThan(150);
+
+    const onLightChrome = await rendered('light');
+    // The dark mark on light browser chrome (the production icon measures ~43).
+    expect(onLightChrome.mean).toBeLessThan(90);
+
+    const onDarkChrome = await rendered('dark');
+    // The white-gradient mark on dark browser chrome, and the same silhouette as the
+    // light rendition, so the tab icon does not jump when the scheme changes.
+    expect(onDarkChrome.mean).toBeGreaterThan(150);
+    expect(onDarkChrome.opaque).toBeGreaterThan(onLightChrome.opaque * 0.6);
+    expect(onDarkChrome.opaque).toBeLessThan(onLightChrome.opaque * 1.4);
+
+    // And back: the swap follows the colour scheme rather than the render order.
+    expect((await rendered('light')).mean).toBeLessThan(90);
+  });
+
+  /**
+   * Astro's ClientRouter swaps the head without a page load, so the freshly parsed raster
+   * links carry the light hrefs again; the rerun script has to put them back on the scheme
+   * the browser reports, or the mark would disappear the first time a visitor navigates.
+   */
+  test('the favicon keeps its scheme through client-side navigation', async ({ page }) => {
+    await page.emulateMedia({ colorScheme: 'dark' });
+    await page.goto('/');
+    await expect(page.locator('#favicon-raster')).toHaveAttribute('href', '/favicon-dark.png');
+
+    // Dispatched programmatically so the collapsed mobile navbar does not matter.
+    await page.evaluate(() => (document.querySelector('a[href="/services/"]') as HTMLElement).click());
+    await page.waitForURL('**/services/');
+
+    await expect(page.locator('#favicon-raster')).toHaveAttribute('href', '/favicon-dark.png');
+    await expect(page.locator('#favicon-legacy')).toHaveAttribute('href', '/favicon-dark.ico');
+
+    await page.emulateMedia({ colorScheme: 'light' });
+    await expect(page.locator('#favicon-raster')).toHaveAttribute('href', '/favicon.png');
   });
 
   test('draft blog posts stay hidden from the rendered site', async ({ page }) => {

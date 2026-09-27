@@ -1,9 +1,40 @@
-<svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 128 128">
-    <path d="M50.4 78.5a75.1 75.1 0 0 0-28.5 6.9l24.2-65.7c.7-2 1.9-3.2 3.4-3.2h29c1.5 0 2.7 1.2 3.4 3.2l24.2 65.7s-11.6-7-28.5-7L67 45.5c-.4-1.7-1.6-2.8-2.9-2.8-1.3 0-2.5 1.1-2.9 2.7L50.4 78.5Zm-1.1 28.2Zm-4.2-20.2c-2 6.6-.6 15.8 4.2 20.2a17.5 17.5 0 0 1 .2-.7 5.5 5.5 0 0 1 5.7-4.5c2.8.1 4.3 1.5 4.7 4.7.2 1.1.2 2.3.2 3.5v.4c0 2.7.7 5.2 2.2 7.4a13 13 0 0 0 5.7 4.9v-.3l-.2-.3c-1.8-5.6-.5-9.5 4.4-12.8l1.5-1a73 73 0 0 0 3.2-2.2 16 16 0 0 0 6.8-11.4c.3-2 .1-4-.6-6l-.8.6-1.6 1a37 37 0 0 1-22.4 2.7c-5-.7-9.7-2-13.2-6.2Z" />
-    <style>
-        path { fill: #000; }
-        @media (prefers-color-scheme: dark) {
-            path { fill: #FFF; }
-        }
-    </style>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" width="32" height="32">
+  <!--
+    Hypernova mark for the browser tab, with one rendition per colour scheme so the mark
+    stays visible on light and on dark browser chrome. Both renditions are embedded as
+    data: URIs, so the choice is made inside this file and no browser can pick the other
+    one by accident.
+
+      icon-light  public/favicon.png byte for byte: the 32x32 icon the hypernova.fi
+                  production site serves,
+                  sha256 9174dedddfc895dcd1fa931c740ac45cd1ee9342cea7ea4642b4fae08864bfa2.
+      icon-dark   the white-gradient mark from Hypernova-Oy/media
+                  (logo/hypernova-white-gradient-no-text-1024x1024.png), scaled to 64x64
+                  so the gradient stays crisp on high-density displays,
+                  sha256 5f2bf46316aaca44a243547088fa7ec2374ef60909edb64f4cfb4522ca1482eb.
+
+    Browsers that ignore SVG icons fall back to the /favicon.png and /favicon.ico links in
+    src/layouts/BaseLayout.astro, which carry the light rendition.
+  -->
+  <style>
+    .icon-light {
+      display: inline;
+    }
+
+    .icon-dark {
+      display: none;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      .icon-light {
+        display: none;
+      }
+
+      .icon-dark {
+        display: inline;
+      }
+    }
+  </style>
+  <image class="icon-light" href="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACAAAAAgCAYAAABzenr0AAAE+0lEQVRYw9WXXWgcVRTH78zsZm3T2KRrEmK0jVGKhIRqBLOtRqht+tJ8KYiIUaQgCHkTwQcf9FlrfSjomy/mxY838UESWyhRg5KG0sKC1mI15ot2d7PJfs7cGX9nZlIjmHQ3jREHDufuvXPv+Z9z/ufMXaX+48fYjkOOHn36b7/Pnz9X8V5zOwB4niey23X1A7Ztm729T+08AMMwbK3d513XfSGfz5uJRGLnAJTLZVUsFm2Mf6O1fss0jZGpqSnV3f3Ybfda2wFgdvZ31draqiKRyKLj2IcAMdrU1PwjS9cbG5vU0tLihnsjlRoZGnoGT0syrEFc2y5DYEPLeGJi3I8Cog1DfUoqXgTE21o7z5Ga1B1HYGBgUDmOI3k+gIEh0zSTkO0QIX+C0Cfb29s9CXlzcxN8UCnIeBwAT7L+C3su1tc3qFQqtTUODA4OKQ5S5PUhfn6EAadUKhWYi2HkXeZfWl3NmYcPH1F4rvL5XIb5C4Aw0CMA3IveOgnFOF40YvgsbK9DvpRoYCDLWh1Gz1iW+XIut2rGYjHeNQGif2AepR9FE6ktAujvH8Bz08To6xg7gR5jOkP4xdscBxMJvY/x+6ZpvZLL5UwBjOGfmU+j69AJmWtpaakOwPDwsF/fHJJAv+p57m8cNI4W7yUyeQyLqACEPg3WU0RDQr+EpEIwnZlMxpBxVVVg2454b3HAKTbHXdf7mvF15vxcQ8Yi8xIF+e2hG1h/j7EA+II14YIAuLempkb4UqwKQOj9g+g+QY98C+H0WgTgRQljq8xr5DPGxxg2CTHZfnfAAT8CtGg3wvuVp+DkyQGffBjrQd8feOpelrmJiQkVhN2l8+kVxiVAnsXQG4xvMlfP+B10VxgdQeJtVAn/GAG6me8lGejGkOQvjSwWCvlIT0/CDENrBhHQAu5GNBr5nkYk4T/DfDzMv5wjqShL6ioGIOHHeJRD2gMv/Px+yCElx9FGOCdReARjKSKVlT2A+IRuKVn5gPV7AqDutWg0akvlVAwgrP0adEMY7lrkWMiFdeJ7eE1SJDnOZrPezMylsa6uzrj0ByEk6xfLZT+d1QJQbPas0NgKkgwJtwaAvLr7JfxEpUj5qUKhoDo6HpYjpELoCfoP9JSAoyNWHQGHEObDmr+KB89KaaEFmJQo684o44O7dt3lBAYM2Sel2xumaBx9daP8bwqgtnZ3aWVldS4k0x4MexyUm56e9t9pa2sTtUjua8Xz4FbkQmB3P+Mj7IG43scBUF0tAK3S6YyHN1fCXO/jsEaW5tbeCQ9Ny3VABqlUOsyzcZz3DwACDjjfQWZV9cdocnJyjWRTYa1LbR9c/1EJmox7k/lZMRCSbC96hL3nkNOWZWkp6S1dyUKiXcLIDIYlr4+LNx0dHbeihNzgndm/iOn1o4t4P0roFzfq/xUC0DC3lMXwmPR6IRafXL8s1wFcQuaEgKRrDx0kxtJreP7TWiO6o/8FnZ1dUo7ypfscEWINYmhcqmB5OXNrfz5f8KTfA8BkvSyAhJSVPJteyeLxOF9Fu8Bhv4pxJAbjv5JmOT8/j+G8L9LluKS4iJbLSjXPpheSZDLph7qv78QFjL8pUcDDbklPa+t92/LX7LaXUrlMLiwsKMuKXMZT+bB0cyekOriR4P2/DkCe5eVlxaVC0noFEkrdS9uzdwyAPNz3FJdOQHjSfPzilg74v3/+BKIUtXMB/43MAAAAAElFTkSuQmCC" x="0" y="0" width="32" height="32" />
+  <image class="icon-dark" href="data:image/png;base64,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" x="0" y="0" width="32" height="32" />
 </svg>

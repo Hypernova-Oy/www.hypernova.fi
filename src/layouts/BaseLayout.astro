@@ -65,7 +65,7 @@ const structuredData =
           name: SITE_TITLE,
           logo: {
             '@type': 'ImageObject',
-            url: new URL('/favicon.svg', siteURL).href,
+            url: new URL('/favicon.png', siteURL).href,
           },
         },
       }
@@ -86,7 +86,62 @@ const lang = Astro.locals.lang;
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
-    <link rel="icon" type="image/svg+xml" href={resolvePath('/favicon.svg')} />
+    <!--
+      Icon set: the Hypernova mark. favicon.svg carries both the light and the dark
+      rendition of the mark and swaps them with prefers-color-scheme, so the mark
+      stays visible on light and on dark browser chrome; it is declared first, and as
+      scalable, for the browsers that pick it. Chromium only honours that in-file
+      switch when the SVG is the icon it selects: a 16px ICO frame or the 32x32 PNG
+      outranks it, which used to pin the dark mark to the tab on dark browser chrome.
+      The rasters therefore get their href from the script below, which follows the
+      same media query. The PNG is the 32x32 raster the hypernova.fi production site
+      serves, byte for byte (the only size production ships), and favicon.ico is a real
+      16x16 + 32x32 container for the browsers and tools that ask for /favicon.ico by
+      name; favicon-dark.png and favicon-dark.ico are those two files with the
+      white-gradient rendition instead. Nothing is lost without JavaScript: every link
+      then keeps the light rendition it is declared with, and `media`-scoped icon links
+      are deliberately avoided because browsers that ignore `media` would show the
+      white mark on light browser chrome.
+    -->
+    <link rel="icon" type="image/svg+xml" sizes="any" href={resolvePath('/favicon.svg')} />
+    <link rel="icon" id="favicon-raster" type="image/png" sizes="32x32" href={resolvePath('/favicon.png')} />
+    <link rel="icon" id="favicon-legacy" href={resolvePath('/favicon.ico')} sizes="16x16 32x32" />
+    <link rel="apple-touch-icon" href={resolvePath('/favicon.png')} />
+    <script
+      is:inline
+      data-astro-rerun
+      define:vars={{
+        lightMark: { raster: resolvePath('/favicon.png'), legacy: resolvePath('/favicon.ico') },
+        darkMark: { raster: resolvePath('/favicon-dark.png'), legacy: resolvePath('/favicon-dark.ico') },
+      }}
+    >
+      // Browser chrome picks the tab icon from the links above, and Chromium's pick is a
+      // raster rather than the theme-aware SVG, so keep both rasters on the scheme the
+      // browser actually reports (which also follows an OS theme change while open).
+      (() => {
+        const query = window.matchMedia('(prefers-color-scheme: dark)');
+
+        const setIcon = (icon, light, dark) => {
+          if (icon) {
+            icon.href = query.matches ? dark : light;
+          }
+        };
+
+        const applyFavicon = () => {
+          setIcon(document.getElementById('favicon-raster'), lightMark.raster, darkMark.raster);
+          setIcon(document.getElementById('favicon-legacy'), lightMark.legacy, darkMark.legacy);
+        };
+
+        applyFavicon();
+
+        if (!window.__zenixFaviconBound) {
+          window.__zenixFaviconBound = true;
+
+          query.addEventListener('change', applyFavicon);
+          document.addEventListener('astro:page-load', applyFavicon);
+        }
+      })();
+    </script>
     <link rel="canonical" href={canonicalURL} />
     <link rel="sitemap" href={resolvePath('/sitemap.xml')} />
     <meta name="generator" content={Astro.generator} />
