@@ -188,6 +188,8 @@ links it would otherwise be missing from.
 
 `/koha/` and `/contact/` POST back to themselves. Validation errors are rendered
 inline, successful submissions create a Redmine issue and show a thank-you message.
+Koha hosting is quoted through `/koha/#request-a-quote`, so `/contact/` says so under its
+heading and links there, instead of letting a visitor fill in the wrong form.
 
 ### Bot protection
 

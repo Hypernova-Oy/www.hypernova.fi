@@ -879,6 +879,27 @@ test.describe('localization', () => {
     await expect(demo).toHaveText('Kokeile Kohaa ilmaiseksi');
   });
 
+  test('the contact page sends Koha hosting questions to the quote form', async ({ page }) => {
+    // Koha hosting is quoted through a form of its own, so the contact page says so under its
+    // heading and links there, rather than letting the visitor fill in the wrong form.
+    const heading = page.locator('#form h2').first();
+    const hint = page.locator('#form h2 + p').first();
+    const fields = page.locator('#form form');
+
+    await page.goto('/contact/');
+    await expect(hint).toContainText('Are you contacting us about Koha hosting?');
+    await expect(hint.getByRole('link', { name: 'Koha hosting quote form' })).toHaveAttribute('href', '/koha/#request-a-quote');
+
+    // It reads below the heading and above the fields of the form it steers away from.
+    const boxes = await Promise.all([heading.boundingBox(), hint.boundingBox(), fields.boundingBox()]);
+    expect(boxes[1]!.y).toBeGreaterThan(boxes[0]!.y);
+    expect(boxes[1]!.y).toBeLessThan(boxes[2]!.y);
+
+    await page.goto('/contact/?l=fi');
+    await expect(hint).toContainText('Oletko yhteydessä Kohan pilvipalvelusta?');
+    await expect(hint.getByRole('link', { name: 'Kohan pilvapalvelun tarjouspyyntölomaketta' })).toHaveAttribute('href', '/koha/#request-a-quote');
+  });
+
   test('the credits line in the footer follows the language, links and all', async ({ page }) => {
     const footer = page.locator('body > footer').first();
 
