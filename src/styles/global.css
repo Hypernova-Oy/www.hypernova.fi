@@ -4,13 +4,15 @@
 
 @theme {
   /*
-   * Greyscale brand ramp. The light end is used by light mode; #200, #300, #400 and
-   * the dark end (#700 upward) only ever appear in dark-mode variants, so their
-   * values are tuned for dark surfaces.
+   * Greyscale brand ramp. Light mode uses the light end (#50, #100) as surface
+   * tints, #200 for soft borders, and #500/#600 for solid controls and emphasis
+   * text. #300, #400 and the dark end (#700 upward) are tuned for dark surfaces
+   * and only appear in dark-mode variants or as decorative washes, so their
+   * values may safely stay light-grey.
    */
-  --color-primary-50: #888;
-  --color-primary-100: #777;
-  --color-primary-200: #c6cbd5; /* dark mode: supporting text */
+  --color-primary-50: #f6f7f9; /* light mode: lightest surface tint */
+  --color-primary-100: #e7e9ee; /* light mode: badge, avatar and button tints (also light text on dark surfaces) */
+  --color-primary-200: #c6cbd5; /* light mode: soft borders and rings; dark mode: supporting text */
   --color-primary-300: #d2d6de; /* dark mode: emphasised text and icons */
   --color-primary-400: #b3b9c4; /* dark mode: links and hover text */
   --color-primary-500: #333;
@@ -90,7 +92,7 @@
     background: transparent;
   }
   ::-webkit-scrollbar-thumb {
-    background: #222;
+    background: var(--color-primary-200);
     border-radius: 5px;
   }
   .dark ::-webkit-scrollbar-thumb {
@@ -110,6 +112,39 @@
 
   .text-gradient {
     @apply text-transparent bg-clip-text bg-gradient-to-r from-primary-600 to-accent-500 dark:from-primary-400 dark:to-accent-300;
+  }
+
+  /*
+   * In-content links (inside paragraphs and cards). Light-mode body copy is
+   * near-black, so a link needs its own hue plus an underline to stay
+   * recognisable; the teal accent is the only chromatic brand colour, and
+   * accent-700 keeps ~5.3:1 contrast on the light surfaces. Dark mode keeps the
+   * light grey already used for links there.
+   */
+  .link-inline {
+    @apply font-medium underline underline-offset-2 transition-colors
+      text-accent-700 decoration-accent-500/50
+      hover:text-accent-800 hover:decoration-accent-700
+      dark:text-zinc-100 dark:decoration-primary-400/50
+      dark:hover:text-accent-200 dark:hover:decoration-accent-300
+      focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent-600 dark:focus-visible:outline-accent-400;
+  }
+
+  /*
+   * Text fields and textareas in the contact and quote forms. They used to carry
+   * `bg-zinc-300` and a near-black `border-primary-500` hard-coded on the element:
+   * a heavy grey block (sum 640) on the light background (sum 750), which read as
+   * far too dark next to the page. Because there was no dark variant, the same pale
+   * grey field also landed inside the dark theme. The fields now follow the active
+   * theme: white on the light surfaces with the light-mode soft border, and the
+   * raised night surface in dark mode, with the accent colour marking focus.
+   */
+  .form-field {
+    @apply rounded-lg border border-primary-200 bg-white text-zinc-900
+      placeholder:text-zinc-500
+      focus:border-primary-500 focus:ring-2 focus:ring-primary-500/20 focus:outline-none
+      dark:border-night-line-strong dark:bg-night-raise dark:text-zinc-100
+      dark:placeholder:text-primary-400 dark:focus:border-primary-400 dark:focus:ring-accent-500/30;
   }
 
   .hover-glow {

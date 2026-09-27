@@ -240,6 +240,69 @@ test.describe('theme', () => {
     expect(light.scheme).toBe('light');
   });
 
+  test('form fields follow the theme instead of staying grey', async ({ page }) => {
+    await useTheme(page, 'dark');
+    await page.goto('/contact/');
+    // The body fades between themes (transition-colors), so let it settle first.
+    await page.waitForTimeout(600);
+
+    const read = () =>
+      page.evaluate(() => {
+        // Computed colours come back as oklch/oklab, so read them as pixels instead.
+        const canvas = document.createElement('canvas');
+        canvas.width = 1;
+        canvas.height = 1;
+        const context = canvas.getContext('2d')!;
+
+        const rgb = (value: string) => {
+          context.clearRect(0, 0, 1, 1);
+          context.fillStyle = value;
+          context.fillRect(0, 0, 1, 1);
+          const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+          return { r, g, b, sum: r + g + b };
+        };
+
+        const luminance = ({ r, g, b }: { r: number; g: number; b: number }) => {
+          const channel = (value: number) => {
+            const scaled = value / 255;
+            return scaled <= 0.03928 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
+          };
+          return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+        };
+
+        const field = getComputedStyle(document.querySelector('#form input[name="name"]') as Element);
+        const background = rgb(field.backgroundColor);
+        const text = rgb(field.color);
+        const lightest = Math.max(luminance(background), luminance(text));
+        const darkest = Math.min(luminance(background), luminance(text));
+
+        return {
+          field: background.sum,
+          page: rgb(getComputedStyle(document.body).backgroundColor).sum,
+          contrast: (lightest + 0.05) / (darkest + 0.05),
+        };
+      });
+
+    const dark = await read();
+
+    // The fields used to be hard-coded to `bg-zinc-300` (sum 640) with no dark
+    // variant, so a dark-mode visitor got the same pale grey field. It is now a
+    // raised night surface that still sits visibly above the page background.
+    expect(dark.field).toBeLessThan(200);
+    expect(dark.field).toBeGreaterThan(dark.page);
+    expect(dark.contrast).toBeGreaterThan(4.5);
+
+    await page.locator('[data-theme-toggle]:visible').first().click();
+    await page.waitForTimeout(600);
+
+    const light = await read();
+
+    // And a white field on the light background (sum 750), not a heavy grey block.
+    expect(light.field).toBeGreaterThan(700);
+    expect(light.field).toBeGreaterThan(light.page);
+    expect(light.contrast).toBeGreaterThan(4.5);
+  });
+
   test('theme toggle switches between dark and light', async ({ page }) => {
     await useTheme(page, 'dark');
     await page.goto('/');

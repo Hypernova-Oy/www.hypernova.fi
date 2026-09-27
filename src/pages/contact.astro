@@ -227,12 +227,12 @@ if (Astro.request.method === "POST") {
             <div class="absolute -top-4 -translate-x-1/2">
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Contact information')}</Badge> 
             </div>
-            <label class="p-3 mt-5 col-span-1">{t('Name')}</label><input type="text" name="name" maxlength="120" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.name} required data-error-message={t('Please enter your name. ')} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Name')}</label><input type="text" name="name" maxlength="120" class="form-field mt-5 p-3 col-span-1" value={formData.name} required data-error-message={t('Please enter your name. ')} /><div class="md:col-span-2"></div>
             {errors.name && <p class="col-span-1 md:col-span-4 text-red-800">{errors.name}</p>}
             <p id="contact-error-name" class="col-span-1 md:col-span-4 text-red-800" data-error-for="name" hidden></p>
-            <label class="p-3 mt-5 col-span-1">{t('Organization')}</label><input type="text" name="organization" maxlength="120" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.organization} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Organization')}</label><input type="text" name="organization" maxlength="120" class="form-field mt-5 p-3 col-span-1" value={formData.organization} /><div class="md:col-span-2"></div>
             {errors.organization && <p class="col-span-1 md:col-span-4 text-red-800">{errors.organization}</p>}
-            <label class="p-3 mt-5 col-span-1">{t('E-mail')}</label><input type="email" name="email" maxlength="254" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.email} required data-error-message={t('Please enter an email address. ')} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('E-mail')}</label><input type="email" name="email" maxlength="254" class="form-field mt-5 p-3 col-span-1" value={formData.email} required data-error-message={t('Please enter an email address. ')} /><div class="md:col-span-2"></div>
             <!-- Bot traps: hidden from people and screen readers, but not from scripts. -->
             <div aria-hidden="true" class="absolute left-[-9999px] top-auto h-px w-px overflow-hidden">
               <label>Website<input type="text" name="website" value={formData.website} tabindex="-1" autocomplete="off" /></label>
@@ -245,7 +245,7 @@ if (Astro.request.method === "POST") {
             <div class="absolute -top-4 -translate-x-1/2">
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('How can we help you?')}</Badge> 
             </div>
-            <textarea name="content" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="p-3 sm:col-span-1 col-span-2 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1">{formData.content}</textarea>
+            <textarea name="content" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="form-field p-3 sm:col-span-1 col-span-2">{formData.content}</textarea>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
             <div class="absolute -top-4 -translate-x-1/2">

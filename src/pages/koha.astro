@@ -223,7 +223,7 @@ if (Astro.request.method === "POST") {
           <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 text-accent-600 dark:text-zinc-400 rounded-2xl flex items-center justify-center mb-6" set:html={`        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`} />
           <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('Open source library system')}</h3>
           <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
-            {t('Koha is the first Free and Open Source library system in the world, and it has been the pioneer of secure and sustainable catalog and patron management since 1999. Discover the')} <a href="/#whyfoss" class="dark:text-zinc-100  hover:text-zinc-600">{t('benefits of free and open source software')}</a>.
+            {t('Koha is the first Free and Open Source library system in the world, and it has been the pioneer of secure and sustainable catalog and patron management since 1999. Discover the')} <a href="/#whyfoss" class="link-inline">{t('benefits of free and open source software')}</a>.
           </p>
         </div>
         <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0">
@@ -240,10 +240,10 @@ if (Astro.request.method === "POST") {
           <div class="absolute inset-0 bg-gradient-to-br from-primary-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
           <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('For libraries of any size')}</h3>
           <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
-            {t('Koha is a full-featured, scalable library management system, funded by libraries of all types and sizes, by volunteers and by support companies worldwide.')} <sup><a href="https://koha-community.org" class="dark:text-zinc-100 hover:text-zinc-600" target="_blank">[1]</a></sup>
+            {t('Koha is a full-featured, scalable library management system, funded by libraries of all types and sizes, by volunteers and by support companies worldwide.')} <sup><a href="https://koha-community.org" class="link-inline" target="_blank">[1]</a></sup>
           </p>
           <p class="text-zinc-600 dark:text-zinc-100 text-lg leading-relaxed mb-8 flex-grow z-10">
-            <sup>[1]</sup> <a href="https://koha-community.org/" class="dark:text-zinc-100 hover:text-zinc-600" target="_blank">koha-community.org</a>
+            <sup>[1]</sup> <a href="https://koha-community.org/" class="link-inline" target="_blank">koha-community.org</a>
           </p>
         </div>
   
@@ -291,7 +291,7 @@ if (Astro.request.method === "POST") {
   <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
     <div class="text-center max-w-3xl mx-auto mb-20 reveal-on-scroll">
       <h2 class="text-4xl md:text-5xl font-heading font-extrabold text-zinc-900 dark:text-white mb-6">
-        {t('Request')} <span class="text-zinc-400 dark:text-zinc-400">{t('a quote')}</span>
+        {t('Request')} <span class="text-zinc-500 dark:text-zinc-400">{t('a quote')}</span>
       </h2>
       <p class="text-xl text-zinc-600 dark:text-zinc-400 font-sans">
         {t('Free your library from vendor lock-ins and offer a transparent, sustainable service to your patrons. Koha will probably be the last library system your library ever needs.')}
@@ -322,13 +322,13 @@ if (Astro.request.method === "POST") {
             <div class="absolute -top-4 -translate-x-1/2">
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Contact information')}</Badge> 
             </div>
-            <label class="p-3 mt-5 col-span-1">{t('Name')}</label><input type="text" name="name" maxlength="120" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.name} required data-error-message={t('Please enter your name. ')} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Name')}</label><input type="text" name="name" maxlength="120" class="form-field mt-5 p-3 col-span-1" value={formData.name} required data-error-message={t('Please enter your name. ')} /><div class="md:col-span-2"></div>
             {errors.name && <p class="col-span-1 md:col-span-4 text-red-800">{errors.name}</p>}
             <p id="koha-error-name" class="col-span-1 md:col-span-4 text-red-800" data-error-for="name" hidden></p>
-            <label class="p-3 mt-5 col-span-1">{t('Organization')}</label><input type="text" name="organization" maxlength="120" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.organization} required data-error-message={t('Please enter your organization. ')} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Organization')}</label><input type="text" name="organization" maxlength="120" class="form-field mt-5 p-3 col-span-1" value={formData.organization} required data-error-message={t('Please enter your organization. ')} /><div class="md:col-span-2"></div>
             {errors.organization && <p class="col-span-1 md:col-span-4 text-red-800">{errors.organization}</p>}
             <p id="koha-error-organization" class="col-span-1 md:col-span-4 text-red-800" data-error-for="organization" hidden></p>
-            <label class="p-3 mt-5 col-span-1">{t('E-mail')}</label><input type="email" name="email" maxlength="254" class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.email} required data-error-message={t('Please enter an email address. ')} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('E-mail')}</label><input type="email" name="email" maxlength="254" class="form-field mt-5 p-3 col-span-1" value={formData.email} required data-error-message={t('Please enter an email address. ')} /><div class="md:col-span-2"></div>
             <!-- Bot traps: hidden from people and screen readers, but not from scripts. -->
             <div aria-hidden="true" class="absolute left-[-9999px] top-auto h-px w-px overflow-hidden">
               <label>Website<input type="text" name="website" value={formData.website} tabindex="-1" autocomplete="off" /></label>
@@ -342,17 +342,17 @@ if (Astro.request.method === "POST") {
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Catalog and user details')}</Badge> 
             </div>
             <h3 class="col-span-1 md:col-span-4">{t('Please enter the number of')}</h3>
-            <label class="p-3 mt-5 col-span-1">{t('Records')}</label><input type="text" name="records" maxlength={MAX_SHORT_FIELD_LENGTH} class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.records} /><div class="md:col-span-2"></div>
-            <label class="p-3 mt-5 col-span-1">{t('Items')}</label><input type="text" name="items" maxlength={MAX_SHORT_FIELD_LENGTH} class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.items} /><div class="md:col-span-2"></div>
-            <label class="p-3 mt-5 col-span-1">{t('Annual circulation')}</label><input type="text" name="circulation" maxlength={MAX_SHORT_FIELD_LENGTH} class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.circulation} /><div class="md:col-span-2"></div>
-            <label class="p-3 mt-5 col-span-1">{t('Patrons')}</label><input type="text" name="patrons" maxlength={MAX_SHORT_FIELD_LENGTH} class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.patrons} /><div class="md:col-span-2"></div>
-            <label class="p-3 mt-5 col-span-1">{t('Librarians')}</label><input type="text" name="librarians" maxlength={MAX_SHORT_FIELD_LENGTH} class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1"  value={formData.librarians} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Records')}</label><input type="text" name="records" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.records} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Items')}</label><input type="text" name="items" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.items} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Annual circulation')}</label><input type="text" name="circulation" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.circulation} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Patrons')}</label><input type="text" name="patrons" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.patrons} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Librarians')}</label><input type="text" name="librarians" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1"  value={formData.librarians} /><div class="md:col-span-2"></div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-4 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
             <div class="absolute -top-4 -translate-x-1/2">
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Current system')}</Badge> 
             </div>
-            <label class="p-3 mt-5 col-span-1">{t('Current library system')}</label><input type="text" name="current_ils" maxlength={MAX_SHORT_FIELD_LENGTH} class="mt-5 p-3 col-span-1 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1" value={formData.records} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1">{t('Current library system')}</label><input type="text" name="current_ils" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.records} /><div class="md:col-span-2"></div>
         </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
             <div class="absolute -top-4 -translate-x-1/2">
@@ -361,7 +361,7 @@ if (Astro.request.method === "POST") {
             <p class="col-span-2 mb-3">{t('Describe your library and its daily work. Do not worry about being too formal. Tell us what kind of material your library manages, what types of patrons you serve, what circulation rules you use, what your library building is like and how it affects your shelving locations, and so on.')}</p>
             <p class="col-span-2 mb-3">{t('The more detail you give us, the better we can tailor the Koha configuration for your library.')}</p>
             <p class="col-span-2 mb-3">{t('You can also skip this step.')}</p>
-            <textarea name="about_my_library" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="p-3 sm:col-span-1 col-span-2 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1">{formData.about_my_library}</textarea>
+            <textarea name="about_my_library" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="form-field p-3 sm:col-span-1 col-span-2">{formData.about_my_library}</textarea>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
             <div class="absolute -top-4 -translate-x-1/2">
@@ -371,7 +371,7 @@ if (Astro.request.method === "POST") {
             <p class="col-span-2 mb-3">{t('It is perfectly normal not to need any additional services or integrations, so it is fine to leave this field empty. Koha can for example send notifications without O356/Gmail integration as well.')}</p>
             <p class="col-span-2 mb-3">{t('We ask because integrations take a little more work to set up and sometimes require software development.')}</p>
 
-            <textarea name="additional_services" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="p-3 sm:col-span-1 col-span-2 bg-zinc-300 text-zinc-900 border border-1 border-primary-500 rounded-lg shadow-2x1">{formData.additional_services}</textarea>
+            <textarea name="additional_services" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="form-field p-3 sm:col-span-1 col-span-2">{formData.additional_services}</textarea>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
             <div class="absolute -top-4 -translate-x-1/2">

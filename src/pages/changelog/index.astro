@@ -30,7 +30,7 @@ entries.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
         return (
           <div class="mb-16 relative md:ml-8 pl-8 md:pl-0">
             {/* Timeline Dot */}
-            <div class="absolute w-6 h-6 bg-primary-100 dark:bg-primary-900/40 border-4 border-white dark:border-night rounded-full -left-[1.95rem] md:-left-11 top-1.5 shadow-sm"></div>
+            <div class="absolute w-6 h-6 bg-primary-500 dark:bg-primary-900/40 border-4 border-white dark:border-night rounded-full -left-[1.95rem] md:-left-11 top-1.5 shadow-sm"></div>
             
             <div class="flex flex-col sm:flex-row sm:items-baseline gap-2 mb-4">
               <h2 class="text-2xl font-bold text-zinc-900 dark:text-white">{entry.data.version}</h2>
@@ -50,7 +50,7 @@ entries.sort((a, b) => b.data.date.valueOf() - a.data.date.valueOf());
             
             <h3 class="text-lg font-medium text-zinc-800 dark:text-zinc-200 mb-4">{entry.data.title}</h3>
             
-            <div class="prose prose-zinc dark:prose-invert max-w-none prose-a:text-primary-600 dark:prose-a:text-primary-400 hover:prose-a:text-primary-500 bg-white dark:bg-night-card p-6 rounded-2xl border border-zinc-200 dark:border-night-line shadow-sm">
+            <div class="prose prose-zinc dark:prose-invert max-w-none prose-a:text-accent-700 dark:prose-a:text-accent-300 prose-a:decoration-accent-500/50 prose-a:hover:text-accent-800 dark:prose-a:hover:text-accent-200 bg-white dark:bg-night-card p-6 rounded-2xl border border-zinc-200 dark:border-night-line shadow-sm">
               <Content />
             </div>
           </div>
