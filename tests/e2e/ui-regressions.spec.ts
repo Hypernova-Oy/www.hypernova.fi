@@ -1390,6 +1390,40 @@ test.describe('layout regressions', () => {
     ).toBeLessThanOrEqual(2);
   });
 
+  test('a hovered link is fetched before it is clicked, and changes nothing', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'A touch pointer does not hover, so there is nothing to prefetch.');
+
+    await page.goto('/');
+
+    // Astro's prefetch (astro.config.mjs) puts a `link[rel=prefetch]` in the head while the
+    // pointer rests on a link. Every page is rendered when it is asked for, so this is what
+    // keeps a click from waiting for a render and a round trip before the document arrives.
+    const services = page.waitForRequest(
+      (request) =>
+        request.url().endsWith('/services/') && request.headers()['sec-purpose'] === 'prefetch',
+    );
+    await page.locator('header nav a[href="/services/"]').hover();
+    await services;
+
+    // A prefetch is not a visit: src/middleware.ts skips the language cookie for one, so
+    // resting the pointer on the Finnish link must not switch the page behind the visitor.
+    const picker = page.waitForRequest(
+      (request) =>
+        request.url().includes('?l=fi') && request.headers()['sec-purpose'] === 'prefetch',
+    );
+    await page.locator('header nav a[href="?l=fi"]').hover();
+    await picker;
+
+    expect(
+      await page.evaluate(() => document.cookie),
+      'the prefetch wrote the language cookie',
+    ).not.toContain('language=fi');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'gb');
+  });
+
   test('the language switcher is a tint of the bar, not a block of ink', async ({ page, isMobile }) => {
     test.skip(isMobile, 'The picker in the desktop nav bar is not visible on a small viewport.');
 

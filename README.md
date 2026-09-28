@@ -346,15 +346,35 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
 - **Do not import a stylesheet that covers the world for two elements.** The picker in
   `src/components/LanguagePicker.astro` draws one of two flags, and `flag-icons` ships a
   rule per country - about 250 of them, most carrying a base64 copy of the flag. Imported
-  globally it resolved to 421 KB, and `build.inlineStylesheets: 'always'` pasted that into
-  every page: `/` weighed 563 KB, 421 KB of it flags for countries the site cannot be read
-  in. The two files it needs live in `src/images/flags` and the rules are in the
-  component, which puts those pages at 147 KB (29 KB gzipped, from 115 KB). The e2e case
-  *the language picker draws its own flag* fails if a page carries a flag rule for a
-  language the picker does not link to.
+  globally it resolved to 421 KB of CSS, which every page then carried: `/` weighed
+  563 KB, 421 KB of it flags for countries the site cannot be read in. The two files it
+  needs live in `src/images/flags` and the rules are in the component. The e2e case *the
+  language picker draws its own flag* fails if a page carries a flag rule for a language
+  the picker does not link to.
+- **The stylesheet is a file, not a copy in every page.** `build.inlineStylesheets:
+  'auto'` in `astro.config.mjs` keeps Astro's default: small sheets are inlined, big ones
+  are written to `/_astro/`. Tailwind's output is about 100 KB, and inlined it was re-sent
+  with every page and re-parsed on every client-side navigation; as a file it is fetched
+  once (16 KB gzipped) and served from cache with `max-age=31536000, immutable`. With the
+  flags gone and the sheet out of the markup, `/` is 47 KB of HTML (13 KB gzipped, from
+  563 KB and 115 KB) and one 100 KB stylesheet on a first visit - the HTML alone
+  afterwards.
 - The markup of a page is 30-50 KB, so a page that is much larger than that is carrying
   something that is not its content - the flags above were 421 KB of it. Requesting `/`
   from a running build is the quickest way to see where a page stands.
+- **Links are fetched on hover, before they are clicked** (`prefetch` in `astro.config.mjs`).
+  Every page is rendered per request, so without it a click waits for a render and a round
+  trip before the document starts to arrive. `prefetchAll` with the `hover` strategy fetches
+  the page behind the link the pointer rests on; a touch pointer is left to the normal
+  navigation. A prefetch is not a visit, so `src/middleware.ts` skips the language cookie for
+  one - the e2e case *a hovered link is fetched before it is clicked, and changes nothing*
+  holds both ends of that.
+- **Apache sends the pages Brotli-compressed where the browser can read it.** The deploy's
+  virtual host adds the filter and enables `mod_brotli` when the host has the module, and
+  `SetEnvIfExpr` takes mod_deflate out of a request whose client accepts `br` - that filter is
+  registered first and would otherwise answer with gzip. `/` is 12752 bytes over the wire
+  against gzip's 13417, and `/search-index.json`, which the stock gzip configuration does not
+  cover at all, is 9340 against 29467.
 - Check changes with `npm run bench:scroll` against a running server.
 
 ## Legal documents

@@ -29,7 +29,15 @@ export default defineConfig({
   base: '/',
   trailingSlash: 'always',
   build: {
-    inlineStylesheets: 'always'
+    /*
+     * Astro's default: a stylesheet small enough to be worth it is inlined, and the
+     * rest is written to a hashed file under `/_astro/`. The site has one that is not
+     * small - Tailwind's output, about 100 KB - and inlining it put that into every
+     * page, where it cannot be cached and has to be parsed again on every client-side
+     * navigation. As a file it is fetched once (the same 100 KB, ~15 KB compressed)
+     * and then served from cache with `max-age=31536000, immutable`.
+     */
+    inlineStylesheets: 'auto'
   },
   image: {
     service: passthroughImageService(),
@@ -59,6 +67,17 @@ export default defineConfig({
   },
   output: 'server',
   adapter: node({ mode: 'standalone' }),
+  // Nothing here is prerendered - the language of a request is resolved per request in
+  // src/middleware.ts, so every page is rendered when it is asked for. Without a prefetch
+  // a click therefore waits for a render and a round trip before the new document even
+  // starts; with one, the request is already on its way by the time the visitor lets go of
+  // the link. `hover` covers the pointers that can hover and leaves touch devices as they
+  // are, and `src/middleware.ts` already skips the language cookie for a prefetch, which is
+  // not a visit.
+  prefetch: {
+    prefetchAll: true,
+    defaultStrategy: 'hover',
+  },
   // Astro's built-in origin check compares the browser's `Origin` header with the URL the Node
   // adapter built for the request, and it compares the two as strings. The adapter takes the
   // scheme from the socket it accepted, not from X-Forwarded-Proto, so once a proxy ends TLS

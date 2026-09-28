@@ -789,6 +789,30 @@ install_unit() {
 # The virtual host that serves $DOMAIN. With --behind-proxy it keeps what the proxy in front
 # sent; without one, mod_proxy has to add the client address itself, because Apache is then
 # the process that sees the visitor.
+# --- Apache output compression -----------------------------------------------------------
+# The vhosts below add this block. gzip already covers these types - Debian's
+# mods-enabled/deflate.conf adds it - and Brotli is smaller on them and covers
+# application/json, which that file does not: on this site `/` is 12752 bytes against gzip's
+# 13417, and /search-index.json is 9340 against 29467. The already-compressed formats
+# (woff2, png, webp, avif) are left alone and are not listed here.
+#
+# Both filters are registered for the same types, and mod_deflate's runs first, so a browser
+# that offers `br, gzip` - all of them do - would be answered with gzip and the Brotli filter
+# would never be used. `no-gzip` takes mod_deflate out of the request for the clients that
+# can read Brotli, and only for those: a client that does not offer `br` still gets gzip, and
+# one that offers neither still gets the response uncompressed.
+#
+# The filter is only added where mod_brotli is loaded, which is why configure_apache()
+# enables the module when the host has it instead of making a host without it fail to start.
+compression_directives() {
+  cat <<'COMPRESSION'
+  <IfModule mod_brotli.c>
+    AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/xml application/xml application/javascript application/json image/svg+xml
+    SetEnvIfExpr "%{HTTP:Accept-Encoding} =~ /(^|[ ,])br([ ,;]|$)/" no-gzip
+  </IfModule>
+COMPRESSION
+}
+
 render_vhost() {
   if [ "$WITH_PROXY" -eq 1 ]; then
     cat <<APACHE
@@ -814,6 +838,8 @@ render_vhost() {
 
   ErrorLog \${APACHE_LOG_DIR}/$SERVICE-error.log
   CustomLog \${APACHE_LOG_DIR}/$SERVICE-access.log combined
+
+$(compression_directives)
 </VirtualHost>
 APACHE
     return 0
@@ -837,6 +863,8 @@ APACHE
 
   ErrorLog \${APACHE_LOG_DIR}/$SERVICE-error.log
   CustomLog \${APACHE_LOG_DIR}/$SERVICE-access.log combined
+
+$(compression_directives)
 </VirtualHost>
 APACHE
 }
@@ -861,6 +889,16 @@ configure_apache() {
       info "disabling mod_ssl: this host serves plain HTTP, so it does not listen on 443"
       run a2dismod -q ssl
     fi
+  fi
+
+  # Apache compresses what it serves with mod_deflate's gzip by default; Brotli is smaller
+  # for the same types, and setenvif is what lets it take the requests it can serve (see
+  # compression_directives). render_vhost adds the filter only under
+  # <IfModule mod_brotli.c>, so a host without the module still runs - without those types.
+  if [ -e /etc/apache2/mods-available/brotli.load ]; then
+    run a2enmod -q brotli setenvif
+  else
+    warn "mod_brotli is not available here; responses are compressed with gzip only."
   fi
 
   if write_config 644 root:root "/etc/apache2/sites-available/$SERVICE.conf" < <(render_vhost); then
