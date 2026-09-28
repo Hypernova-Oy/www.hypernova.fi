@@ -16,7 +16,7 @@ export const prerender = false;
       
       <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-8 max-w-6xl mx-auto mt-10">
         <div></div>
-        <div><a href={resolvePath('/koha/')} target="_blank"><Image src={kohaLogo} alt="Koha" class="mx-auto w-56 md:w-auto" /></a></div>
+        <div><a href={resolvePath('/koha/')} target="_blank"><Image src={kohaLogo} alt="Koha" widths={[224, 448, 768]} sizes="(min-width: 768px) 768px, 224px" loading="lazy" decoding="async" class="mx-auto w-56 md:w-auto" /></a></div>
         <div></div>
       </div>
     </div>

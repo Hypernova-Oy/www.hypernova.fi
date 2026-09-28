@@ -1258,6 +1258,22 @@ test.describe('layout regressions', () => {
     }
   });
 
+  test('the logo is served at the size it is drawn, as WebP', async ({ page }) => {
+    await page.goto('/');
+
+    const logo = page.locator('header img[alt="Hypernova Oy"]');
+    await expect.poll(() => logo.evaluate((el) => (el as HTMLImageElement).currentSrc)).not.toBe('');
+
+    const src = await logo.evaluate((el) => (el as HTMLImageElement).currentSrc);
+    expect(src, `the logo is served as ${src}`).toContain('f=webp');
+
+    // It is drawn at 32px, and used to be served as its 1024x1024 source - 39 KB, in the bar of
+    // every page. The 32px WebP is 696 bytes and the 64px one 1.5 KB (see the Performance notes
+    // in the README).
+    const bytes = (await (await page.request.get(src)).body()).length;
+    expect(bytes, `the logo transfers ${bytes} bytes`).toBeLessThan(4_000);
+  });
+
   test('the sticky header is opaque', async ({ page }) => {
     /*
      * The page scrolls underneath the bar, so the bar must not let it show through: it used
@@ -1572,15 +1588,21 @@ test.describe('layout regressions', () => {
     test.skip(isMobile, 'The check drives the viewport itself.');
 
     // The logo is a wide file (768x220) with no width of its own, so it used to stretch to
-    // whatever row it sat in: a phone drew it wider than the desktop layout does.
-    const logo = () =>
-      page.evaluate(() => {
+    // whatever row it sat in: a phone drew it wider than the desktop layout does. It is
+    // lazy (it sits at the end of the page), so its box only exists once the browser has it.
+    const logo = async () => {
+      await expect
+        .poll(() => page.evaluate(() => document.querySelector('img[alt="Koha"]')!.naturalWidth))
+        .toBeGreaterThan(0);
+
+      return page.evaluate(() => {
         const image = document.querySelector('img[alt="Koha"]')!;
         const box = image.getBoundingClientRect();
         const cell = image.closest('div')!.getBoundingClientRect();
 
         return { width: box.width, left: box.left - cell.left, right: cell.right - box.right };
       });
+    };
 
     for (const path of ['/koha/', '/koha-hosting/']) {
       await page.setViewportSize({ width: 1280, height: 900 });
@@ -1722,6 +1744,24 @@ test.describe('koha staff interface screenshot', () => {
     return image;
   }
 
+  /**
+   * The ratio of the file the browser settled on, read from the file itself.
+   *
+   * `naturalWidth / naturalHeight` cannot answer this once a `srcset` is involved: those are
+   * the *density-corrected* dimensions, so a 1152x453 file in a 1024px slot reports 1024x402
+   * and its rounded height moves the ratio by about a tenth of a percent. The reserved box is
+   * built from the capture, so the two are compared through the file's own pixels here.
+   */
+  async function fileRatio(page: Page, src: string) {
+    return page.evaluate(async (url) => {
+      const image = new Image();
+      image.src = url;
+      await image.decode();
+
+      return image.naturalWidth / image.naturalHeight;
+    }, src);
+  }
+
   /** Everything the layout promises about the painted screenshot, in one round trip. */
   async function paintState(image: Locator) {
     return image.evaluate((el) => {
@@ -1760,6 +1800,21 @@ test.describe('koha staff interface screenshot', () => {
     await expect(page.locator(option(view === 'desktop' ? 'mobile' : 'desktop'))).toHaveAttribute('aria-pressed', 'false');
   });
 
+  test('the screenshot is served at the size it is drawn, as WebP', async ({ page }) => {
+    await page.goto('/koha/');
+    const image = await screenshotInView(page);
+    const src = await image.evaluate((el) => (el as HTMLImageElement).currentSrc);
+
+    expect(src, `the screenshot is served as ${src}`).toContain('f=webp');
+
+    // The image service resizes and re-encodes at request time (see the note in the component
+    // and the Performance notes in the README). With the passthrough service this slot held the
+    // whole 1320x2868 capture, 253 KB, on every viewport, and the <picture> had nothing smaller
+    // to offer. A phone picks the 990px WebP of that capture, 43 KB.
+    const bytes = (await (await page.request.get(src)).body()).length;
+    expect(bytes, `the screenshot transfers ${bytes} bytes`).toBeLessThan(80_000);
+  });
+
   test('the view buttons switch between the two renditions', async ({ page }) => {
     await page.goto('/koha/');
     const figure = page.locator(figureSelector);
@@ -1794,16 +1849,17 @@ test.describe('koha staff interface screenshot', () => {
 
     const box = await image.boundingBox();
     const painted = await paintState(image);
+    const ratio = await fileRatio(page, painted.src);
 
     expect(box).not.toBeNull();
     // Never wider than the card that frames it: a wide screenshot must not push the page sideways.
     expect(box!.width).toBeLessThanOrEqual(painted.panelWidth + 1);
     // The painted box matches the file the browser decoded, so nothing is stretched.
-    expect(box!.width / box!.height).toBeCloseTo(painted.ratio, 2);
+    expect(box!.width / box!.height).toBeCloseTo(ratio, 2);
     // The space reserved before the file arrives matches as well, which is what keeps
     // the scroll position stable while the screenshot is still loading.
     const [reservedWidth, reservedHeight] = painted.reservedRatio.split('/').map((part) => Number(part.trim()));
-    expect(reservedWidth / reservedHeight).toBeCloseTo(painted.ratio, 3);
+    expect(reservedWidth / reservedHeight).toBeCloseTo(ratio, 2);
     // No stretched-up bitmap: the file is at least as wide as the box it is drawn in.
     expect(painted.naturalWidth).toBeGreaterThanOrEqual(box!.width);
     expect(painted.pageScrollsSideways).toBe(false);
@@ -1825,11 +1881,12 @@ test.describe('koha staff interface screenshot', () => {
 
     const painted = await paintState(image);
     const box = await image.boundingBox();
+    const ratio = await fileRatio(page, painted.src);
 
     // The painted box and the reserved box both follow the file that is on screen.
-    expect(box!.width / box!.height).toBeCloseTo(painted.ratio, 2);
+    expect(box!.width / box!.height).toBeCloseTo(ratio, 2);
     const [reservedWidth, reservedHeight] = painted.reservedRatio.split('/').map((part) => Number(part.trim()));
-    expect(reservedWidth / reservedHeight).toBeCloseTo(painted.ratio, 3);
+    expect(reservedWidth / reservedHeight).toBeCloseTo(ratio, 2);
     // The frame animates onto the width of the chosen view: phone sized on a wide screen,
     // the full card for the desktop rendition.
     await expect

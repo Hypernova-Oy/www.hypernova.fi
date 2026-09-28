@@ -1,7 +1,6 @@
 // @ts-check
 import { defineConfig, fontProviders } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
-import { passthroughImageService } from 'astro/config';
 
 import mdx from '@astrojs/mdx';
 import node from '@astrojs/node';
@@ -40,7 +39,16 @@ export default defineConfig({
     inlineStylesheets: 'auto'
   },
   image: {
-    service: passthroughImageService(),
+    /*
+     * The default service: sharp, which is a dependency already. It used to be
+     * passthroughImageService(), which kept every file byte for byte and answered the
+     * `/_image` endpoint with the original - a 1320x2868 PNG of the Koha staff interface was
+     * sent to phones whole (253 KB), a 1024x1024 logo was sent whole to draw it at 32px
+     * (39 KB), and a 365x500 request for a product photo was answered with the 1159x1536
+     * capture (391 KB, content-type image/undefined). Local images are now resized and
+     * re-encoded at build time into hashed files under `/_astro/`, which are immutable-
+     * cacheable and served by the same static handler as everything else.
+     */
     domains: ['i.pravatar.cc']
   },
   // Legacy URLs from the previous site. The Finnish pages of the old site become the

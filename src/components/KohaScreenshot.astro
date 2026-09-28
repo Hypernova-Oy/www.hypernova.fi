@@ -6,8 +6,9 @@
  * renditions of one instance: one drawn on a phone and one on a desktop. The viewport picks
  * the matching one (see the <picture> below) and the two buttons let a visitor look at the
  * other view without resizing the window. This is art direction rather than a width-based
- * srcset, because the two renditions have different aspect ratios and the configured image
- * service (passthroughImageService) does not resize or re-encode files.
+ * srcset: the two renditions have different aspect ratios, so the viewport chooses between
+ * them, while the widths within one rendition - and the AVIF and WebP versions of it - come
+ * from the image service (see the srcsets built below).
  *
  * It is a component because more than one page has to answer "so what does Koha actually
  * look like?" - the Koha page above its copy and the hosting page above its cards - and each
@@ -17,6 +18,9 @@
  * trailing Suomi/English strip; both were cropped away so the frame holds nothing but the
  * interface itself.
  */
+import { getImage } from 'astro:assets';
+import type { ImageMetadata } from 'astro';
+
 import { useTranslations } from '../i18n/utils';
 import { FALLBACK_LANG, isLanguage, type Language } from '../i18n/ui';
 
@@ -42,6 +46,50 @@ const t = useTranslations(i18n, Astro);
 const lang: Language = isLanguage(Astro.locals.lang) ? Astro.locals.lang : FALLBACK_LANG;
 const kohaDesktop = lang === 'fi' ? fiKohaDesktop : enKohaDesktop;
 const kohaMobile = lang === 'fi' ? fiKohaMobile : enKohaMobile;
+
+/*
+ * Both captures are twice the size they are drawn at, and the widths below are what the two
+ * frames can use rather than what was captured: the phone frame is at most 20rem wide, the
+ * desktop frame at most 72rem, and the browser picks the file that fits the pixels it has.
+ * The 990px phone file is the frame on a 3x screen (a 320px frame), the 2304px desktop file
+ * is the frame on a 2x screen. With the image service off, a browser had no choice at all:
+ * the phone got the 1320x2868 capture, 253 KB, on every viewport.
+ */
+const MOBILE_WIDTHS = [330, 660, 990];
+const DESKTOP_WIDTHS = [768, 1152, 1728, 2304];
+const MOBILE_SIZES = 'min(20rem, 100vw)';
+// max(100vw, 66rem): a phone that forces the desktop view draws that capture at its 66rem
+// minimum width (see the <style> block), so the slot - and with it the file the browser picks -
+// describes the width it is drawn at rather than the viewport it sits in.
+const DESKTOP_SIZES = 'min(72rem, max(100vw, 66rem))';
+
+/**
+ * One rendition at every width its frame can draw, as the `srcset` of a WebP.
+ *
+ * WebP and not AVIF: these pages are rendered per request, so the image service transforms
+ * at request time and has no cache between visitors. On the machine this was written on, the
+ * 990px phone capture encoded to WebP in 224ms and 43 KB, and to AVIF in 3.7s and 26 KB - a
+ * first visitor would wait seconds for the last 17 KB. AVIF is worth having once the files
+ * are generated at build time (the same widths as here) instead of per request.
+ */
+async function srcsetOf(src: ImageMetadata, widths: number[]) {
+  const candidates = await Promise.all(
+    widths.map(async (width) => {
+      const image = await getImage({ src, width, format: 'webp' });
+
+      return `${image.src} ${width}w`;
+    }),
+  );
+
+  return candidates.join(', ');
+}
+
+const [desktopWebp, mobileWebp, mobileFallback] = await Promise.all([
+  srcsetOf(kohaDesktop, DESKTOP_WIDTHS),
+  srcsetOf(kohaMobile, MOBILE_WIDTHS),
+  // The <img>: the phone rendition at the width it is drawn at 1x.
+  getImage({ src: kohaMobile, width: 660, format: 'webp' }),
+]);
 
 /*
  * The two view buttons: one for the desktop rendition, one for the phone rendition. They are
@@ -81,9 +129,18 @@ const viewOptionClass =
     style={`--koha-ratio-mobile: ${kohaMobile.width} / ${kohaMobile.height}; --koha-ratio-desktop: ${kohaDesktop.width} / ${kohaDesktop.height};`}
   >
     <picture>
-      <source media="(min-width: 768px)" srcset={kohaDesktop.src} />
+      <!--
+        The desktop rendition comes first, with the `media` query the script rewrites to force
+        a view: `all` always matches it and `not all` never does. It carries
+        data-koha-screenshot-desktop, so the script finds it without counting sources. The
+        phone rendition is the <img> below, which the desktop source falls through to once it
+        stops matching.
+      -->
+      <source media="(min-width: 768px)" type="image/webp" srcset={desktopWebp} sizes={DESKTOP_SIZES} data-koha-screenshot-desktop />
       <img
-        src={kohaMobile.src}
+        src={mobileFallback.src}
+        srcset={mobileWebp}
+        sizes={MOBILE_SIZES}
         width={kohaMobile.width}
         height={kohaMobile.height}
         alt={t('Koha staff interface home screen with the circulation, patrons, cataloging, acquisitions, reports and administration modules')}
@@ -191,7 +248,7 @@ const viewOptionClass =
   /**
    * The Koha screenshot ships as two renditions of the same staff interface: one drawn on a
    * phone and one on a desktop. The viewport picks the matching rendition by default (the
-   * `media` attribute of the <picture> source in the markup) and the two view buttons let a
+   * `media` attribute of the desktop source in the markup) and the two view buttons let a
    * visitor force the other one, for example to check the phone layout on a desktop.
    *
    * Forcing a rendition means rewriting that `media` query: it is what makes the browser
@@ -204,13 +261,18 @@ const viewOptionClass =
     // ClientRouter swaps the figure on navigation while the script stays installed.
     if (!figure || figure.dataset.kohaScreenshotBound === 'true') return;
 
-    const source = figure.querySelector<HTMLSourceElement>('source');
+    // The desktop rendition carries the `media` query that decides the view; the phone
+    // rendition is the <img>, which the desktop source falls through to once it no longer
+    // matches.
+    const sources = Array.from(
+      figure.querySelectorAll<HTMLSourceElement>('[data-koha-screenshot-desktop]'),
+    );
     const options = Array.from(figure.querySelectorAll<HTMLButtonElement>('[data-koha-screenshot-option]'));
-    if (!source || options.length === 0) return;
+    if (sources.length === 0 || options.length === 0) return;
 
     // Explicit types: apply() below closes over these, where narrowing is lost.
     const root: HTMLElement = figure;
-    const rendition: HTMLSourceElement = source;
+    const renditions: HTMLSourceElement[] = sources;
     const buttons: HTMLButtonElement[] = options;
     const frame = figure.querySelector<HTMLElement>('[data-koha-screenshot-panel]');
     root.dataset.kohaScreenshotBound = 'true';
@@ -224,7 +286,9 @@ const viewOptionClass =
     function apply() {
       const view = forced || (wideViewport.matches ? 'desktop' : 'mobile');
 
-      rendition.media = view === 'desktop' ? 'all' : 'not all';
+      renditions.forEach((rendition) => {
+        rendition.media = view === 'desktop' ? 'all' : 'not all';
+      });
       root.dataset.kohaScreenshotView = view;
 
       buttons.forEach((button) => {

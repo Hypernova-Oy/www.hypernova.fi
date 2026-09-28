@@ -375,6 +375,19 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   registered first and would otherwise answer with gzip. `/` is 12752 bytes over the wire
   against gzip's 13417, and `/search-index.json`, which the stock gzip configuration does not
   cover at all, is 9340 against 29467.
+- **Images are resized and re-encoded at the size they are drawn.** `astro.config.mjs` uses
+  the default image service (sharp, already a dependency) instead of the
+  `passthroughImageService()` it had, which answered every request with the original file: the
+  navbar logo drew at 32px from its 1024x1024 source (39 KB), the phone screenshot was the
+  whole 1320x2868 capture (253 KB) on every viewport, and a 365x500 product photo was the
+  1159x1536 capture (391 KB, `content-type: image/undefined`). The markup now carries the
+  widths each frame can use and the service answers with WebP: 696 B for the logo, 28-43 KB for
+  the phone screenshot, 14-43 KB for the product photos. WebP rather than AVIF because these
+  pages are rendered per request, so the service has no cache between visitors: the 990px
+  capture encodes to WebP in 224ms and 43 KB, and to AVIF in 3.7s and 26 KB - a first visitor
+  would wait seconds for the last 17 KB. AVIF is worth adding once those files are generated at
+  build time instead. The cases *the screenshot is served at the size it is drawn* and *the
+  logo is served at the size it is drawn* fail if a full-size file comes back.
 - Check changes with `npm run bench:scroll` against a running server.
 
 ## Legal documents
