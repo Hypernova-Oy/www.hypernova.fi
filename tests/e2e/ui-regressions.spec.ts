@@ -1592,7 +1592,7 @@ test.describe('layout regressions', () => {
     // lazy (it sits at the end of the page), so its box only exists once the browser has it.
     const logo = async () => {
       await expect
-        .poll(() => page.evaluate(() => document.querySelector('img[alt="Koha"]')!.naturalWidth))
+        .poll(() => page.evaluate(() => (document.querySelector('img[alt="Koha"]') as HTMLImageElement).naturalWidth))
         .toBeGreaterThan(0);
 
       return page.evaluate(() => {
