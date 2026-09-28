@@ -582,25 +582,34 @@ so the built bundle must not be world-readable. Keep `FORM_TOKEN_SECRET` stable 
 restarts and deploys so forms that are already open stay valid, and re-run the script after
 editing `.env` - the running service keeps the values it was built with.
 
-`--domain` reaches the bundle as `HYPERNOVA_SITE_URL`, which becomes the build's `site`:
-canonical links and the sitemap then point at the domain that is being deployed, not at
-production. The script also sets `HYPERNOVA_ALLOWED_HOSTS` to the domain and its `www` twin.
+`--domain` reaches the bundle as `HYPERNOVA_SITE_URL`, which becomes the build's `site`: it is
+the address a deployment declares, and the one the redirect of its second name names. It is not
+where the canonical links, robots.txt and the sitemap come from - those are built from `SITE_URL`
+in `src/config.ts`, a literal that names the production address, so a deployment under a name of
+its own carries production's canonical links. The script also sets `HYPERNOVA_ALLOWED_HOSTS` to
+the domain and its `www` twin.
 That list is what the **dev and preview servers** accept as a `Host` (Vite's host check,
 `server.allowedHosts` in `astro.config.mjs`; without it a development machine reached through
-a container or LAN name gets `403 Blocked request`). The built server that the deployment
-runs does not look at the `Host` header, so what answers on a name is decided by Apache and
-the certificate.
+a container or LAN name gets `403 Blocked request`). The built server that the deployment runs
+refuses nothing by name - Apache decides which name reaches it - and it answers the one name
+that is not the address of the site with the same redirect the virtual host sends
+(`src/utils/canonical-host.ts`). The two halves matter because a request does not always arrive
+through the virtual host this script writes: the `:443` host `certbot` created once keeps its
+own copy of the directives, and the deploy does not rewrite that file while the certificate is
+there. Both are checked at the end of a run.
 
-The two names of a deployment are not two sites. The certificate covers both, and the virtual
-host answers every request that arrives under the other one with a permanent redirect to
-`--domain`: `hypernova.fi/koha-hosting/?page=2` reaches
-`https://www.hypernova.fi/koha-hosting/?page=2` over http and https alike, path and query kept.
-(A host that serves plain HTTP - `--no-tls` without `--behind-proxy` - keeps that scheme
-instead, because there a redirect to `https://` would point at a port nothing listens on.) Only
-`--domain` is the name in the canonical links and in the sitemap, so a crawler sees one page and
-not two, and a link to the other name still lands on the page it meant. A certificate renewal is
-the exception: `/.well-known/acme-challenge/` is answered on either name, without a redirect in
-front of it. The deploy checks the redirect on the host it has just written.
+The two names of a deployment are not two sites. The certificate covers both, and every request
+that arrives under the other one is answered with a permanent redirect to `--domain`:
+`hypernova.fi/koha-hosting/?page=2` reaches `https://www.hypernova.fi/koha-hosting/?page=2`,
+path and query kept. The address the redirect names is the one the deployment declares
+(`HYPERNOVA_SITE_URL`, above): `https://` wherever a browser reaches this host over TLS - the
+certificate, or the proxy in front of `--behind-proxy` - and `http://` on a host that serves
+plain HTTP with nothing in front (`--no-tls` without `--behind-proxy`), where a redirect to
+`https://` would name a port nothing listens on. Only `--domain` is the name of the site, so a
+crawler that follows a link to the other one lands on the page it meant and not on another host's
+copy of it. A certificate renewal is the exception: `/.well-known/acme-challenge/` is answered on
+either name, without a redirect in front of it. The deploy checks both halves of the redirect on
+the host it has just written.
 
 Apache gets `ProxyPreserveHost On` (the forms compare the request host) and `retry=0` on the
 proxy, so a stopped service fails fast instead of hanging. The `:80` redirect, `mod_ssl` and

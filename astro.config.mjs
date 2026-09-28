@@ -26,9 +26,12 @@ const themeInitHash = `sha256-${createHash('sha256').update(themeInit).digest('b
 
 // Host names the dev and preview servers answer: both refuse a Host header that is not in
 // this list (plus IP addresses and *.localhost), so a name used to reach a development
-// machine - a container, a LAN name - has to be listed. The built server (`npm start`,
-// which is what the deployment runs) does not check the Host header; Apache is what decides
-// which name reaches it. scripts/deploy/install.sh adds the domain it deploys.
+// machine - a container, a LAN name - has to be listed. The built server (`npm start`, which
+// is what the deployment runs) refuses nothing by name - Apache decides which name reaches
+// it - and answers the one name that is not the address of the site with a redirect
+// (src/utils/canonical-host.ts, which is what the `site` above is for). A development server
+// is left out of that on purpose, so a checkout can be browsed under a LAN name.
+// scripts/deploy/install.sh adds the domain it deploys.
 const allowedHosts = [new URL(SITE_URL).host, 'hypernova.fi', 'homepagenew.lxd'];
 for (const name of (process.env.HYPERNOVA_ALLOWED_HOSTS ?? '').split(',')) {
   if (name.trim() && !allowedHosts.includes(name.trim())) {

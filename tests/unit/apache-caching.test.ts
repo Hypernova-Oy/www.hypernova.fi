@@ -52,7 +52,7 @@ function renderedVhost(behindProxy: boolean) {
     'compression_directives',
     'caching_directives',
     'security_directives',
-    'canonical_scheme',
+    'site_scheme',
     'canonical_host_directives',
     'render_vhost',
   ]

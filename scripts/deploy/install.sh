@@ -165,10 +165,13 @@ write_config() {
 # free of single quotes. `npm ci` must not run with NODE_ENV=production: npm would then
 # leave out the dev dependencies that `astro build` needs.
 #
-# HYPERNOVA_SITE_URL is read while `astro build` runs and becomes the build's `site` - the
-# canonical links and the sitemap then point at the domain this deployment serves instead of at
-# production. HYPERNOVA_ALLOWED_HOSTS is the host list the dev and preview servers accept, so a
-# deployment developed on another name works too (see the comments in astro.config.mjs).
+# HYPERNOVA_SITE_URL is read while `astro build` runs and becomes the build's `site`: the
+# canonical links, the sitemap and the redirect of the other name then point at the domain this
+# deployment serves instead of at production, over the scheme site_scheme() decides (see the
+# canonical hostname below: https wherever a browser reaches this host over TLS, http on a host
+# that serves plain HTTP). HYPERNOVA_ALLOWED_HOSTS is the host list the dev and preview servers
+# accept, so a deployment developed on another name works too (see the comments in
+# astro.config.mjs).
 app_run() {
   local snippet="$1"
   if [ "$DRY_RUN" -eq 1 ]; then
@@ -176,7 +179,7 @@ app_run() {
     return 0
   fi
   runuser -u "$APP_USER" -- env HOME="$APP_HOME" PATH="${NODE_BIN%/node}:$PATH" \
-    HYPERNOVA_SITE_URL="https://$DOMAIN" \
+    HYPERNOVA_SITE_URL="$(site_scheme)://$DOMAIN" \
     HYPERNOVA_ALLOWED_HOSTS="$DOMAIN,$DOMAIN_ALIAS" \
     bash -c "cd '$APP_DIR' && $snippet"
 }
@@ -870,23 +873,28 @@ SECURITY
 
 # --- The canonical hostname ---------------------------------------------------------------
 # The site answers on two names - DOMAIN and DOMAIN_ALIAS, `www.hypernova.fi` and
-# `hypernova.fi` - and the certificate below covers both, but only one of them is its address:
-# src/config.ts (SITE_URL) puts the `--domain` name into the canonical link of every page, into
-# robots.txt and into the sitemap, and `--domain` reaches the build as HYPERNOVA_SITE_URL. What
-# is left is to send the other name there, which is what both virtual hosts below do with the
-# redirect this function prints, and what the check at the end of this script looks for. Two
-# addresses for one page are two pages to a crawler, and a link copied from the other name
-# would keep sending visitors through one more hop.
+# `hypernova.fi` - and the certificate below covers both, but only one of them is the address of
+# the deployment: `--domain`, which reaches the build as HYPERNOVA_SITE_URL and becomes the
+# `site` of astro.config.mjs (see app_run below), and which is the name the redirect below and
+# the app's own half of it name (src/utils/canonical-host.ts). What is left is to send the other
+# name there, which is what both virtual hosts below do with the redirect this function prints,
+# and what the checks at the end of this script look for. Two addresses for one page are two
+# pages to a crawler, and a link copied from the other name would keep sending its visitors
+# through one more hop.
 #
-# The redirect goes to https:// whenever a browser can reach this site over TLS: an ordinary
-# deploy has that in the certificate certbot installs, and --behind-proxy has it in the proxy
-# in front. On a host that serves plain HTTP with nothing in front - --no-tls without
-# --behind-proxy, where nothing answers on port 443 - it keeps the scheme of the request
-# instead, because sending a visitor to a port nobody listens on would break the link rather
-# than move it.
-canonical_scheme() {
+# The app answers the same redirect as well, because a request does not always arrive through the
+# host this script writes: the `:443` host certbot created once keeps its own copy of the
+# directives, and is not rewritten while the certificate is there.
+#
+# The address of the deployment, and with it the scheme of the redirect: https:// wherever a
+# browser can reach this site over TLS - the certificate certbot installs, or the proxy in front
+# of --behind-proxy - and http:// on a host that serves plain HTTP with nothing in front
+# (--no-tls without --behind-proxy), where nothing answers on port 443 and a redirect to https://
+# would point at it. app_run passes the same scheme to the build, so the site it declares is the
+# one this redirect names.
+site_scheme() {
   if [ "$WITH_TLS" -eq 0 ] && [ "$WITH_PROXY" -eq 0 ]; then
-    printf '%%{REQUEST_SCHEME}'
+    printf 'http'
   else
     printf 'https'
   fi
@@ -901,7 +909,7 @@ canonical_host_directives() {
   # that serves a spare port of its own; a visitor's browser sends no port for 80 and 443.
   local alias_re="${DOMAIN_ALIAS//./\\.}"
   local scheme
-  scheme="$(canonical_scheme)"
+  scheme="$(site_scheme)"
 
   cat <<CANONICAL
   # One site, one address: $DOMAIN is the canonical name, the one the canonical link of every
@@ -1136,7 +1144,8 @@ verify_deployment() {
   if [ "$DRY_RUN" -eq 1 ]; then
     info "would wait for http://127.0.0.1:$PORT/, check both languages and the search index"
     [ "$WITH_APACHE" -eq 1 ] && info "would check http://127.0.0.1/ with Host: $DOMAIN"
-    [ "$WITH_APACHE" -eq 1 ] && info "would check that Host: $DOMAIN_ALIAS redirects to $DOMAIN"
+    [ "$WITH_APACHE" -eq 1 ] && info "would check that Apache moves Host: $DOMAIN_ALIAS to $DOMAIN"
+    info "would check that the app moves Host: $DOMAIN_ALIAS to $DOMAIN as well"
     [ "$WITH_PROXY" -eq 1 ] && info "would send X-Forwarded-Proto: https, like the proxy in front"
     info "would post to /contact/ with Origin: https://$DOMAIN, the way a browser does"
     return 0
@@ -1217,6 +1226,15 @@ verify_deployment() {
   rm -f "$host_body"
   info "the server answers as $DOMAIN"
 
+  # The other name of the site has to move its visitor to the address of the deployment, in a
+  # single answer and with the path and the query kept: (site_scheme)://$DOMAIN is what the
+  # canonical links name, so that is where a link under the second name has to land. The two
+  # checks below ask the two halves of it - Apache, which answers without a trip through Node,
+  # and the app itself, which answers a request that never reaches this virtual host.
+  local alias_path alias_expected alias_reply alias_code alias_location
+  alias_path="/koha-hosting/?probe=1"
+  alias_expected="$(site_scheme)://$DOMAIN$alias_path"
+
   if [ "$WITH_APACHE" -eq 1 ]; then
     local apache_code
     apache_code="$(curl -sS -o /dev/null -w '%{http_code}' --max-time 15 \
@@ -1227,30 +1245,36 @@ verify_deployment() {
     fi
     info "Apache proxies $DOMAIN to $HOST:$PORT"
 
-    # The other name has to move the visitor to the canonical one, in a single answer and with
-    # the path and the query kept. Like the check above, this one speaks plain HTTP with only a
-    # Host header: the redirect is the virtual host's own answer, so nothing here depends on
-    # how TLS is ended.
-    local redirect_scheme alias_path alias_reply alias_code alias_location
-    redirect_scheme="$(canonical_scheme)"
-    if [ "$redirect_scheme" = '%{REQUEST_SCHEME}' ]; then
-      # A host with no TLS anywhere: the request is HTTP, and so is the redirect.
-      redirect_scheme=http
-    fi
-    alias_path="/koha-hosting/?probe=1"
+    # Asked with a Host header of the second name, the way a browser asks for it. The redirect is
+    # the virtual host's own answer, so nothing here depends on how TLS is ended.
     alias_reply="$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 15 \
       -H "Host: $DOMAIN_ALIAS" "http://127.0.0.1$alias_path")" || alias_reply=000
     alias_code="${alias_reply%% *}"
     alias_location="${alias_reply#* }"
-    if [ "$alias_code" != 301 ] || \
-      [ "$alias_location" != "$redirect_scheme://$DOMAIN$alias_path" ]; then
+    if [ "$alias_code" != 301 ] || [ "$alias_location" != "$alias_expected" ]; then
       fail "Host: $DOMAIN_ALIAS answered \"$alias_code $alias_location\" for $alias_path instead of
-   a 301 to $redirect_scheme://$DOMAIN$alias_path, so the second name of this site is not sending
-   its visitors to the canonical one: check ServerName/ServerAlias in the virtual host (see
+   a 301 to $alias_expected, so the second name of this site is not sending its visitors to the
+   address of the deployment: check ServerName/ServerAlias in the virtual host (see
    canonical_host_directives) and that mod_rewrite is enabled (a2enmod rewrite)."
     fi
-    info "Apache moves Host: $DOMAIN_ALIAS to $redirect_scheme://$DOMAIN"
+    info "Apache moves Host: $DOMAIN_ALIAS to $DOMAIN"
   fi
+
+  # The same, asked of the app on its own port: a request does not always arrive through the host
+  # this script writes, because the `:443` host certbot created once keeps its own copy of the
+  # directives and is not rewritten while the certificate is there. Only a build has an address
+  # to redirect to, which is why a development server does not answer this (src/middleware.ts).
+  alias_reply="$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 15 \
+    -H "Host: $DOMAIN_ALIAS" "http://$HOST:$PORT$alias_path")" || alias_reply=000
+  alias_code="${alias_reply%% *}"
+  alias_location="${alias_reply#* }"
+  if [ "$alias_code" != 301 ] || [ "$alias_location" != "$alias_expected" ]; then
+    fail "The app answered \"$alias_code $alias_location\" for Host: $DOMAIN_ALIAS instead of a 301
+   to $alias_expected, so a request that does not reach the virtual host is served under the
+   second name: check src/utils/canonical-host.ts and its use in src/middleware.ts, and that the
+   build was given HYPERNOVA_SITE_URL (app_run sets it from --domain and site_scheme)."
+  fi
+  info "the app moves Host: $DOMAIN_ALIAS to $DOMAIN as well"
 
   # A browser posts a form with an https origin, so that is what the check sends. The body
   # carries no valid token, so the app drops the submission as a bot signal - nothing reaches

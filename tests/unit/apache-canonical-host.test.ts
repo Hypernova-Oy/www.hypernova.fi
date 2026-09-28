@@ -1,11 +1,11 @@
 /**
  * Unit tests for the canonical hostname of the site, which scripts/deploy/install.sh writes into
  * the Apache virtual host as a redirect. A deployment answers on two names - `www.hypernova.fi`
- * and `hypernova.fi`, or whatever `--domain` is and its `www` twin - and only one of them is the
- * address of the site: src/config.ts (SITE_URL) is the name in every canonical link, in
- * robots.txt and in the sitemap, while the certificate covers both names. So the other name has
- * to move its visitor to that one. They run with Node's own test runner and type stripping, so
- * no test framework is needed:
+ * and `hypernova.fi`, or whatever `--domain` is and its `www` twin - the certificate covers both,
+ * and both serve the same pages; only one of them is the address of the deployment (`site` in
+ * astro.config.mjs, which is what `--domain` becomes), so the other one is sent there with a
+ * permanent redirect, path and query kept. They run with Node's own test runner and type
+ * stripping, so no test framework is needed:
  *
  *   npm run test:unit
  *
@@ -14,8 +14,11 @@
  * against Apache 2.4.58 as well: with the redirect in place, a request for
  * /koha-hosting/?page=2 with `Host: example.com` answers `301` with
  * `Location: https://www.example.com/koha-hosting/?page=2`, the canonical name is served instead
- * of redirected, /.well-known/acme-challenge/ is left alone, and a host with no TLS anywhere
- * answers with the scheme of the request (http) instead of a port nothing listens on.
+ * of redirected, /.well-known/acme-challenge/ is left alone, and a host that serves plain HTTP
+ * answers over http instead of sending anyone to a port nothing listens on.
+ *
+ * The app's half of the same redirect is tested in tests/unit/canonical-host.test.ts, and the
+ * deploy checks both halves after it writes the host.
  */
 import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
@@ -68,7 +71,7 @@ function globals(tls: boolean, behindProxy: boolean) {
 /** The canonical-host block on its own, rendered by the shell. */
 function renderedDirectives(tls: boolean, behindProxy: boolean) {
   const source = readFileSync(INSTALL_SH, 'utf8');
-  const functions = ['canonical_scheme', 'canonical_host_directives']
+  const functions = ['site_scheme', 'canonical_host_directives']
     .map((name) => functionBody(source, name))
     .join('\n');
 
@@ -86,7 +89,7 @@ function renderedVhost(tls: boolean, behindProxy: boolean) {
     'compression_directives',
     'caching_directives',
     'security_directives',
-    'canonical_scheme',
+    'site_scheme',
     'canonical_host_directives',
     'render_vhost',
   ]
@@ -159,10 +162,12 @@ test('the redirect goes to HTTPS whenever a browser can reach this site over TLS
     'the redirect behind a proxy is not HTTPS',
   );
 
-  // Nothing ends TLS for this host, so https:// would be a port nothing answers on.
+  // Nothing ends TLS for this host, so https:// would be a port nothing answers on. This is the
+  // same decision that names the address of the deployment (site_scheme, which app_run passes to
+  // the build as HYPERNOVA_SITE_URL), so the redirect and the canonical links agree.
   assert.ok(
     renderedDirectives(false, false).includes(
-      `RewriteRule ^ %{REQUEST_SCHEME}://${DOMAIN}%{REQUEST_URI}`,
+      `RewriteRule ^ http://${DOMAIN}%{REQUEST_URI}`,
     ),
     'a host that serves plain HTTP sends its visitors to HTTPS',
   );
@@ -210,24 +215,55 @@ test('the deploy enables the module the redirect needs', () => {
   assert.match(source, /run a2enmod -q proxy proxy_http headers rewrite/);
 });
 
-test('the run checks the redirect on the host it has just written', () => {
+test('the run checks both halves of the redirect on the host it has just written', () => {
   const source = readFileSync(INSTALL_SH, 'utf8');
   const check = functionBody(source, 'verify_deployment');
 
-  // The deploy asks Apache for a page under the canonical Host header; the second name has to
-  // be asked for as well, or a virtual host that stopped redirecting is deployed as fine.
+  // The deploy asks for a page under the canonical Host header; the second name has to be asked
+  // for as well, or a host that stopped redirecting is deployed as fine.
   assert.ok(
     check.includes('-H "Host: $DOMAIN_ALIAS"'),
     `the run never asks for the second name:\n${check}`,
   );
   assert.ok(check.includes('!= 301'), `the run does not expect a redirect:\n${check}`);
+
+  // Once through Apache, which answers before Node, and once through the Node process itself,
+  // which answers the request that arrives through the host certbot wrote and this script does
+  // not rewrite.
+  assert.ok(
+    check.includes('"http://127.0.0.1$alias_path"'),
+    `the run never asks Apache for the second name:\n${check}`,
+  );
+  assert.ok(
+    check.includes('"http://$HOST:$PORT$alias_path"'),
+    `the run never asks the app for the second name:\n${check}`,
+  );
 });
 
-test('the name the pages call canonical is the name the redirect uses', () => {
-  // The redirect is only the right one while the app and the deploy agree on the name: what a
-  // page puts in its canonical link has to be the host this script answers on. src/config.ts is
-  // what the pages, the sitemap and robots.txt are built from
-  // (tests/e2e/ui-regressions.spec.ts reads those back from a running server).
+test('the address of the deployment is one decision', () => {
+  const source = readFileSync(INSTALL_SH, 'utf8');
+
+  // The scheme of the build's `site` (canonical links, sitemap, and what the app redirects to)
+  // and the scheme of the virtual host's redirect come from the same function, so a deployment
+  // cannot name one address in its pages and send its visitors to another.
+  assert.match(source, /HYPERNOVA_SITE_URL="\$\(site_scheme\):\/\/\$DOMAIN"/);
+  assert.match(source, /scheme="\$\(site_scheme\)"/);
+  assert.match(source, /alias_expected="\$\(site_scheme\):\/\/\$DOMAIN\$alias_path"/);
+
+  // And what the deploy passes is what the build reads as its `site`, which is what the
+  // middleware redirects to (tests/unit/canonical-host.test.ts).
+  const astro = readFileSync(ASTRO_CONFIG, 'utf8');
+  assert.match(astro, /const SITE_URL = process\.env\.HYPERNOVA_SITE_URL \?\? '/);
+  assert.match(astro, /\bsite: SITE_URL\b/);
+});
+
+test('the deployment and the site it is built as name the same host', () => {
+  // Two places name the address of the site: `--domain` (the default below, which reaches the
+  // build as HYPERNOVA_SITE_URL and is what the app redirects the second name to), and
+  // src/config.ts's SITE_URL, which the canonical link of every page, robots.txt and the sitemap
+  // are built from - that one is a literal, so nothing but this test keeps it pointing at the
+  // name a deployment answers on (tests/e2e/ui-regressions.spec.ts reads those back from a
+  // running server).
   const source = readFileSync(INSTALL_SH, 'utf8');
   const deployed = source.match(/DOMAIN="\$\{HYPERNOVA_DOMAIN:-([^}]+)\}"/)?.[1];
   assert.ok(deployed, `the default domain is not readable from ${INSTALL_SH}`);

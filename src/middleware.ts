@@ -1,5 +1,6 @@
 import { defineMiddleware } from 'astro:middleware';
 import { FALLBACK_LANG, isLanguage } from './i18n/ui';
+import { canonicalRedirectTarget } from './utils/canonical-host';
 
 const LANGUAGE_COOKIE = 'language';
 
@@ -16,9 +17,21 @@ const UNCACHEABLE_PAGES = new Set(['/contact/', '/koha/']);
  *
  * Precedence: `?l=` query parameter -> `language` cookie -> English fallback.
  * The choice is persisted in the `language` cookie (skipped for link prefetches).
+ *
+ * Before any of that, a request that arrives under the other name of the site is sent to the
+ * address of the deployment - `site` in astro.config.mjs, which is the name the virtual host in
+ * scripts/deploy/install.sh redirects to as well (src/utils/canonical-host.ts). A build is the
+ * only place that has an address to redirect to: a development server serves whatever name it is
+ * reached by, so that a checkout can be browsed under a LAN name (server.allowedHosts in
+ * astro.config.mjs).
  */
 export const onRequest = defineMiddleware(async (context, next) => {
   const { cookies, locals, request, url } = context;
+
+  const canonical = import.meta.env.PROD ? canonicalRedirectTarget(url, context.site) : undefined;
+  if (canonical) {
+    return context.redirect(canonical, 301);
+  }
 
   const requested = url.searchParams.get('l');
   const stored = cookies.get(LANGUAGE_COOKIE)?.value;
