@@ -1,7 +1,6 @@
 ---
-import '@fontsource-variable/inter';
-import '@fontsource-variable/space-grotesk';
 import { ClientRouter } from 'astro:transitions';
+import { Font } from 'astro:assets';
 import '../styles/global.css';
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
@@ -182,6 +181,14 @@ const lang = Astro.locals.lang;
     <title>{fullTitle}</title>
 
     <ClientRouter />
+
+    <!--
+      The two families every page is set in (see the `fonts` entries in astro.config.mjs). They
+      are declared here, once, so each page preloads them and starts them before the stylesheet
+      has been parsed; the brand font of the wordmark is declared by the navbar that draws it.
+    -->
+    <Font cssVariable="--font-inter" preload />
+    <Font cssVariable="--font-space-grotesk" preload />
 
     <!-- Theme initialization script to prevent FOUC and preserve the theme across routes.
          Light (white) is the default look: dark mode is opt-in and only applies once a

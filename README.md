@@ -388,6 +388,17 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   would wait seconds for the last 17 KB. AVIF is worth adding once those files are generated at
   build time instead. The cases *the screenshot is served at the size it is drawn* and *the
   logo is served at the size it is drawn* fail if a full-size file comes back.
+- **Fonts: the latin subset only, and preloaded** (`fonts` in `astro.config.mjs`). The
+  @fontsource packages declared a face per subset - cyrillic, cyrillic-ext, greek, greek-ext,
+  vietnamese, latin-ext - and every one of those declarations was part of every page. The text
+  of this site needs the latin range and nothing else (scanning `src/` for non-ASCII characters
+  finds ä, ö and the punctuation of U+2000-206F). Both variable fonts live in
+  `src/assets/fonts`, copied from those packages so a build needs no network, and Astro emits
+  the @font-face rules - with an Arial-based metric-adjusted fallback, which is what keeps the
+  text from reflowing when the real file lands - together with the `--font-inter` and
+  `--font-space-grotesk` variables `src/styles/global.css` sets its families from. All three
+  files are preloaded (Inter 48 KB, Space Grotesk 22 KB, OCR-A 24 KB), so they start with the
+  document instead of after the stylesheet.
 - Check changes with `npm run bench:scroll` against a running server.
 
 ## Legal documents

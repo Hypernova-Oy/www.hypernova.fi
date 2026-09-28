@@ -43,8 +43,9 @@
   --color-accent-800: #115e59;
   --color-accent-900: #134e4a;
 
-  --font-sans: 'Inter Variable', ui-sans-serif, system-ui, sans-serif;
-  --font-heading: 'Space Grotesk Variable', ui-sans-serif, system-ui, sans-serif;
+  /* The families are set by Astro's font API in astro.config.mjs, which also preloads them. */
+  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-space-grotesk), ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Custom base layer for Dark Mode support and smooth transitions */

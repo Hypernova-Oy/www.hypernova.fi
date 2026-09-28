@@ -46,10 +46,7 @@ async function dataUrl(file, mime) {
 const [mark, ocra, inter] = await Promise.all([
   dataUrl(path.join(ROOT, 'src/images/hypernova-logo.png'), 'image/png'),
   dataUrl(path.join(ROOT, 'src/assets/fonts/ocra.woff2'), 'font/woff2'),
-  dataUrl(
-    path.join(ROOT, 'node_modules/@fontsource-variable/inter/files/inter-latin-wght-normal.woff2'),
-    'font/woff2',
-  ),
+  dataUrl(path.join(ROOT, 'src/assets/fonts/inter-latin.woff2'), 'font/woff2'),
 ]);
 
 // The lockup follows the site's own header: the dark mark on a white tile (as the Navbar

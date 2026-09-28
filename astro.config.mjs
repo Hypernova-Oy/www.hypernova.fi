@@ -119,6 +119,47 @@ export default defineConfig({
           }
         ]
       }
+    },
+    /*
+     * Inter (body) and Space Grotesk (headings), as the latin subset of the variable fonts and
+     * from copies in src/assets/fonts, so a build needs no network.
+     *
+     * The packages that ship them declare a face per subset - cyrillic, cyrillic-ext, greek,
+     * greek-ext, vietnamese, latin-ext - and every one of those declarations used to be part of
+     * every page. The text of this site needs the latin range only (checked across src/: ä, ö,
+     * and the punctuation U+2000-206F), so those are the files that are declared here. Astro
+     * emits the @font-face rules and preloads the files, which starts them before the
+     * stylesheet has been parsed instead of after.
+     */
+    {
+      provider: fontProviders.local(),
+      name: 'Inter Variable',
+      cssVariable: '--font-inter',
+      formats: ['woff2'],
+      options: {
+        variants: [
+          {
+            src: ['./src/assets/fonts/inter-latin.woff2'],
+            weight: '100 900',
+            style: 'normal'
+          }
+        ]
+      }
+    },
+    {
+      provider: fontProviders.local(),
+      name: 'Space Grotesk Variable',
+      cssVariable: '--font-space-grotesk',
+      formats: ['woff2'],
+      options: {
+        variants: [
+          {
+            src: ['./src/assets/fonts/space-grotesk-latin.woff2'],
+            weight: '300 700',
+            style: 'normal'
+          }
+        ]
+      }
     }
   ]
 });
