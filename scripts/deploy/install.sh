@@ -206,7 +206,9 @@ Deploy the Hypernova website on this server (Debian or Ubuntu, systemd, root).
 
 Usage: sudo bash scripts/deploy/install.sh [options]
 
-  -d, --domain DOMAIN   Public hostname (default: www.hypernova.fi)
+  -d, --domain DOMAIN   Public hostname (default: www.hypernova.fi): the canonical address
+                        of the site, what its certificate and its canonical links name. The
+                        other name (the same with www, or without it) redirects here.
   -p, --port PORT       Loopback port of the Node process (default: 4321)
       --host ADDRESS    Address the Node process binds to (default: 127.0.0.1)
   -s, --service NAME    systemd unit name (default: hypernova)
@@ -866,12 +868,65 @@ security_directives() {
 SECURITY
 }
 
+# --- The canonical hostname ---------------------------------------------------------------
+# The site answers on two names - DOMAIN and DOMAIN_ALIAS, `www.hypernova.fi` and
+# `hypernova.fi` - and the certificate below covers both, but only one of them is its address:
+# src/config.ts (SITE_URL) puts the `--domain` name into the canonical link of every page, into
+# robots.txt and into the sitemap, and `--domain` reaches the build as HYPERNOVA_SITE_URL. What
+# is left is to send the other name there, which is what both virtual hosts below do with the
+# redirect this function prints, and what the check at the end of this script looks for. Two
+# addresses for one page are two pages to a crawler, and a link copied from the other name
+# would keep sending visitors through one more hop.
+#
+# The redirect goes to https:// whenever a browser can reach this site over TLS: an ordinary
+# deploy has that in the certificate certbot installs, and --behind-proxy has it in the proxy
+# in front. On a host that serves plain HTTP with nothing in front - --no-tls without
+# --behind-proxy, where nothing answers on port 443 - it keeps the scheme of the request
+# instead, because sending a visitor to a port nobody listens on would break the link rather
+# than move it.
+canonical_scheme() {
+  if [ "$WITH_TLS" -eq 0 ] && [ "$WITH_PROXY" -eq 0 ]; then
+    printf '%%{REQUEST_SCHEME}'
+  else
+    printf 'https'
+  fi
+}
+
+# The block both virtual hosts put above their catch-all ProxyPass, so that the name which is
+# not the canonical one answers with a redirect to it - path and query intact, since a visitor
+# who follows a link to /koha-hosting/?page=2 has to land on that page and not on the homepage.
+canonical_host_directives() {
+  # Only the dots need escaping: a hostname is letters, digits, dots and dashes, and the check
+  # above has refused everything else. The optional port lets the same rule answer on a host
+  # that serves a spare port of its own; a visitor's browser sends no port for 80 and 443.
+  local alias_re="${DOMAIN_ALIAS//./\\.}"
+  local scheme
+  scheme="$(canonical_scheme)"
+
+  cat <<CANONICAL
+  # One site, one address: $DOMAIN is the canonical name, the one the canonical link of every
+  # page and the sitemap carry, so a request that arrives under the other name is answered here
+  # with a permanent redirect to it. mod_rewrite names mod_proxy as a prerequisite and so runs
+  # before it in the translation phase, and the [R] flag turns the match into a response of its
+  # own: this answer wins over the catch-all ProxyPass below even though it sits above it.
+  #
+  # /.well-known/acme-challenge/ is the exception, so a certificate renewal answers on either
+  # name with no redirect in between to follow.
+  RewriteEngine On
+  RewriteCond %{REQUEST_URI} !^/\.well-known/acme-challenge/
+  RewriteCond %{HTTP_HOST} ^${alias_re}(:[0-9]+)?\$ [NC]
+  RewriteRule ^ ${scheme}://$DOMAIN%{REQUEST_URI} [R=301,L]
+CANONICAL
+}
+
 render_vhost() {
   if [ "$WITH_PROXY" -eq 1 ]; then
     cat <<APACHE
 <VirtualHost *:80>
   ServerName $DOMAIN
   ServerAlias $DOMAIN_ALIAS
+
+$(canonical_host_directives)
 
   # The app has to see the real host name: the forms compare Astro.url.host with the Origin
   # header of a submission.
@@ -911,6 +966,8 @@ APACHE
 <VirtualHost *:80>
   ServerName $DOMAIN
   ServerAlias $DOMAIN_ALIAS
+
+$(canonical_host_directives)
 
   # The app has to see the real host name: the forms compare Astro.url.host with the Origin
   # header of a submission. mod_proxy appends the client address to X-Forwarded-For on its
@@ -1079,6 +1136,7 @@ verify_deployment() {
   if [ "$DRY_RUN" -eq 1 ]; then
     info "would wait for http://127.0.0.1:$PORT/, check both languages and the search index"
     [ "$WITH_APACHE" -eq 1 ] && info "would check http://127.0.0.1/ with Host: $DOMAIN"
+    [ "$WITH_APACHE" -eq 1 ] && info "would check that Host: $DOMAIN_ALIAS redirects to $DOMAIN"
     [ "$WITH_PROXY" -eq 1 ] && info "would send X-Forwarded-Proto: https, like the proxy in front"
     info "would post to /contact/ with Origin: https://$DOMAIN, the way a browser does"
     return 0
@@ -1168,6 +1226,30 @@ verify_deployment() {
    site: check the virtual host for $DOMAIN and that mod_proxy is enabled."
     fi
     info "Apache proxies $DOMAIN to $HOST:$PORT"
+
+    # The other name has to move the visitor to the canonical one, in a single answer and with
+    # the path and the query kept. Like the check above, this one speaks plain HTTP with only a
+    # Host header: the redirect is the virtual host's own answer, so nothing here depends on
+    # how TLS is ended.
+    local redirect_scheme alias_path alias_reply alias_code alias_location
+    redirect_scheme="$(canonical_scheme)"
+    if [ "$redirect_scheme" = '%{REQUEST_SCHEME}' ]; then
+      # A host with no TLS anywhere: the request is HTTP, and so is the redirect.
+      redirect_scheme=http
+    fi
+    alias_path="/koha-hosting/?probe=1"
+    alias_reply="$(curl -sS -o /dev/null -w '%{http_code} %{redirect_url}' --max-time 15 \
+      -H "Host: $DOMAIN_ALIAS" "http://127.0.0.1$alias_path")" || alias_reply=000
+    alias_code="${alias_reply%% *}"
+    alias_location="${alias_reply#* }"
+    if [ "$alias_code" != 301 ] || \
+      [ "$alias_location" != "$redirect_scheme://$DOMAIN$alias_path" ]; then
+      fail "Host: $DOMAIN_ALIAS answered \"$alias_code $alias_location\" for $alias_path instead of
+   a 301 to $redirect_scheme://$DOMAIN$alias_path, so the second name of this site is not sending
+   its visitors to the canonical one: check ServerName/ServerAlias in the virtual host (see
+   canonical_host_directives) and that mod_rewrite is enabled (a2enmod rewrite)."
+    fi
+    info "Apache moves Host: $DOMAIN_ALIAS to $redirect_scheme://$DOMAIN"
   fi
 
   # A browser posts a form with an https origin, so that is what the check sends. The body

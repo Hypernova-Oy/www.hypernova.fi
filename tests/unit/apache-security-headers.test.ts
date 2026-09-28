@@ -43,7 +43,14 @@ function rendered(name: 'security_directives') {
 /** The whole virtual host, rendered with the variables the script sets before it is called. */
 function renderedVhost(behindProxy: boolean) {
   const source = readFileSync(INSTALL_SH, 'utf8');
-  const functions = ['compression_directives', 'caching_directives', 'security_directives', 'render_vhost']
+  const functions = [
+    'compression_directives',
+    'caching_directives',
+    'security_directives',
+    'canonical_scheme',
+    'canonical_host_directives',
+    'render_vhost',
+  ]
     .map((name) => functionBody(source, name))
     .join('\n');
 
@@ -52,7 +59,9 @@ function renderedVhost(behindProxy: boolean) {
     'DOMAIN_ALIAS=example.com',
     'PORT=4321',
     'SERVICE=hypernova',
+    // --behind-proxy is the one combination the script turns TLS off for itself.
     `WITH_PROXY=${behindProxy ? 1 : 0}`,
+    `WITH_TLS=${behindProxy ? 0 : 1}`,
   ].join('\n');
 
   return execFileSync('bash', ['-c', `${globals}\n${functions}\nrender_vhost`], {

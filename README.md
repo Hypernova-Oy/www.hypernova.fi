@@ -563,7 +563,7 @@ keeps the `.env` it was given, and the build it produces, across deploys.
 
 | Option | Default | Effect |
 | --- | --- | --- |
-| `-d, --domain` | `www.hypernova.fi` | Public hostname (`ServerName`, certificate) |
+| `-d, --domain` | `www.hypernova.fi` | Public hostname: the canonical one (`ServerName`, certificate, canonical links). The same name with `www`, or without it, redirects to it |
 | `-p, --port`, `--host` | `4321`, `127.0.0.1` | Where the Node process listens |
 | `-s, --service` | `hypernova` | systemd unit and `/etc/apache2/sites-available/<name>.conf` |
 | `-u, --user`, `--dir` | `hypernova`, `/opt/hypernova/app` | Service account and the checkout it owns |
@@ -591,6 +591,17 @@ a container or LAN name gets `403 Blocked request`). The built server that the d
 runs does not look at the `Host` header, so what answers on a name is decided by Apache and
 the certificate.
 
+The two names of a deployment are not two sites. The certificate covers both, and the virtual
+host answers every request that arrives under the other one with a permanent redirect to
+`--domain`: `hypernova.fi/koha-hosting/?page=2` reaches
+`https://www.hypernova.fi/koha-hosting/?page=2` over http and https alike, path and query kept.
+(A host that serves plain HTTP - `--no-tls` without `--behind-proxy` - keeps that scheme
+instead, because there a redirect to `https://` would point at a port nothing listens on.) Only
+`--domain` is the name in the canonical links and in the sitemap, so a crawler sees one page and
+not two, and a link to the other name still lands on the page it meant. A certificate renewal is
+the exception: `/.well-known/acme-challenge/` is answered on either name, without a redirect in
+front of it. The deploy checks the redirect on the host it has just written.
+
 Apache gets `ProxyPreserveHost On` (the forms compare the request host) and `retry=0` on the
 proxy, so a stopped service fails fast instead of hanging. The `:80` redirect, `mod_ssl` and
 the certificate come from `certbot --apache`, which the script re-runs on every deploy.
@@ -608,10 +619,11 @@ curl -sS -o /dev/null -w '%{http_code}\n' http://127.0.0.1:4321/
 
 The deploy ends by checking that the unit - not a leftover dev server - is what answers on
 `--port`, that the homepage renders in both languages, that a legacy URL redirects with `301`,
-that `/search-index.json` carries page text for every entry, that Apache proxies the domain
-to the process, and that a form submission posted the way a browser posts it (with
-`Origin: https://<domain>`) is rendered instead of refused. A port that something else holds
-fails the run, instead of reporting a green deploy while another process serves its own pages.
+that `/search-index.json` carries page text for every entry, that Apache proxies the domain to
+the process and moves the other name of the domain to it, and that a form submission posted the
+way a browser posts it (with `Origin: https://<domain>`) is rendered instead of refused. A port
+that something else holds fails the run, instead of reporting a green deploy while another
+process serves its own pages.
 
 ### Behind a proxy that ends TLS
 
@@ -714,6 +726,11 @@ answers itself:
 ```apache
 <VirtualHost *:443>
   ServerName www.hypernova.fi
+  ServerAlias hypernova.fi
+  # the name that is not the canonical one moves to it, path and query kept
+  RewriteEngine On
+  RewriteCond %{HTTP_HOST} ^hypernova\.fi(:[0-9]+)?$ [NC]
+  RewriteRule ^ https://www.hypernova.fi%{REQUEST_URI} [R=301,L]
   ProxyPreserveHost On
   ProxyPass / http://127.0.0.1:4321/ retry=0
   ProxyPassReverse / http://127.0.0.1:4321/
