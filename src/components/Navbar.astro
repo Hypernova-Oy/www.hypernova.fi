@@ -22,7 +22,13 @@ const i18n = {
 const t = useTranslations(i18n, Astro);
 ---
 
-<header class="sticky top-0 z-[90] w-full transition-colors duration-300 glass-panel border-x-0 border-t-0 rounded-none shadow-sm pointer-events-auto">
+<!--
+  The bar is a solid surface, not a glass panel: the page scrolls underneath it, and a
+  translucent fill let the copy behind it show through the links. The two fills are the
+  ones the mobile menu panel below already uses, so the menu still sits seamlessly in the
+  bar when it opens.
+-->
+<header class="sticky top-0 z-[90] w-full transition-colors duration-300 bg-white dark:bg-night-card border border-zinc-200/50 dark:border-night-line/50 border-x-0 border-t-0 rounded-none shadow-sm pointer-events-auto">
   <div class="container mx-auto px-4 sm:px-6 lg:px-8">
     <div class="flex items-center justify-between h-16">
       <!-- Logo -->

@@ -228,6 +228,12 @@ The picker's pill costs the row about 15px more than the bare link did, which th
 row (`lg`, Finnish labels, `English` in the picker) still has to spare - measured at 768,
 1024 and 1280px, in both languages.
 
+The bar is a surface of its own, and a solid one: `bg-white dark:bg-night-card`, the fills
+the mobile menu panel below it already used, so the two stay one surface when the menu opens.
+The page scrolls underneath it, and the translucency it used to carry (`.glass-panel`, 80%)
+let the copy behind it read through the links - the cards in the page keep that fill, since
+nothing scrolls under them.
+
 ## Forms
 
 `/koha/` and `/contact/` POST back to themselves. Validation errors are rendered
@@ -317,9 +323,9 @@ tags: ["koha", "update"]
 Chromium composites some CSS far more expensively than Firefox, which showed up as
 janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
 
-- **No `backdrop-filter`** on the sticky header or on `.glass-panel`. A permanent
-  backdrop blur over scrolling content re-blurs it every frame (removing it took the
-  homepage from ~27ms to ~17ms median frame time).
+- **No `backdrop-filter`** on `.glass-panel` cards or on anything else that sits over
+  scrolling content. A permanent backdrop blur over scrolling content re-blurs it every
+  frame (removing it took the homepage from ~27ms to ~17ms median frame time).
 - **No `mix-blend-mode` on large decorative layers** and no infinite animations on
   blurred layers - they force full-page re-compositing while scrolling.
 - **`.reveal-on-scroll` must stay compositor-driven**: `translate3d()` plus

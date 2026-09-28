@@ -1258,6 +1258,50 @@ test.describe('layout regressions', () => {
     }
   });
 
+  test('the sticky header is opaque', async ({ page }) => {
+    /*
+     * The page scrolls underneath the bar, so the bar must not let it show through: it used
+     * to carry `.glass-panel` (`bg-white/80 dark:bg-night-card/80`) and the copy behind it
+     * read through the links. Both themes are checked, because the dark fill is a token of
+     * its own, and the mobile menu opens inside the same bar, so the two have to agree on
+     * one surface. The translucency is read from the alpha channel rather than from a
+     * colour, so any pair of opaque fills passes and any fade fails.
+     */
+    for (const theme of ['light', 'dark'] as const) {
+      await useTheme(page, theme);
+      await page.goto('/');
+
+      const chrome = await page.evaluate(() => {
+        const paint = (selector: string) =>
+          getComputedStyle(document.querySelector(selector)!).backgroundColor;
+
+        return {
+          position: getComputedStyle(document.querySelector('body > header')!).position,
+          bar: paint('body > header'),
+          menu: paint('#mobile-menu'),
+        };
+      });
+
+      // A value with no alpha comes back as `rgb(r, g, b)` or a hex, one with alpha as
+      // `rgb(r g b / a)` or `rgba(r, g, b, a)` - whichever form the token serialises to.
+      const alphaOf = (color: string) => {
+        if (color.includes('/')) {
+          const alpha = parseFloat(color.slice(color.lastIndexOf('/') + 1));
+          return color.trimEnd().endsWith('%') ? alpha / 100 : alpha;
+        }
+
+        const channels = color.match(/^rgba\(([^)]*)\)$/)?.[1].split(',').map(Number);
+        return channels?.length === 4 ? channels[3] : 1;
+      };
+
+      expect(chrome.position).toBe('sticky');
+      expect(alphaOf(chrome.bar), `${theme}: the page shows through the bar`).toBe(1);
+
+      // The menu is a panel of that bar, so it is the same surface when it opens.
+      expect(chrome.menu, `${theme}: the menu is a different surface than the bar`).toBe(chrome.bar);
+    }
+  });
+
   test('the language switcher reads as a control, not another link', async ({ page, isMobile }) => {
     test.skip(isMobile, 'The picker in the desktop nav bar is not visible on a small viewport.');
 
