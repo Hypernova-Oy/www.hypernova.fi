@@ -336,6 +336,13 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   `will-change` (released by `.reveal-done` once the fade ends). A plain
   `translateY()` transition repaints the element every frame (~1459 raster tasks per
   scroll pass vs ~173 with promotion).
+- **`.reveal-on-scroll` reveals on any overlap** - keep `threshold: 0` in
+  `src/layouts/BaseLayout.astro`. A threshold that is a share of the element scales with
+  its height: on a phone the one-column card stack on `/koha/` is 3711px, so 10% of it
+  never fits on the screen and the section stayed at `opacity: 0` - hiding the cards
+  inside it, already revealed - until the visitor scrolled. Past ten screens tall the
+  share is unreachable and the section would never appear. The `8%` `rootMargin` is what
+  starts the fade just before the element scrolls in.
 - Check changes with `npm run bench:scroll` against a running server.
 
 ## Legal documents

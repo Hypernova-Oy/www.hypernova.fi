@@ -1415,6 +1415,78 @@ test.describe('layout regressions', () => {
     }
   });
 
+  test('the sections on screen at load reveal without a scroll', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'The check drives the viewport itself.');
+
+    // A phone, where /koha/ stacks its three cards into one column: that makes the
+    // section wrapping them several screens tall, which is the case that used to fail.
+    await page.setViewportSize({ width: 393, height: 727 });
+    await page.goto('/koha/');
+
+    // The observer is built at `astro:page-load`, and the first element it reveals is the
+    // proof its first callback has been delivered, so nothing here races a timing guess.
+    await page.waitForFunction(() => document.querySelectorAll('.reveal-on-scroll.is-revealed').length > 0);
+
+    const state = () =>
+      page.evaluate(() => {
+        const height = window.innerHeight;
+
+        const rows = [...document.querySelectorAll('.reveal-on-scroll')].map((el) => {
+          const box = el.getBoundingClientRect();
+          const onScreen = Math.max(0, Math.min(height, box.bottom) - Math.max(0, box.top));
+
+          return {
+            top: Math.round(box.top),
+            tall: Math.round(box.height),
+            onScreen: Math.round(onScreen),
+            revealed: el.classList.contains('is-revealed'),
+            opacity: getComputedStyle(el).opacity,
+          };
+        });
+
+        return {
+          scrolled: window.scrollY,
+          shown: rows.filter((row) => row.onScreen > 0),
+          // Well below the fold, past the 8% the observer reaches beyond the viewport.
+          below: rows.filter((row) => row.top > height * 1.2),
+        };
+      });
+
+    const atLoad = await state();
+
+    expect(atLoad.scrolled, 'the check scrolled the page, so it proves nothing').toBe(0);
+    expect(atLoad.shown.length, 'nothing is on screen at load, so the case proves nothing').toBeGreaterThan(0);
+
+    // Everything the first screen shows has to be revealed once the page has loaded.
+    // `threshold: 0.1` asked for a share of the element, and the section wrapping the
+    // stacked cards is taller than the screen, so it stayed at opacity 0 - hiding the
+    // cards inside it that had already been revealed - until the visitor scrolled on.
+    for (const row of atLoad.shown) {
+      expect(
+        row.revealed,
+        `a section at the top of the page (${row.onScreen}px of a ${row.tall}px element in view) stayed hidden at load`,
+      ).toBe(true);
+    }
+
+    // The sections further down still wait for their own scroll, which is the point of
+    // the fade - only what the visitor has already seen may skip it.
+    expect(atLoad.below.length, 'the page got too short to check what still waits').toBeGreaterThan(0);
+
+    for (const row of atLoad.below) {
+      expect(row.revealed, `a section ${row.top}px down was revealed without being scrolled to`).toBe(false);
+    }
+
+    // And the fade is over by the time a visitor has looked at it: the first screen is
+    // opaque rather than caught half-way through.
+    await page.waitForTimeout(900);
+
+    const settled = await state();
+
+    for (const row of settled.shown) {
+      expect(row.opacity, `a section in view at load is still fading (opacity ${row.opacity})`).toBe('1');
+    }
+  });
+
   test('the Koha logo never outgrows its desktop size', async ({ page, isMobile }) => {
     test.skip(isMobile, 'The check drives the viewport itself.');
 

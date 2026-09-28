@@ -263,7 +263,13 @@ const lang = Astro.locals.lang;
           // Begin the fade slightly before the element scrolls into view, so the
           // animation finishes just off-centre instead of under the reader's eyes.
           rootMargin: '0px 0px 8% 0px',
-          threshold: 0.1
+          // Any overlap counts, never a share of the element: a share makes the trigger
+          // depend on how tall the element is. The card stack on /koha/ is 3711px on a
+          // phone, so 10% of it is more than the screen can show and the section stayed
+          // at opacity 0 - taking the cards inside it, already revealed, down with it -
+          // until the visitor scrolled. Over ten screens tall, the share is unreachable
+          // and the section would never appear at all.
+          threshold: 0
         });
 
         document.querySelectorAll('.reveal-on-scroll').forEach((el) => {
