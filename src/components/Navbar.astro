@@ -35,7 +35,7 @@ const t = useTranslations(i18n, Astro);
       <div class="flex-shrink-0">
         <a href={resolvePath('/')} class="flex items-center gap-2 group">
           <div class="w-8 h-8 dark:bg-white rounded-lg flex items-center justify-center transition-transform group-hover:scale-105">
-            <Image src={hypernovaLogo} alt="Hypernova Oy" layout='constrained' width={32} height={32} />
+            <Image src={hypernovaLogo} alt="Hypernova Oy" layout='constrained' width={32} height={32} loading="eager" />
           </div>
           <Font cssVariable="--font-ocra" preload />
           <span class="brand-font text-xl text-zinc-900 dark:text-white transition-colors">{BRAND_NAME}</span>
@@ -70,7 +70,7 @@ const t = useTranslations(i18n, Astro);
       <div class="hidden md:flex items-center gap-4">
         <!-- Search Button -->
         <button 
-          onclick="window.toggleCommandPalette()"
+          onclick="window.toggleCommandPalette?.()"
           class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-night-raise rounded-lg border border-zinc-200 dark:border-night-line-strong transition-colors"
           aria-label="Search"
         >
@@ -90,7 +90,7 @@ const t = useTranslations(i18n, Astro);
 
       <!-- Mobile menu button & Theme toggle -->
       <div class="md:hidden flex items-center gap-2">
-        <button onclick="window.toggleCommandPalette()" aria-label={t('Search')} class="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-night-raise focus:outline-none rounded-lg text-sm" aria-label="Search">
+        <button onclick="window.toggleCommandPalette?.()" aria-label={t('Search')} class="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-night-raise focus:outline-none rounded-lg text-sm" aria-label="Search">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
         </button>
 

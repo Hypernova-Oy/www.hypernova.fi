@@ -29,6 +29,7 @@
     "build": "astro build",
     "check": "astro check",
     "bench:scroll": "node scripts/scroll-bench.mjs",
+    "font:subset": "bash scripts/subset-brand-font.sh",
     "index:refresh": "bash scripts/refresh-search-index.sh",
     "og:image": "node scripts/generate-og-image.mjs",
     "start": "node ./dist/server/entry.mjs",

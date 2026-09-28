@@ -1,22 +1,35 @@
 ---
+/*
+ * The avatars are drawn from the author's initials instead of being fetched. They used to be
+ * three `i.pravatar.cc` URLs, and that placeholder service was the only third party the site
+ * talked to: three extra connections and three requests - for 48px circles drawn from
+ * whichever face the service picked that day - and each one told another company that a
+ * visitor was reading this page. A real photo belongs in src/images/ and an <Image> at the
+ * size it is drawn, like every other picture on the site.
+ */
+const initials = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((part) => part.charAt(0).toUpperCase())
+    .join('');
+
 const testimonials = [
   {
     quote: "Zenix saved me weeks of development time. I was able to focus entirely on my product's core features instead of tweaking landing page CSS.",
     author: "David Morgan",
-    role: "Founder, DataFlow",
-    avatar: "https://i.pravatar.cc/150?u=david"
+    role: "Founder, DataFlow"
   },
   {
     quote: "The cleanest Astro theme I've used. The code is structured beautifully, and the Lighthouse scores are genuinely 100 straight out of the box.",
     author: "Marcus Chen",
-    role: "Indie Hacker",
-    avatar: "https://i.pravatar.cc/150?u=marcus"
+    role: "Indie Hacker"
   },
   {
     quote: "Converted my old React landing page to Zenix in a day. The bundle size dropped by 90% and my conversion rate went up by 15%. Highly recommend.",
     author: "Elena Rodriguez",
-    role: "CEO, Streamline",
-    avatar: "https://i.pravatar.cc/150?u=elena"
+    role: "CEO, Streamline"
   }
 ];
 ---
@@ -51,7 +64,7 @@ const testimonials = [
           </blockquote>
           
           <div class="flex items-center gap-4 relative z-10">
-            <img src={t.avatar} alt={`Portrait of ${t.author}`} width={48} height={48} class="w-12 h-12 rounded-full border-2 border-zinc-100 dark:border-zinc-800 shadow-sm" loading="lazy" />
+            <div aria-hidden="true" class="flex h-12 w-12 flex-none items-center justify-center rounded-full border-2 border-zinc-100 dark:border-zinc-800 bg-primary-100 dark:bg-night-raise text-sm font-bold text-primary-600 dark:text-primary-100 shadow-sm">{initials(t.author)}</div>
             <div>
               <div class="font-bold text-zinc-900 dark:text-white">{t.author}</div>
               <div class="text-sm text-zinc-500 dark:text-zinc-400">{t.role}</div>

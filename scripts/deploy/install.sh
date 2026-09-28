@@ -813,6 +813,38 @@ compression_directives() {
 COMPRESSION
 }
 
+# --- Apache response caching -------------------------------------------------------------
+# The Node entry answers every file under /_astro/ with `Cache-Control: public, max-age=0`
+# and a weak ETag - the static handler's default - so the browser asks again on every
+# navigation, even for a file it already has. The bytes do not come back (the answer is a
+# 304), but the round trip is still on the critical path: the render-blocking stylesheet
+# (97 KB, BaseLayout.C6frLDtG.css) has to be confirmed before the page can paint, and the
+# preloaded fonts (48 KB Inter, 24 KB OCR-A before the subset) have to be confirmed before
+# the wordmark - the largest contentful paint on `/` - can be drawn.
+#
+# Everything Astro writes into /_astro/ carries a content hash in its name
+# (`BaseLayout.C6frLDtG.css`, `fonts/09d8b6046e3eab84.woff2`), so one URL can only ever mean
+# one set of bytes and a year is safe: a rebuild emits new names rather than new bytes under
+# an old name. The files in public/ keep their names from build to build, so they get an
+# hour instead - long enough to take the revalidation off the common repeat visit (the
+# favicons are asked for on every document load), short enough that a redesigned icon is not
+# stuck in a browser for a year.
+caching_directives() {
+  cat <<'CACHING'
+  <IfModule mod_headers.c>
+    <LocationMatch "^/_astro/">
+      Header unset Cache-Control
+      Header set Cache-Control "public, max-age=31536000, immutable"
+    </LocationMatch>
+
+    <LocationMatch "^/(favicon[^/]*\.(ico|png|svg)|og-image\.png|authors/[^/]+)$">
+      Header unset Cache-Control
+      Header set Cache-Control "public, max-age=3600"
+    </LocationMatch>
+  </IfModule>
+CACHING
+}
+
 render_vhost() {
   if [ "$WITH_PROXY" -eq 1 ]; then
     cat <<APACHE
@@ -840,6 +872,7 @@ render_vhost() {
   CustomLog \${APACHE_LOG_DIR}/$SERVICE-access.log combined
 
 $(compression_directives)
+$(caching_directives)
 </VirtualHost>
 APACHE
     return 0
@@ -865,6 +898,7 @@ APACHE
   CustomLog \${APACHE_LOG_DIR}/$SERVICE-access.log combined
 
 $(compression_directives)
+$(caching_directives)
 </VirtualHost>
 APACHE
 }

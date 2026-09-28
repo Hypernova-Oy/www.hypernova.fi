@@ -37,11 +37,12 @@ npm run check       # Astro + TypeScript type check
 npm run preview     # Preview the production build locally
 npm start           # Run the built server (dist/server/entry.mjs)
 npm run test        # Unit tests + Playwright regression tests
-npm run test:unit   # Node's built-in test runner (form protection logic)
+npm run test:unit   # Node's built-in test runner (form protection, fonts, caching, palette)
 npm run test:e2e    # Playwright regression tests
 npm run bench:scroll # Chromium scroll-smoothness benchmark (needs a running server)
 npm run index:refresh # Build, restart the site and verify the search index (see Deployment)
 npm run og:image    # Regenerate the social preview card (public/og-image.png)
+npm run font:subset # Re-cut the brand font subset from the whole face (see Performance notes)
 ```
 
 Playwright needs browsers installed once:
@@ -49,6 +50,12 @@ Playwright needs browsers installed once:
 ```bash
 npx playwright install chromium
 ```
+
+The Playwright config starts a dev server on `127.0.0.1:4321` unless something already answers
+there, and on a server that runs the site the deployed build answers on that same port. The
+suite then tests the deployment instead of the checkout, which hides every change under test:
+stop the service first (`sudo systemctl stop hypernova`) and let Playwright start the dev server
+from the working copy.
 
 ## Configuration
 
@@ -132,6 +139,13 @@ The navbar search button and `Ctrl`/`Cmd` + `K` open the shared palette componen
 (`src/components/CommandPalette.astro`). It fetches `/search-index.json` once per
 language and matches every word of the query against the title, the description, the
 hidden `keywords` and the `content` of an entry.
+
+The component ships as a bundled script (`<script>`, not `is:inline`): the base path and the
+localized message it needs are `data-` attributes on the palette element, so one file - cached
+by its hash, see Performance notes - serves both languages and is parsed once rather than
+written into every document. A client-side navigation replaces that element without re-running
+the file, so it binds the new one and republishes `window.toggleCommandPalette` (which the two
+navbar buttons call) on `astro:page-load`.
 
 `src/pages/search-index.json.ts` builds the index:
 
@@ -356,9 +370,9 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   are written to `/_astro/`. Tailwind's output is about 100 KB, and inlined it was re-sent
   with every page and re-parsed on every client-side navigation; as a file it is fetched
   once (16 KB gzipped) and served from cache with `max-age=31536000, immutable`. With the
-  flags gone and the sheet out of the markup, `/` is 47 KB of HTML (13 KB gzipped, from
-  563 KB and 115 KB) and one 100 KB stylesheet on a first visit - the HTML alone
-  afterwards.
+  flags gone and the sheet out of the markup, `/` is 37 KB of HTML (from 47 KB before the
+  command palette became a file, and 563 KB before the flags went), and one 100 KB stylesheet
+  on a first visit - the HTML alone afterwards.
 - The markup of a page is 30-50 KB, so a page that is much larger than that is carrying
   something that is not its content - the flags above were 421 KB of it. Requesting `/`
   from a running build is the quickest way to see where a page stands.
@@ -396,9 +410,61 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   `src/assets/fonts`, copied from those packages so a build needs no network, and Astro emits
   the @font-face rules - with an Arial-based metric-adjusted fallback, which is what keeps the
   text from reflowing when the real file lands - together with the `--font-inter` and
-  `--font-space-grotesk` variables `src/styles/global.css` sets its families from. All three
-  files are preloaded (Inter 48 KB, Space Grotesk 22 KB, OCR-A 24 KB), so they start with the
-  document instead of after the stylesheet.
+  `--font-space-grotesk` variables `src/styles/global.css` sets its families from. The two text
+  faces are preloaded whole (Inter 48 KB, Space Grotesk 22 KB) by `src/layouts/BaseLayout.astro`,
+  and the wordmark's own face is preloaded by the navbar that draws it - as the subset below,
+  not as the 24 KB face it is cut from.
+- **The brand face is a subset of the wordmark's characters** (`npm run font:subset`,
+  `scripts/subset-brand-font.sh`). The face is only ever used for the `.brand-font` spans, which
+  set the nine letters of the brand name, so the file that ships - `src/assets/fonts/ocra.woff2` -
+  is cut down to exactly `hypernovaHYPERNOVA`: 24 KB becomes 1.7 KB, and the whole face
+  (`ocr-a-full.woff2`) is in no build. Re-run the command whenever the wordmark copy changes, and
+  extend the script's `characters` if the face is ever used for something else:
+  `tests/unit/brand-font.test.ts` fails if the subset stops covering `BRAND_NAME`, if it stops
+  being smaller than the face it is cut from, or if the face itself loses its latin range.
+- **The command palette is a file, not a script in every page.** `CommandPalette.astro` used
+  `is:inline` with `define:vars`, which wrote its 11.7 KB of code into every document that has a
+  palette - parsed again on every load and re-sent with every page - because an inline script
+  cannot be bundled or cached. It is a bundled script now: the base path and the localized "no
+  results" message come from `data-` attributes on the palette element (one file serves both
+  languages), the file is fetched once with the rest of the client JavaScript (5.4 KB, against
+  11.7 KB in every document before) and cached by its hash, and
+  `tests/unit/command-palette-bundle.test.ts` fails if it becomes inline code again.
+  A bundled script is loaded once per document, so it binds the palette element again on
+  `astro:page-load` and republishes `window.toggleCommandPalette` for the navbar buttons - the
+  e2e case *the palette is a file of its own and survives a client-side navigation* walks that
+  path.
+- **Only the picture a page paints first is fetched up front.** Every `<img>` states its
+  `loading` (an image without it is fetched the moment the parser reaches it, which is how the
+  LCP file ended up behind the whole document), and one file per page carries
+  `fetchpriority="high"`: the Koha logo on `/koha/` and the first frame of the product gallery on
+  `/lainuri-checkout-machine/`. Both are what a phone paints first on those pages. `/` and the
+  other pages prioritise nothing, because the element they paint first is text; that is also why
+  the staff-interface screenshot on `/koha-hosting/` is `lazy` - it used to be `eager` with
+  `fetchpriority="high"`, which put a screenshot that sits under a heading ahead of the heading.
+  The e2e case *only the picture the first paint waits for is fetched up front* records the count
+  of eager images per page and which one leads.
+- **The static files get their response headers from the virtual host**
+  (`caching_directives()` in `scripts/deploy/install.sh`). The Node adapter answers everything it
+  serves itself with `Cache-Control: public, max-age=0`, which is what the HTML wants - a page is
+  rendered per request and must be revalidated - and wrong for the two groups of files that do
+  not change: the content-hashed files under `/_astro/` (stylesheet, client JavaScript, fonts,
+  optimized images) never change under one name, and the files in `public/` (favicons,
+  `og-image.png`, `authors/`) are asked for on every document load. Apache adds
+  `max-age=31536000, immutable` for the first group and `max-age=3600` for the second, replacing
+  the adapter's header rather than sending a second `Cache-Control` (`Header unset` first: a
+  response with two of them is one a cache may ignore). `/_image/` needs nothing, because it
+  already answers with a year and an ETag. `tests/unit/apache-caching.test.ts` renders both
+  virtual hosts from the script - it only prints them - and fails if the policy, the order of the
+  directives or the `mod_headers` guard goes missing.
+- **Nothing is fetched from another origin.** The testimonial avatars were three
+  `i.pravatar.cc` URLs - the only third party the site talked to, announcing the visitor to a
+  service that picked a face at random - and they are initials drawn in the markup now; a real
+  photo belongs in `src/images/` and goes through `<Image>` like every other picture.
+  `tests/unit/no-third-party-images.test.ts` reads every `.astro` file for an avatar host and the
+  image config for `domains`/`remotePatterns`, and the e2e case *no page fetches a file from
+  another origin* checks the `src`/`srcset`/`href` of every picture, script and stylesheet on the
+  five heaviest pages, plus every `url()` inside the stylesheets.
 - Check changes with `npm run bench:scroll` against a running server.
 
 ## Legal documents

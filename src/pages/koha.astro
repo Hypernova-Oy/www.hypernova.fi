@@ -210,7 +210,13 @@ if (Astro.request.method === "POST") {
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl text-center">
       <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-8 max-w-6xl mx-auto mt-10">
         <div></div>
-        <div><a href="https://koha-community.org" target="_blank"><Image src={kohaLogo} alt="Koha" widths={[224, 448, 768]} sizes="(min-width: 768px) 768px, 224px" loading="lazy" decoding="async" class="mx-auto w-56 md:w-auto" /></a></div>
+        <!--
+          Above the fold in both views (measured at 169px on a 1280x800 desktop and 201px on a
+          412x844 phone) and the phone's LCP element, so it is one of the few images here that
+          asks for its file up front instead of waiting for layout. The same logo appears again
+          in Services, where it is a card below the fold and stays lazy.
+        -->
+        <div><a href="https://koha-community.org" target="_blank"><Image src={kohaLogo} alt="Koha" widths={[224, 448, 768]} sizes="(min-width: 768px) 768px, 224px" loading="eager" fetchpriority="high" decoding="async" class="mx-auto w-56 md:w-auto" /></a></div>
         <div></div>
       </div>
     </div>

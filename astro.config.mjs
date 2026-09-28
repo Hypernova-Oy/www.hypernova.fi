@@ -49,7 +49,13 @@ export default defineConfig({
      * re-encoded at build time into hashed files under `/_astro/`, which are immutable-
      * cacheable and served by the same static handler as everything else.
      */
-    domains: ['i.pravatar.cc']
+    /*
+     * No `domains`: nothing is optimized from another origin any more. The testimonial
+     * avatars were the only remote images (`i.pravatar.cc`), and they are drawn from the
+     * author's initials now - see src/components/Testimonials.astro. A remote image would
+     * have to be listed here again, and it would be resized per request instead of at build
+     * time, which is why every picture on the site is a local file under src/images/.
+     */
   },
   // Legacy URLs from the previous site. The Finnish pages of the old site become the
   // same page on this site with the `?l=fi` language parameter, and the old standalone

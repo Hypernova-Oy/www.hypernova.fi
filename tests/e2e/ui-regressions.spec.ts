@@ -2034,3 +2034,265 @@ test.describe('koha staff interface screenshot', () => {
   });
 });
 
+/**
+ * What a page fetches on its own, before the visitor touches anything.
+ *
+ * Each expectation is a decision that a measurement made - the element a page paints first,
+ * recorded in the comments of Navbar.astro, koha.astro, KohaScreenshot.astro and
+ * lainuri-checkout-machine.astro - or a rule the whole site keeps: nothing comes from another
+ * origin, and the preloaded brand face is the file `npm run font:subset` cuts. They are read
+ * off a running page, because that is where every one of those answers lives.
+ */
+test.describe('what a page fetches', () => {
+  const paths = [
+    '/',
+    '/koha/',
+    '/koha-hosting/',
+    '/toveri-access-control-device/',
+    '/lainuri-checkout-machine/',
+  ];
+
+  /** The `rel` values whose `href` a browser fetches by itself. */
+  const FETCHED_RELS = [
+    'stylesheet',
+    'preload',
+    'modulepreload',
+    'prefetch',
+    'icon',
+    'apple-touch-icon',
+    'manifest',
+    'preconnect',
+    'dns-prefetch',
+  ];
+
+  test('no page fetches a file from another origin', async ({ page }) => {
+    for (const path of paths) {
+      await page.goto(path);
+      const origin = new URL(page.url()).origin;
+
+      /*
+       * No third-party font, no analytics, and - the reason this test exists - no avatar
+       * service: the testimonials used to draw three 48px circles from `i.pravatar.cc`, which
+       * told another company who was reading the page. They are initials in the markup now
+       * (see the unit test for that component).
+       */
+      const urls = await page.evaluate((rels) => {
+        const found: string[] = [];
+        const add = (value: string | null) => {
+          if (!value) return;
+
+          // A `srcset` is a comma separated list of "url descriptor" pairs.
+          for (const candidate of value.split(',')) {
+            const url = candidate.trim().split(/\s+/)[0];
+            if (url && !url.startsWith('data:')) found.push(url);
+          }
+        };
+
+        const attributes: Array<[string, string[]]> = [
+          ['img', ['src', 'srcset']],
+          ['source', ['src', 'srcset']],
+          ['script', ['src']],
+          ['video', ['src', 'poster']],
+          ['audio', ['src']],
+          ['iframe', ['src']],
+          ['embed', ['src']],
+          ['object', ['data']],
+        ];
+
+        for (const [selector, names] of attributes) {
+          for (const element of document.querySelectorAll(selector)) {
+            for (const name of names) add(element.getAttribute(name));
+          }
+        }
+
+        for (const link of document.querySelectorAll('link[href]')) {
+          if (rels.includes((link.getAttribute('rel') ?? '').toLowerCase())) {
+            add(link.getAttribute('href'));
+          }
+        }
+
+        return found;
+      }, FETCHED_RELS);
+
+      const foreign = urls.filter((url) => new URL(url, page.url()).origin !== origin);
+      expect(foreign, `${path} fetches a file from another host`).toEqual([]);
+
+      /*
+       * A background image or an `@import` is the same request an attribute would be, and it
+       * is how a third party usually comes back: the flag sheet this site used to import
+       * carried one rule - and one base64 copy of a flag - for every country on earth, and a
+       * remote one would be fetched from wherever it is hosted.
+       */
+      const css = await page.evaluate(() =>
+        [
+          ...[...document.styleSheets].flatMap((sheet) => {
+            try {
+              return [...sheet.cssRules].map((rule) => rule.cssText);
+            } catch {
+              // A sheet that cannot be read is not ours; its own <link> was checked above.
+              return [];
+            }
+          }),
+          ...[...document.querySelectorAll('style')].map((style) => style.textContent ?? ''),
+        ].join('\n'),
+      );
+
+      const painted = [...css.matchAll(/url\(\s*(['"]?)([^'")]+)\1\s*\)/gi)]
+        .map((match) => match[2].trim())
+        .filter((url) => !url.startsWith('data:') && !url.startsWith('#'));
+
+      const remote = painted.filter((url) => new URL(url, page.url()).origin !== origin);
+      expect(remote, `${path} paints a file that comes over the network`).toEqual([]);
+
+      expect(css, `${path} imports a stylesheet over the network`).not.toMatch(
+        /@import\s+(?:url\(\s*)?['"](?:https?:)?\/\//i,
+      );
+    }
+  });
+
+  test('only the picture the first paint waits for is fetched up front', async ({ page }) => {
+    /*
+     * `loading` and `fetchpriority` are the two knobs a page has over the queue: an image with
+     * no `loading` is fetched the moment the parser reaches it, and `high` puts a file ahead of
+     * the ones already asked for. Each of these numbers is a measurement - what the page paints
+     * first at 393x900 (the phone view the LCP hints were tuned against) and at 1280x900 - read
+     * back from the rendered page.
+     */
+    const expectations: Array<{ path: string; eager: number; leads?: RegExp }> = [
+      // The mark in the navbar is on screen everywhere. `/` paints the wordmark - OCR-A text,
+      // not a picture - first, so nothing else there is fetched early.
+      { path: '/', eager: 1 },
+      // The Koha logo in the hero, together with the navbar mark.
+      { path: '/koha/', eager: 2, leads: /koha/i },
+      // The first frame of the product gallery: the machine itself, above the fold.
+      { path: '/lainuri-checkout-machine/', eager: 2, leads: /lainuri/i },
+      // These two wait for layout. The screenshot and the product photo sit under a heading,
+      // and it is the copy above them that the page paints; the screenshot used to be `eager`
+      // with `fetchpriority="high"`, which pushed the file it does not need first in front of
+      // the text that it does.
+      { path: '/koha-hosting/', eager: 1 },
+      { path: '/toveri-access-control-device/', eager: 1 },
+    ];
+
+    for (const { path, eager, leads } of expectations) {
+      await page.goto(path);
+
+      const images = await page.evaluate(() =>
+        [...document.querySelectorAll('img')].map((image) => ({
+          src: image.getAttribute('src') ?? '',
+          loading: image.getAttribute('loading') ?? '',
+          priority: image.getAttribute('fetchpriority') ?? '',
+        })),
+      );
+
+      expect(images.length, `${path} shows no picture at all`).toBeGreaterThan(0);
+
+      const undeclared = images.filter(
+        (image) => image.loading !== 'eager' && image.loading !== 'lazy',
+      );
+      expect(
+        undeclared.map((image) => image.src),
+        `${path} leaves the loading of a picture to the browser`,
+      ).toEqual([]);
+
+      const upFront = images.filter((image) => image.loading === 'eager');
+      expect(
+        upFront.map((image) => image.src),
+        `${path} fetches ${upFront.length} pictures before layout`,
+      ).toHaveLength(eager);
+
+      const first = images.filter((image) => image.priority === 'high');
+      if (leads) {
+        expect(first, `${path} names no picture to fetch first`).toHaveLength(1);
+        expect(first[0].src, `${path} fetches the wrong picture first`).toMatch(leads);
+      } else {
+        expect(first, `${path} fetches a picture first that the page does not paint first`).toEqual([]);
+      }
+    }
+  });
+
+  test('the preloaded brand face is the subset, not the whole font', async ({ page }) => {
+    /*
+     * Navbar.astro preloads the face the wordmark is drawn in, and `npm run font:subset` cuts
+     * that file down to the characters the site ever sets in it - 23 KB to 1.7 KB. A preload of
+     * tens of kilobytes means the full face is back in the critical path of the wordmark, which
+     * is the element `/` paints first; the two text families are preloaded whole (48 KB and
+     * 22 KB), so the smallest preloaded file is the brand face and nothing else.
+     */
+    await page.goto('/');
+
+    const hrefs = await page
+      .locator('link[rel="preload"][as="font"]')
+      .evaluateAll((links) => links.map((link) => (link as HTMLLinkElement).href));
+
+    expect(hrefs.length, 'the brand face is not preloaded any more').toBeGreaterThan(0);
+
+    const sizes: number[] = [];
+    for (const href of hrefs) {
+      const response = await page.request.get(href);
+      expect(response.status(), `${href} is not served`).toBe(200);
+      sizes.push((await response.body()).byteLength);
+    }
+
+    const smallest = Math.min(...sizes);
+    expect(smallest, `the smallest preloaded font is ${smallest} bytes`).toBeLessThan(4096);
+  });
+
+  test('the palette is a file of its own and survives a client-side navigation', async ({ page }) => {
+    /*
+     * The palette used to be an `is:inline` script with `define:vars`: 11.7 KB of the 49 KB that
+     * `/` weighed, parsed again on every load and sent again with every page that has a palette.
+     * It is a bundled script now - parsed once, fetched once, cached by its hash - and the swap
+     * below is the price of that: a client-side navigation replaces the palette element without
+     * re-running the file, so the script has to bind the new element and publish the toggle the
+     * navbar buttons call.
+     */
+    await page.goto('/');
+
+    const inlined = await page.evaluate(() =>
+      [...document.querySelectorAll('script:not([src])')]
+        .map((script) => script.textContent ?? '')
+        .filter((code) => code.includes('search-index.json')),
+    );
+    expect(inlined, 'the palette is written into every document again').toEqual([]);
+
+    const files = await page.evaluate(() =>
+      [...document.querySelectorAll('script[src]')].map((script) => (script as HTMLScriptElement).src),
+    );
+    expect(
+      files.some((src) => src.includes('CommandPalette')),
+      'no script file carries the palette',
+    ).toBe(true);
+
+    // A value on `window` survives a swap and dies in a reload, so it is what tells the two
+    // apart: what runs below has to work without the palette file being loaded again.
+    await page.evaluate(() => {
+      (window as Window & { __paletteSurvived?: boolean }).__paletteSurvived = true;
+    });
+
+    // A link in the copy of the footer, so it is there and clickable in every viewport.
+    await page.locator('body > footer a[href="/services/"]').first().click();
+    await page.waitForURL('**/services/');
+
+    const swapped = await page.evaluate(
+      () => (window as Window & { __paletteSurvived?: boolean }).__paletteSurvived === true,
+    );
+    expect(swapped, 'the navigation reloaded the document, so nothing was rebound').toBe(true);
+
+    await expect(page.locator('#command-palette')).toBeHidden();
+
+    // The search button in the bar calls the toggle the palette publishes; one of the two in
+    // the navbar is hidden per viewport, so the visible one is the one clicked.
+    await page.locator('body > header button[aria-label="Search"]:visible').first().click();
+    await expect(page.locator('#command-palette')).toBeVisible();
+    await expect(page.locator('#search-input')).toBeFocused();
+
+    // The palette of the new page answers for itself, from its own element.
+    await page.locator('#search-input').fill('koha');
+    await expect(page.locator('#search-results [role="option"]').first()).toBeVisible();
+
+    await page.keyboard.press('Escape');
+    await expect(page.locator('#command-palette')).toBeHidden();
+  });
+});
+
