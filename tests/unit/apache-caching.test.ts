@@ -48,7 +48,7 @@ function rendered(name: 'caching_directives' | 'compression_directives') {
 /** The whole virtual host, rendered with the variables the script sets before it is called. */
 function renderedVhost(behindProxy: boolean) {
   const source = readFileSync(INSTALL_SH, 'utf8');
-  const functions = ['compression_directives', 'caching_directives', 'render_vhost']
+  const functions = ['compression_directives', 'caching_directives', 'security_directives', 'render_vhost']
     .map((name) => functionBody(source, name))
     .join('\n');
 

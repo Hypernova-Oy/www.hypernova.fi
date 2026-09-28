@@ -32,6 +32,16 @@ const testimonials = [
     role: "CEO, Streamline"
   }
 ];
+
+/*
+ * The stagger of the reveal, one class per card (`reveal-delay-*` in src/styles/global.css).
+ * It used to be a `style` attribute computed from the index, which the Content Security Policy
+ * drops: an inline style is only allowed by hash, a hash cannot cover an attribute value, and
+ * the browser reports it - so all three cards revealed at once. The classes are listed rather
+ * than built from the index because only their names matter to the markup, and the modulo keeps
+ * a longer list of testimonials on the same four.
+ */
+const revealDelays = ['reveal-delay-0', 'reveal-delay-1', 'reveal-delay-2', 'reveal-delay-3'];
 ---
 
 <section id="testimonials" class="py-32 bg-white dark:bg-[#09090b] relative overflow-hidden">
@@ -48,7 +58,7 @@ const testimonials = [
 
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto">
       {testimonials.map((t, index) => (
-        <div class="glass-panel p-8 rounded-3xl flex flex-col h-full hover-glow reveal-on-scroll relative group" style={`transition-delay: ${index * 100}ms;`}>
+        <div class={`glass-panel p-8 rounded-3xl flex flex-col h-full hover-glow reveal-on-scroll relative group ${revealDelays[index % revealDelays.length]}`}>
           <!-- Decorative quotation mark -->
           <div class="absolute top-6 right-6 text-6xl text-zinc-100 dark:text-zinc-800/50 font-serif leading-none transform transition-transform group-hover:scale-110 group-hover:-rotate-12 duration-500">"</div>
           

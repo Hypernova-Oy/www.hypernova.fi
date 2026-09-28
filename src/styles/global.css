@@ -182,7 +182,21 @@ html.dark {
   transform: translate3d(0, 12px, 0);
   will-change: opacity, transform;
   transition: opacity 0.45s cubic-bezier(0.16, 1, 0.3, 1), transform 0.45s cubic-bezier(0.16, 1, 0.3, 1);
+  /* The stagger a card asks for with one of the classes below. It is set *after* the shorthand
+     above, which resets the delay to 0: a Tailwind `delay-*` utility cannot do this job, because
+     the utilities come before this rule in the stylesheet and the shorthand would win. In a
+     `style="transition-delay: 100ms"` attribute it would work - inline styles outrank
+     everything - but that is an inline style, and `style-src` has no 'unsafe-inline' here, so the
+     browser drops the attribute (and reports it), which is what these classes replace. */
+  transition-delay: var(--reveal-delay, 0ms);
 }
+
+/* The stagger itself: `.reveal-on-scroll.reveal-delay-1` fades in a moment after the one before
+   it. Only the variable is set, so the order of the two classes does not matter. */
+.reveal-delay-0 { --reveal-delay: 0ms; }
+.reveal-delay-1 { --reveal-delay: 100ms; }
+.reveal-delay-2 { --reveal-delay: 200ms; }
+.reveal-delay-3 { --reveal-delay: 300ms; }
 
 .reveal-on-scroll.is-revealed {
   opacity: 1;

@@ -18,6 +18,8 @@
  * trailing Suomi/English strip; both were cropped away so the frame holds nothing but the
  * interface itself.
  */
+import { createHash } from 'node:crypto';
+
 import { getImage } from 'astro:assets';
 import type { ImageMetadata } from 'astro';
 
@@ -46,6 +48,25 @@ const t = useTranslations(i18n, Astro);
 const lang: Language = isLanguage(Astro.locals.lang) ? Astro.locals.lang : FALLBACK_LANG;
 const kohaDesktop = lang === 'fi' ? fiKohaDesktop : enKohaDesktop;
 const kohaMobile = lang === 'fi' ? fiKohaMobile : enKohaMobile;
+
+/*
+ * The two ratios the reserved box can take, as custom properties on :root, where the styles
+ * below read them (`var(--koha-ratio-mobile)`).
+ *
+ * They are read off the imported files so the box always matches the bitmap that arrives, and
+ * they cannot travel in a `style="--koha-ratio-mobile: ..."` attribute: an attribute value is an
+ * inline style, `style-src` has no 'unsafe-inline', and 'unsafe-hashes' - the only directive that
+ * could cover one - would allow any attribute value on any element. Astro's `define:vars` is no
+ * help here either: on a scoped <style> it writes the variables onto every element of the
+ * component as style attributes, which is the same refusal.
+ *
+ * So this component writes the <style> element itself and hands the policy its hash, computed
+ * from the very string that is rendered - they cannot drift apart - the way astro.config.mjs
+ * hashes the inline theme script. `Astro.csp` is only present when the site is built with a
+ * policy (security.csp in astro.config.mjs); without one the element needs no hash.
+ */
+const ratioVariables = `:root{--koha-ratio-mobile:${kohaMobile.width} / ${kohaMobile.height};--koha-ratio-desktop:${kohaDesktop.width} / ${kohaDesktop.height}}`;
+Astro.csp?.insertStyleHash(`sha256-${createHash('sha256').update(ratioVariables).digest('base64')}`);
 
 /*
  * Both captures are twice the size they are drawn at, and the widths below are what the two
@@ -122,11 +143,12 @@ const viewOptionClass =
       {t('Mobile view')}
     </button>
   </div>
+  <!-- The ratios and their hash are computed above; this is the element that carries them. -->
+  <style is:inline set:html={ratioVariables}></style>
   <div
     class="glass-panel rounded-3xl p-4 sm:p-6 mx-auto"
     data-koha-screenshot-panel
     aria-describedby="koha-screenshot-pan-hint"
-    style={`--koha-ratio-mobile: ${kohaMobile.width} / ${kohaMobile.height}; --koha-ratio-desktop: ${kohaDesktop.width} / ${kohaDesktop.height};`}
   >
     <picture>
       <!--

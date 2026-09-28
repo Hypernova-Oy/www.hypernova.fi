@@ -160,6 +160,25 @@ const t = useTranslations(i18n, Astro);
    * which renders them in the visitor's language.
    */
 
+  /*
+   * Trusted Types. `require-trusted-types-for 'script'` (astro.config.mjs) refuses a plain
+   * string at every sink that parses markup - `innerHTML` here - and `trusted-types
+   * hypernova-palette default` is what allows this policy by name: the result list below is the
+   * only markup the site builds from data, and the policy is what makes the assignment
+   * declared. Everything that goes into that markup is escaped by `escapeHtml` first, so the
+   * policy is a pass-through - a sanitizer here would be a second and weaker implementation of
+   * the escaping that has already run.
+   *
+   * Created once at the top level of the script: `createPolicy` throws for a name that is
+   * already taken, so a second creation is left without a policy (`createPolicyOnce`) and the
+   * sinks fall back to the string, which the policy of the first call still covers. A
+   * client-side navigation does not re-run this file, but the palette is set up again for the
+   * document that was swapped in, which is why `setupSearch` stays re-enterable.
+   */
+  import { createPolicyOnce } from '../scripts/trusted-types';
+
+  const htmlPolicy = createPolicyOnce('hypernova-palette', { createHTML: (html) => html });
+
   function setupSearch() {
     /*
      * The `!` marks what the markup of this component guarantees, so the elements keep their
@@ -311,7 +330,7 @@ const t = useTranslations(i18n, Astro);
         helpState.classList.remove('hidden');
         input.setAttribute('aria-expanded', 'false');
         setActive(-1);
-        resultsList.innerHTML = '';
+        setResults('');
         return;
       }
 
@@ -350,6 +369,11 @@ const t = useTranslations(i18n, Astro);
       };
 
       return String(value ?? '').replace(/[&<>"']/g, (char) => entities[char] ?? char);
+    }
+
+    /** The one place the result list is replaced, through the policy at the top of the script. */
+    function setResults(markup: string) {
+      resultsList.innerHTML = htmlPolicy ? htmlPolicy.createHTML(markup) : markup;
     }
 
     /** The words of a query: every one of them has to match, and all of them are highlighted. */
@@ -445,17 +469,17 @@ const t = useTranslations(i18n, Astro);
       setActive(-1);
 
       if (matches.length === 0) {
-        resultsList.innerHTML = `
+        setResults(`
           <li class="px-4 py-14 text-center sm:px-14">
             <p class="text-sm text-zinc-500">${escapeHtml(noResultsMessage)}</p>
           </li>
-        `;
+        `);
         return;
       }
 
       const terms = queryTerms(query);
 
-      resultsList.innerHTML = matches.map((item, index) => {
+      setResults(matches.map((item, index) => {
         const target = `${base}${item.slug.startsWith('/') ? item.slug.slice(1) : item.slug}`;
 
         // A word that the title and the description do not show can only come from
@@ -484,7 +508,7 @@ const t = useTranslations(i18n, Astro);
           </a>
         </li>
       `;
-      }).join('');
+      }).join(''));
     }
 
   }

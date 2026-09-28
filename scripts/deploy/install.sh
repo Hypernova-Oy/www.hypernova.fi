@@ -845,6 +845,27 @@ caching_directives() {
 CACHING
 }
 
+# --- Security headers ---------------------------------------------------------------------
+# The headers the Node entry does not send, so every response to a browser carries them
+# whether or not a proxy is in front. HSTS is the one the proxy case needs most: the connection
+# a browser sees is HTTPS even when the hop to this host is the plain one, and a browser ignores
+# the header when it arrives over plain HTTP - so sending it from the HTTP vhost is safe and is
+# what pins the domain. COOP cuts the browsing-context link to another origin's window, which
+# nothing here uses (no popups, no cross-origin frames), and X-Frame-Options is the older half
+# of the policy's `frame-ancestors 'none'` (astro.config.mjs) that browsers without CSP obey.
+# `always` puts them on error responses too, where X-Content-Type-Options matters most.
+security_directives() {
+  cat <<'SECURITY'
+  <IfModule mod_headers.c>
+    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains; preload"
+    Header always set Cross-Origin-Opener-Policy "same-origin"
+    Header always set X-Frame-Options "DENY"
+    Header always set X-Content-Type-Options "nosniff"
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+  </IfModule>
+SECURITY
+}
+
 render_vhost() {
   if [ "$WITH_PROXY" -eq 1 ]; then
     cat <<APACHE
@@ -863,6 +884,13 @@ render_vhost() {
   ProxyAddHeaders Off
   RequestHeader setifempty X-Forwarded-Proto expr=%{REQUEST_SCHEME}
 
+  # The sitemap of the previous site. Search Console holds its address, and a crawler that
+  # still asks for it has to land on the sitemap of this site. The app answers the same
+  # redirect (astro.config.mjs); this one does it without a trip through Node. The exclusion
+  # has to come before the catch-all ProxyPass below, or mod_proxy answers first.
+  ProxyPass /page-sitemap.xml !
+  RedirectMatch 301 ^/page-sitemap\.xml$ /sitemap.xml
+
   # retry=0: Apache keeps a failed backend connection in its error state for 60 seconds by
   # default, which would answer 503 for a while after every restart of the service.
   ProxyPass / http://127.0.0.1:$PORT/ retry=0
@@ -873,6 +901,7 @@ render_vhost() {
 
 $(compression_directives)
 $(caching_directives)
+$(security_directives)
 </VirtualHost>
 APACHE
     return 0
@@ -889,6 +918,13 @@ APACHE
   ProxyPreserveHost On
   RequestHeader set X-Forwarded-Proto expr=%{REQUEST_SCHEME}
 
+  # The sitemap of the previous site. Search Console holds its address, and a crawler that
+  # still asks for it has to land on the sitemap of this site. The app answers the same
+  # redirect (astro.config.mjs); this one does it without a trip through Node. The exclusion
+  # has to come before the catch-all ProxyPass below, or mod_proxy answers first.
+  ProxyPass /page-sitemap.xml !
+  RedirectMatch 301 ^/page-sitemap\.xml$ /sitemap.xml
+
   # retry=0: Apache keeps a failed backend connection in its error state for 60 seconds by
   # default, which would answer 503 for a while after every restart of the service.
   ProxyPass / http://127.0.0.1:$PORT/ retry=0
@@ -899,6 +935,7 @@ APACHE
 
 $(compression_directives)
 $(caching_directives)
+$(security_directives)
 </VirtualHost>
 APACHE
 }
@@ -924,6 +961,12 @@ configure_apache() {
       run a2dismod -q ssl
     fi
   fi
+
+  # The redirect of the previous site's sitemap (see render_vhost) is a `RedirectMatch`, which
+  # is mod_alias. Debian ships that module enabled, and a host where it was turned off answers
+  # that path with the app's own redirect instead (astro.config.mjs), so this must not be able
+  # to fail the deploy.
+  run a2enmod -q alias || true
 
   # Apache compresses what it serves with mod_deflate's gzip by default; Brotli is smaller
   # for the same types, and setenvif is what lets it take the requests it can serve (see

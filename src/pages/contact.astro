@@ -275,25 +275,32 @@ if (Astro.request.method === "POST") {
     </div>
 
     <div class="grid grid-cols-1 md:grid-cols-1 lg:grid-cols-1 lg:grid-rows-[minmax(260px,auto)_minmax(280px,auto)] gap-6 max-w-7xl mx-auto">
-      <div class="max-w-3xl mx-auto py-12 reveal-on-scroll" style={formSent ? '' : 'display:none'}>
+      <!--
+        The panel is only on screen after a submission, so it is hidden with a Tailwind class
+        (`hidden`) instead of a `style="display:none"` attribute: an attribute value is an inline
+        style, and the policy allows an inline style only by hash - which cannot cover an
+        attribute - so the browser would drop the attribute (and report it) rather than hide the
+        panel. The error output keeps the reveal delay of the panel it appears in.
+      -->
+      <div class={`max-w-3xl mx-auto py-12 reveal-on-scroll${formSent ? '' : ' hidden'}`}>
         <h2 class="text-4xl md:text-5xl font-heading font-extrabold text-zinc-900 dark:text-white mb-6">
           {t('Thank you for submitting your request.')}
         </h2>
-        <p style={errors.form ? 'display:none' : ''} class="text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
+        <p class={`text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans${errors.form ? ' hidden' : ''}`}>
           {t('We will reply to the e-mail address you provided.')}
         </p>
-        <p style={errors.form ? '' : 'display:none'} class="text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
+        <p class={`text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans${errors.form ? '' : ' hidden'}`}>
           {t('Unfortunately an error occurred. Please try again later or contact us by post (our address is above) and include the following error message.')}
         </p>
-        <pre style={errors.form ? 'transition-delay: 100ms;' : 'display:none'} class="mt-10 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-3xl p-8 flex flex-col relative transform shadow-2xl shadow-primary-500/10 reveal-on-scroll overflow-x-auto whitespace-pre-wrap">{errors.form}</pre>
+        <pre class={`mt-10 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-3xl p-8 flex flex-col relative transform shadow-2xl shadow-primary-500/10 reveal-on-scroll overflow-x-auto whitespace-pre-wrap${errors.form ? ' reveal-delay-1' : ' hidden'}`}>{errors.form}</pre>
       </div>
       {rateLimited && (
         <p role="alert" data-form-rate-limited class="max-w-3xl mx-auto mb-8 text-left text-xl text-red-800 dark:text-red-400">
           {t('Too many submissions from this connection. Please try again later or contact us by post (our address is above).')}
         </p>
       )}
-      <form method="POST" action="#form" novalidate data-validate style={formSent && errors.form.length === 0 ? 'display:none': ''} >
-        <div class="glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-3xl p-8 flex flex-col relative transform shadow-2xl shadow-primary-500/10 reveal-on-scroll" style="transition-delay: 100ms;">
+      <form method="POST" action="#form" novalidate data-validate class={formSent && errors.form.length === 0 ? 'hidden' : undefined}>
+        <div class="glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-3xl p-8 flex flex-col relative transform shadow-2xl shadow-primary-500/10 reveal-on-scroll reveal-delay-1">
           <div class="grid md:grid-cols-4 sm:grid-cols-1 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform" >
             <!-- The section label straddles the top border of its panel. It is centred on the
                  panel and wraps inside it, so it never hangs off the edge of a narrow screen. -->

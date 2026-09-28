@@ -467,6 +467,50 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   five heaviest pages, plus every `url()` inside the stylesheets.
 - Check changes with `npm run bench:scroll` against a running server.
 
+## Security
+
+Every response carries a Content Security Policy (the header, not a `<meta>` element: each route
+is rendered per request), configured under `security.csp` in `astro.config.mjs`:
+
+- **No `'unsafe-inline'`.** The scripts and styles a page needs are listed by their SHA-256 hash,
+  so an injected `<script>` or a `style` attribute has nothing to match and does not run. The one
+  inline script written by hand - the theme, which has to run before the body is painted - lives
+  in `src/scripts/theme-init.js`; `astro.config.mjs` hashes that file and `BaseLayout.astro`
+  inlines the same file with `?raw`, so the code and the hash it is allowed by cannot drift
+  apart.
+- **No inline style attributes.** The reveal delays are the `reveal-delay-*` classes of
+  `src/styles/global.css`, the forms hide their panels with the `hidden` class, and the Koha
+  screenshot's reserved box takes its ratios from a `<style>` element whose hash the component
+  hands to the policy (`Astro.csp.insertStyleHash`). Shiki is out for the same reason - it writes
+  its colours as `style` attributes - and `markdown.syntaxHighlight` is Prism, which writes
+  classes; a Prism theme stylesheet in `src/styles/global.css` gives the tokens colours whenever
+  a post needs them.
+- **Trusted Types** (`require-trusted-types-for 'script'`) are on, with two policies: the palette
+  (`hypernova-palette`, the one place markup is built from data, with everything in it escaped)
+  and `default`, which Astro's view transition router needs because it re-creates the scripts of
+  the page it swapped in by assigning `script.innerHTML`. Both are pass-throughs, so an injected
+  string still has to match a hash in `script-src` before it runs.
+- **No inline module scripts.** Vite's `assetsInlineLimit` is `0`, so every bundled script is a
+  file under `/_astro/`: with an inline module in the document, the router appends
+  `<script src="data:application/javascript,">` to the body on every client-side navigation -
+  a script the policy refuses.
+
+HSTS, COOP, X-Frame-Options, nosniff and Referrer-Policy are the virtual host's rather than the
+app's (`security_directives()` in `scripts/deploy/install.sh`); `frame-ancestors 'none'` in the
+policy covers the browsers that ignore X-Frame-Options.
+`tests/unit/apache-security-headers.test.ts` renders both virtual hosts the script can write and
+fails if any of the five goes missing.
+
+Check a running deployment with:
+
+    node scripts/verify-security-headers.mjs                         # every page of the sitemap
+    node scripts/verify-security-headers.mjs http://127.0.0.1:4399    # a local `npm start`
+    node scripts/verify-security-headers.mjs --require-headers URL    # also require HSTS/COOP/...
+
+It hashes every inline script and style of every page against the policy that page was served
+with, flags `style` attributes and `data:` or cross-origin scripts, and reports the transport
+headers the virtual host adds.
+
 ## Legal documents
 
 The privacy policy and the terms of service are structured, bilingual content in

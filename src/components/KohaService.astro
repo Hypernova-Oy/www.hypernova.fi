@@ -54,7 +54,7 @@ const t = useTranslations(i18n, Astro);
     <div class="text-center max-w-8xl mx-auto mb-20 reveal-on-scroll">
 
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 lg:grid-rows-1 gap-6 max-w-7xl mx-auto">
-        <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0" style="transition-delay: 200ms;">
+        <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0 reveal-delay-2">
           <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 text-accent-600 dark:text-zinc-100 rounded-2xl flex items-center justify-center mb-6" set:html={`        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 512.001 512.001" fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><g><path d="M344.381,143.771C254.765,56.017,102.37,103.776,79.825,227.7c-31.849,4.598-59.138,25.445-72.018,55.076
 			c-0.016,0.035-0.032,0.07-0.047,0.107c-26.687,61.602,18.784,130.232,85.51,130.232h282.267
 			c75.246,0,136.463-61.216,136.463-136.462C512,189.241,430.314,123.682,344.381,143.771z M375.537,381.12H93.271
@@ -85,7 +85,7 @@ const t = useTranslations(i18n, Astro);
           </p>
         </div>
   
-        <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0" style="transition-delay: 100ms;">
+        <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0 reveal-delay-1">
           <div class="w-12 h-12 bg-accent-100 dark:bg-accent-900/40 text-accent-600 dark:text-green-400 rounded-2xl flex items-center justify-center mb-6" set:html={`<svg xmlns="http://www.w3.org/2000/svg" width="54px" height="54px" viewBox="-9 0 32 32" fill="none" stroke="currentColor" stroke-width="1" stroke-linecap="round" stroke-linejoin="round"><path d="M11.040 20.96c-0.6 0.24-1.2 0.32-1.84 0.32-2.12 0-3.92-1.24-4.76-3h4.72c0.48 0 0.84-0.4 0.84-0.84s-0.4-0.84-0.84-0.84h-5.24c-0.040-0.2-0.040-0.4-0.040-0.6s0-0.4 0.040-0.6h5.24c0.48 0 0.84-0.4 0.84-0.84s-0.4-0.84-0.84-0.84h-4.76c0.88-1.76 2.68-3 4.76-3 0.6 0 1.24 0.12 1.84 0.32 0.44 0.16 0.92-0.080 1.080-0.52s-0.080-0.92-0.52-1.080c-0.8-0.28-1.6-0.44-2.44-0.44-3.080 0-5.68 1.96-6.6 4.72h-1.68c-0.48 0-0.84 0.4-0.84 0.84s0.4 0.84 0.84 0.84h1.36c0 0.2-0.040 0.4-0.040 0.6s0 0.4 0.040 0.6h-1.36c-0.48 0-0.84 0.4-0.84 0.84s0.4 0.84 0.84 0.84h1.72c0.96 2.72 3.56 4.72 6.6 4.72 0.84 0 1.64-0.16 2.44-0.44 0.44-0.16 0.68-0.64 0.52-1.080s-0.64-0.68-1.080-0.52z"></path></svg>`} />
           <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('GDPR and your data')}</h3>
           <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">

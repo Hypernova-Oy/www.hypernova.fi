@@ -7,8 +7,14 @@ import Footer from '../components/Footer.astro';
 import CommandPalette from '../components/CommandPalette.astro';
 import { SITE_TITLE, SITE_DESCRIPTION, SITE_DESCRIPTION_I18N, SITE_URL } from '../config';
 import { resolvePath } from '../utils/navigation';
-import type { i18n } from '../i18n/ui';
+import { htmlLang, type i18n } from '../i18n/ui';
 import { useTranslations } from '../i18n/utils';
+/*
+ * The theme script is inlined into the document exactly as it is written here (see the
+ * <script> in the head), and astro.config.mjs reads this same file to hash it into
+ * `script-src`.
+ */
+import themeInit from '../scripts/theme-init.js?raw';
 
 interface Props {
   title: string;
@@ -85,12 +91,16 @@ const structuredData =
         url: siteURL,
       };
 
-// The UI language is resolved per request in src/middleware.ts.
+// The UI language is resolved per request in src/middleware.ts. Its codes are this site's own
+// labels - `gb` is not an ISO 639-1 code, and the previous site's URLs are built on it - while
+// the `lang` attribute has to be a real language tag: it is what a screen reader picks a voice
+// with (see HTML_LANG in src/i18n/ui.ts).
 const lang = Astro.locals.lang;
+const documentLang = htmlLang(lang);
 ---
 
 <!DOCTYPE html>
-<html lang={lang}>
+<html lang={documentLang}>
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width" />
@@ -112,43 +122,74 @@ const lang = Astro.locals.lang;
       white mark on light browser chrome.
     -->
     <link rel="icon" type="image/svg+xml" sizes="any" href={resolvePath('/favicon.svg')} />
-    <link rel="icon" id="favicon-raster" type="image/png" sizes="32x32" href={resolvePath('/favicon.png')} />
-    <link rel="icon" id="favicon-legacy" href={resolvePath('/favicon.ico')} sizes="16x16 32x32" />
+    <link
+      rel="icon"
+      id="favicon-raster"
+      type="image/png"
+      sizes="32x32"
+      href={resolvePath('/favicon.png')}
+      data-light={resolvePath('/favicon.png')}
+      data-dark={resolvePath('/favicon-dark.png')}
+    />
+    <link
+      rel="icon"
+      id="favicon-legacy"
+      href={resolvePath('/favicon.ico')}
+      data-light={resolvePath('/favicon.ico')}
+      data-dark={resolvePath('/favicon-dark.ico')}
+      sizes="16x16 32x32"
+    />
     <link rel="apple-touch-icon" href={resolvePath('/favicon.png')} />
-    <script
-      is:inline
-      data-astro-rerun
-      define:vars={{
-        lightMark: { raster: resolvePath('/favicon.png'), legacy: resolvePath('/favicon.ico') },
-        darkMark: { raster: resolvePath('/favicon-dark.png'), legacy: resolvePath('/favicon-dark.ico') },
-      }}
-    >
-      // Browser chrome picks the tab icon from the links above, and Chromium's pick is a
-      // raster rather than the theme-aware SVG, so keep both rasters on the scheme the
-      // browser actually reports (which also follows an OS theme change while open).
-      (() => {
-        const query = window.matchMedia('(prefers-color-scheme: dark)');
+    <script>
+      /*
+       * What the layout itself has to do in the browser. It is a file rather than an `is:inline`
+       * block because the Content Security Policy allows an inline script by hash and nothing
+       * else: a script written by hand into every document has one hash to keep in step with its
+       * code, and this one is not worth that. The paths below cannot come from `resolvePath` -
+       * that runs at build time - so they are `data-` attributes on the links above, the same way
+       * the palette carries its base path in `data-search-base`.
+       *
+       * 1. The rasters. Browser chrome picks the tab icon from the links above, and Chromium's
+       *    pick is a raster rather than the theme-aware SVG, so both rasters are kept on the
+       *    scheme the browser reports (which also follows an OS theme change while the page is
+       *    open). The elements are looked up on every call: a swap replaces them.
+       *
+       * 2. The `default` Trusted Types policy. The directive is in force site-wide (see the
+       *    `security.csp` comment in astro.config.mjs) and Astro's view transition router is not
+       *    Trusted-Types-aware: on every client-side navigation it re-creates the scripts of the
+       *    page it swapped in by assigning `script.innerHTML` (node_modules/astro/dist/
+       *    transitions/router.js, `runScripts`), which the browser refuses with a TypeError
+       *    unless a policy named `default` is there to take the string. It is a pass-through and
+       *    grants nothing an attacker could use: an injected script still has to match a hash in
+       *    `script-src` before it runs.
+       */
+      import { createPolicyOnce } from '../scripts/trusted-types';
 
-        const setIcon = (icon, light, dark) => {
-          if (icon) {
-            icon.href = query.matches ? dark : light;
-          }
-        };
+      createPolicyOnce('default', {
+        createHTML: (html) => html,
+        createScript: (script) => script,
+        createScriptURL: (url) => url,
+      });
 
-        const applyFavicon = () => {
-          setIcon(document.getElementById('favicon-raster'), lightMark.raster, darkMark.raster);
-          setIcon(document.getElementById('favicon-legacy'), lightMark.legacy, darkMark.legacy);
-        };
+      const scheme = window.matchMedia('(prefers-color-scheme: dark)');
 
-        applyFavicon();
+      const applyFavicon = () => {
+        for (const id of ['favicon-raster', 'favicon-legacy']) {
+          const icon = document.getElementById(id);
+          const mark = scheme.matches ? icon?.dataset.dark : icon?.dataset.light;
 
-        if (!window.__zenixFaviconBound) {
-          window.__zenixFaviconBound = true;
-
-          query.addEventListener('change', applyFavicon);
-          document.addEventListener('astro:page-load', applyFavicon);
+          if (mark) icon?.setAttribute('href', mark);
         }
-      })();
+      };
+
+      applyFavicon();
+
+      if (!window.__zenixFaviconBound) {
+        window.__zenixFaviconBound = true;
+
+        scheme.addEventListener('change', applyFavicon);
+        document.addEventListener('astro:page-load', applyFavicon);
+      }
     </script>
     <link rel="canonical" href={canonicalURL} />
     <link rel="sitemap" href={resolvePath('/sitemap.xml')} />
@@ -190,55 +231,19 @@ const lang = Astro.locals.lang;
     <Font cssVariable="--font-inter" preload />
     <Font cssVariable="--font-space-grotesk" preload />
 
-    <!-- Theme initialization script to prevent FOUC and preserve the theme across routes.
-         Light (white) is the default look: dark mode is opt-in and only applies once a
-         visitor picks it with the navbar toggle, never from the OS colour scheme. -->
-    <script is:inline data-astro-rerun>
-      (() => {
-        // Keep in sync with the theme toggle in Navbar.astro.
-        const THEME_KEY = 'hypernova-theme';
-        // Older builds followed the OS colour scheme and wrote the result into the
-        // 'theme' key for every visitor, so an entry there is not a deliberate pick.
-        // It is dropped once so it can no longer keep a browser stuck on dark.
-        const LEGACY_THEME_KEY = 'theme';
+    <!--
+      Theme initialization, to prevent FOUC and preserve the theme across routes. Light (white)
+      is the default look: dark mode is opt-in and only applies once a visitor picks it with the
+      navbar toggle, never from the OS colour scheme.
 
-        const getPreferredTheme = () => {
-          if (typeof localStorage !== 'undefined') {
-            localStorage.removeItem(LEGACY_THEME_KEY);
-
-            const stored = localStorage.getItem(THEME_KEY);
-            if (stored === 'dark' || stored === 'light') {
-              return stored;
-            }
-          }
-          return 'light';
-        };
-
-        // Only the navbar toggle persists a choice, so the default stays
-        // "whatever the visitor picked" instead of pinning the fallback.
-        const applyTheme = (theme, root = document.documentElement) => {
-          root.classList.toggle('dark', theme === 'dark');
-        };
-
-        applyTheme(getPreferredTheme());
-
-        if (!window.__zenixThemeBound) {
-          window.__zenixThemeBound = true;
-
-          document.addEventListener('astro:before-swap', (event) => {
-            event.newDocument.documentElement.classList.toggle('dark', getPreferredTheme() === 'dark');
-          });
-
-          document.addEventListener('astro:after-swap', () => {
-            applyTheme(getPreferredTheme());
-          });
-
-          document.addEventListener('astro:page-load', () => {
-            applyTheme(getPreferredTheme());
-          });
-        }
-      })();
-    </script>
+      The code itself lives in src/scripts/theme-init.js and is inlined here with `?raw`, for two
+      reasons. It has to run while the document is parsed - a bundled script is a module, and a
+      module only runs once the parser is done, which is the flash this exists to prevent - and
+      an inline script is only allowed by a hash in `script-src`, which astro.config.mjs computes
+      from this very file. As a literal in this layout it was a second copy of that code, and the
+      hash it was allowed by then covered bytes the document never contained.
+    -->
+    <script is:inline data-astro-rerun set:html={themeInit} />
   </head>
   <body class="flex flex-col min-h-screen bg-zinc-50 text-zinc-900 transition-colors duration-300 dark:bg-night dark:text-zinc-100">
     <CommandPalette />
