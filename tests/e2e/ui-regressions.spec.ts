@@ -1343,6 +1343,53 @@ test.describe('layout regressions', () => {
     }
   });
 
+  test('the language picker draws its own flag, not a flag-icons sheet', async ({
+    page,
+    isMobile,
+  }) => {
+    test.skip(isMobile, 'The picker in the desktop nav bar is not visible on a small viewport.');
+
+    await page.goto('/');
+
+    // The page is English, so the picker offers Finnish and draws that flag. The mark is
+    // a background image on an empty span, so a mark that is really there - and sized -
+    // is the only thing that makes it visible.
+    const flag = page.locator('header nav a[href="?l=fi"] .fi').first();
+    await expect(flag).toBeVisible();
+
+    const drawn = await flag.evaluate((el) => getComputedStyle(el).backgroundImage);
+    expect(drawn, 'the picker draws no flag').toContain('svg');
+    expect(
+      await flag.evaluate((el) => el.getBoundingClientRect().width),
+      'the flag has collapsed to nothing',
+    ).toBeGreaterThan(8);
+
+    /*
+     * The stylesheet this component used to import carried one rule per country - about
+     * 250 of them, most with a base64 copy of the flag inside - while the site can only
+     * show the languages of src/i18n/ui.ts. That sheet was 421 KB of the 563 KB a page
+     * weighed, and this is what keeps it from coming back through a global import: a page
+     * may only carry a flag rule for the languages the picker links to.
+     */
+    const flagRules = await page.evaluate(() =>
+      [...document.styleSheets]
+        .flatMap((sheet) => {
+          try {
+            return [...sheet.cssRules].map((rule) => rule.cssText);
+          } catch {
+            // A sheet that cannot be read carries no rules of ours.
+            return [];
+          }
+        })
+        .filter((rule) => /\.fi-[a-z]{2}(?![\w-])/.test(rule)),
+    );
+
+    expect(
+      flagRules.length,
+      `the page carries ${flagRules.length} country flag rules`,
+    ).toBeLessThanOrEqual(2);
+  });
+
   test('the language switcher is a tint of the bar, not a block of ink', async ({ page, isMobile }) => {
     test.skip(isMobile, 'The picker in the desktop nav bar is not visible on a small viewport.');
 

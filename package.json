@@ -46,7 +46,6 @@
     "@fontsource-variable/space-grotesk": "^5.2.10",
     "@tailwindcss/vite": "^4.3.0",
     "astro": "^6.4.8",
-    "flag-icons": "^7.5.0",
     "sharp": "^0.35.1",
     "tailwindcss": "^4.3.0"
   },

@@ -343,6 +343,18 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   inside it, already revealed - until the visitor scrolled. Past ten screens tall the
   share is unreachable and the section would never appear. The `8%` `rootMargin` is what
   starts the fade just before the element scrolls in.
+- **Do not import a stylesheet that covers the world for two elements.** The picker in
+  `src/components/LanguagePicker.astro` draws one of two flags, and `flag-icons` ships a
+  rule per country - about 250 of them, most carrying a base64 copy of the flag. Imported
+  globally it resolved to 421 KB, and `build.inlineStylesheets: 'always'` pasted that into
+  every page: `/` weighed 563 KB, 421 KB of it flags for countries the site cannot be read
+  in. The two files it needs live in `src/images/flags` and the rules are in the
+  component, which puts those pages at 147 KB (29 KB gzipped, from 115 KB). The e2e case
+  *the language picker draws its own flag* fails if a page carries a flag rule for a
+  language the picker does not link to.
+- The markup of a page is 30-50 KB, so a page that is much larger than that is carrying
+  something that is not its content - the flags above were 421 KB of it. Requesting `/`
+  from a running build is the quickest way to see where a page stands.
 - Check changes with `npm run bench:scroll` against a running server.
 
 ## Legal documents

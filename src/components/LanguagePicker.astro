@@ -1,6 +1,5 @@
 ---
 import { languages } from '../i18n/ui';
-import "flag-icons/css/flag-icons.min.css";
 
 interface Props {
   /**
@@ -43,3 +42,51 @@ const linkClass =
     </li>
   ))}
 </ul>
+
+<style>
+  /*
+   * The flag marks the picker draws, without the flag-icons stylesheet it used to
+   * import. The package ships one rule per country - about 250 of them, most
+   * carrying a base64 copy of the flag - and the site can show two: `gb` and `fi`,
+   * the languages of src/i18n/ui.ts. Imported for its two useful rules it put
+   * 421 KB of CSS into every page of the site (measured: a page was 563 KB, of
+   * which 421 KB was flags), so the two files it needs were copied to
+   * src/images/flags and the rules the markup relies on are written out here.
+   *
+   * These are those rules, as the package has them: the box (1.333333em wide, one
+   * line tall - the `:before` space is what gives the empty span its height) and
+   * the two backgrounds. Vite inlines assets this small, so the pair costs under a
+   * kilobyte in the page and no extra request. Both SVGs are the MIT-licensed
+   * flag-icons files (flags/4x3 in that package), renamed to the language codes this
+   * component builds the class name from; the package itself was uninstalled, so a
+   * third language means copying one more of its files here.
+   */
+  .fi {
+    position: relative;
+    display: inline-block;
+    width: 1.333333em;
+    line-height: 1em;
+    background-size: contain;
+    background-position: 50%;
+    background-repeat: no-repeat;
+  }
+
+  /*
+   * A non-breaking space, exactly as the package has it, and not a plain one: the
+   * picker is a flex pill, so this span is blockified and a collapsible space leaves it
+   * with no height at all. The flag then draws into a zero-height box - invisible - and
+   * the pill loses the height the flag gives it, which moved the pill off the centre of
+   * the links beside it.
+   */
+  .fi:before {
+    content: '\00a0';
+  }
+
+  .fi-gb {
+    background-image: url('../images/flags/gb.svg');
+  }
+
+  .fi-fi {
+    background-image: url('../images/flags/fi.svg');
+  }
+</style>
