@@ -26,8 +26,12 @@ interface Window {
   __zenixSearchIndex?: SearchIndexEntry[];
   __zenixSearchLoaded?: boolean;
   __zenixSearchLang?: string;
-  __zenixSearchKeyBound?: boolean;
-  /** Published by the palette; the two navbar search buttons call it. */
+  /**
+   * The palette's `window` listeners - Ctrl+K, Escape and a click on a search button - are bound
+   * once, so that a client-side navigation cannot leave two of them answering one press.
+   */
+  __zenixSearchWindowBound?: boolean;
+  /** Published by the palette; the two navbar search buttons carry `data-search-trigger`. */
   toggleCommandPalette?: () => void;
   /** The theme listeners (documented in src/scripts/theme-init.js) are bound once. */
   __zenixThemeBound?: boolean;

@@ -298,8 +298,22 @@ const t = useTranslations(i18n, Astro);
 
     window.toggleCommandPalette = togglePalette;
 
-    if (!window.__zenixSearchKeyBound) {
-      window.__zenixSearchKeyBound = true;
+    /*
+     * The two ways in that outlive the elements they start from: Ctrl+K (and Escape) from
+     * anywhere on the page, and a click on a search button in the bar. Both are bound to `window`
+     * once, because a client-side navigation replaces the bar and the palette without a load -
+     * binding them again here would leave two listeners answering one press, and the palette
+     * would open and close again in the same click.
+     *
+     * The buttons carry `data-search-trigger` instead of an inline `onclick`, which the Content
+     * Security Policy refuses: `script-src` has no 'unsafe-inline', and 'unsafe-hashes' - the one
+     * keyword that allows an attribute - allows an attribute value on any element of the page,
+     * not on this one. Delegating the click keeps the handler in a script file, which the policy
+     * lists like every other.
+     */
+    if (!window.__zenixSearchWindowBound) {
+      window.__zenixSearchWindowBound = true;
+
       window.addEventListener('keydown', (e) => {
         const activePalette = document.getElementById('command-palette');
 
@@ -312,6 +326,15 @@ const t = useTranslations(i18n, Astro);
         if (e.key === 'Escape' && activePalette && !activePalette.classList.contains('hidden')) {
           window.toggleCommandPalette?.();
         }
+      });
+
+      window.addEventListener('click', (e) => {
+        // The target is the pressed element, which can be a child of the button: the icon and
+        // the label inside it.
+        const target = e.target instanceof Element ? e.target : null;
+        if (!target?.closest('[data-search-trigger]')) return;
+
+        window.toggleCommandPalette?.();
       });
     }
 

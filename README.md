@@ -485,6 +485,15 @@ is rendered per request), configured under `security.csp` in `astro.config.mjs`:
   its colours as `style` attributes - and `markdown.syntaxHighlight` is Prism, which writes
   classes; a Prism theme stylesheet in `src/styles/global.css` gives the tokens colours whenever
   a post needs them.
+- **No inline event handlers either.** `onclick="..."` is JavaScript, and what allows a handler is
+  `'unsafe-inline'` or `'unsafe-hashes'` - the policy carries neither, and `'unsafe-hashes'` would
+  allow the attribute value on *any* element, not on the one that was hashed. A control therefore
+  carries a `data-` attribute and a script file binds it: the bar's two search buttons carry
+  `data-search-trigger` and the palette listens for the click
+  (`src/components/CommandPalette.astro`), next to Ctrl+K. `tests/unit/no-inline-event-handlers.test.ts`
+  reads every `.astro` file for a handler, because the dev server sends no policy at all and a
+  browser refuses one silently - the search button that did nothing being what the test was
+  written after.
 - **Trusted Types** (`require-trusted-types-for 'script'`) are on, with two policies: the palette
   (`hypernova-palette`, the one place markup is built from data, with everything in it escaped)
   and `default`, which Astro's view transition router needs because it re-creates the scripts of

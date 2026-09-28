@@ -68,11 +68,17 @@ const t = useTranslations(i18n, Astro);
 
       <!-- CTA Buttons & Theme Toggle (Desktop) -->
       <div class="hidden md:flex items-center gap-4">
-        <!-- Search Button -->
-        <button 
-          onclick="window.toggleCommandPalette?.()"
+        <!--
+          Search button. It asks the palette to open through `data-search-trigger` and not through
+          an inline `onclick`: `script-src` has no 'unsafe-inline' and a bare hash does not cover
+          an attribute, so a browser refuses an inline handler and the button does nothing (the
+          bindings are in src/components/CommandPalette.astro).
+        -->
+        <button
+          type="button"
+          data-search-trigger
           class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-night-raise rounded-lg border border-zinc-200 dark:border-night-line-strong transition-colors"
-          aria-label="Search"
+          aria-label={t('Search')}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
           <span>{t('Search')}</span>
@@ -90,7 +96,7 @@ const t = useTranslations(i18n, Astro);
 
       <!-- Mobile menu button & Theme toggle -->
       <div class="md:hidden flex items-center gap-2">
-        <button onclick="window.toggleCommandPalette?.()" aria-label={t('Search')} class="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-night-raise focus:outline-none rounded-lg text-sm" aria-label="Search">
+        <button type="button" data-search-trigger aria-label={t('Search')} class="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-night-raise focus:outline-none rounded-lg text-sm">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
         </button>
 
