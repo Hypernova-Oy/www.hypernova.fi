@@ -979,14 +979,17 @@ test.describe('localization', () => {
 
   test('English is the default without a language cookie', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('html')).toHaveAttribute('lang', 'gb');
+
+    // `en`, not the site's own code for English (`gb`, the one in its URLs and its cookie):
+    // the attribute is a real language tag, see HTML_LANG in src/i18n/ui.ts.
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.getByRole('heading', { name: 'Free & Open' })).toBeVisible();
   });
 
   test('an unsupported language falls back to English instead of crashing', async ({ page }) => {
     const response = await page.goto('/?l=xx');
     expect(response?.status()).toBeLessThan(400);
-    await expect(page.locator('html')).toHaveAttribute('lang', 'gb');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   });
 
   test('Finnish translations render on the hosting page', async ({ page }) => {
@@ -1437,7 +1440,10 @@ test.describe('layout regressions', () => {
       await page.evaluate(() => document.cookie),
       'the prefetch wrote the language cookie',
     ).not.toContain('language=fi');
-    await expect(page.locator('html')).toHaveAttribute('lang', 'gb');
+
+    // Still the English document: the attribute is `en`, not the site's own code for it (see
+    // HTML_LANG in src/i18n/ui.ts).
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   });
 
   test('the language switcher is a tint of the bar, not a block of ink', async ({ page, isMobile }) => {
