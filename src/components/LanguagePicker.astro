@@ -19,14 +19,18 @@ const currentLang = Astro.locals.lang;
  * The bar around it is bare text, so the picker carries a surface of its own: filled in
  * both themes, the same size as the links it follows rather than the 16px a bare link
  * would inherit, and rounded, so the flag reads as a control and not as loose glyphs.
- * The fill follows each theme's idea of a solid control (the `primary` ramp documents
- * #600 as the light-mode one) rather than the panel it sits on, which it may not be
- * darker than on a dark page.
+ * The light-mode fill is a tint of the bar - `primary-100` under `primary-800`, the
+ * pairing a Badge gives a label - rather than the solid-control colour `primary-600`: as
+ * a pill of near-black ink it was the heaviest thing in a bar whose other controls stay
+ * quiet until they are hovered, and it read as a competitor to the page's own calls to
+ * action. It still has to be a surface of its own, which is why it is a tint rather than
+ * no fill at all. Dark mode keeps `night-raise`, a surface raised above the bar it is
+ * drawn on; the tint deepens one step on hover in each theme.
  */
 const linkClass =
   variant === 'menu'
     ? 'flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-primary-600 dark:text-zinc-300 dark:hover:bg-night-raise dark:hover:text-primary-400'
-    : 'inline-flex items-center gap-1.5 rounded-full border border-primary-600 bg-primary-600 px-2 py-1 text-sm font-medium text-white transition-colors hover:border-primary-700 hover:bg-primary-700 dark:border-night-line-strong dark:bg-night-raise dark:text-zinc-100 dark:hover:bg-night-line dark:hover:text-primary-400';
+    : 'inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-100 px-2 py-1 text-sm font-medium text-primary-800 transition-colors hover:bg-primary-200 dark:border-night-line-strong dark:bg-night-raise dark:text-zinc-100 dark:hover:bg-night-line dark:hover:text-primary-400';
 ---
 <ul class={variant === 'menu' ? 'space-y-1' : undefined}>
   {Object.entries(languages).map(([lang, label]) => (

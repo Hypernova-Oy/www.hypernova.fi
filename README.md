@@ -205,12 +205,16 @@ entries for that reason.
 The language switcher is `src/components/LanguagePicker.astro`. It links to the same page
 with `?l=`, so changing language never leaves the page the visitor is on. The desktop nav
 bar holds it as a pill of its own (`variant="inline"`, the default): the bar around it is
-bare text, so the picker carries the fill, the inset and the size of a control - the fill
-and the text size of a link it is not, one taken from the theme's solid-control colour
-(`primary-600`) and one matching the labels it follows, instead of the 16px a bare link
-would inherit beside them. Because that bar is hidden on a small screen, the mobile menu
-renders the same component as full-width rows (`variant="menu"`), next to the navigation
-links it would otherwise be missing from.
+bare text, so the picker carries the fill, the inset, the rounded shape and the size of a
+control, its label matching the labels it follows instead of the 16px a bare link would
+inherit beside them. The fill is a tint of the bar in each theme - `primary-100` under
+`primary-800`, the pairing a `Badge` gives a label - rather than the solid-control colour
+`primary-600`, which as a near-black pill was the heaviest thing in a bar whose other
+controls stay quiet until they are hovered, and read as a competitor to the page's own
+calls to action. Dark mode keeps `night-raise`, which sits above the bar it is drawn on.
+Because that bar is hidden on a small screen, the mobile menu renders the same component
+as full-width rows (`variant="menu"`), next to the navigation links it would otherwise be
+missing from.
 
 The mobile menu is a panel of the sticky header, so it covers the top of the page it is
 open over and puts itself away unless the tap asks to stay: a tap beside the menu, or on

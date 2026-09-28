@@ -1343,6 +1343,60 @@ test.describe('layout regressions', () => {
     }
   });
 
+  test('the language switcher is a tint of the bar, not a block of ink', async ({ page, isMobile }) => {
+    test.skip(isMobile, 'The picker in the desktop nav bar is not visible on a small viewport.');
+
+    for (const theme of ['light', 'dark'] as const) {
+      await useTheme(page, theme);
+      await page.goto('/');
+
+      const pill = await page.locator('header nav a[href="?l=fi"]').evaluate((el) => {
+        // Computed colours come back as oklch/oklab, so read them as pixels instead.
+        const canvas = document.createElement('canvas');
+        canvas.width = 1;
+        canvas.height = 1;
+        const context = canvas.getContext('2d')!;
+
+        const rgb = (value: string) => {
+          context.clearRect(0, 0, 1, 1);
+          context.fillStyle = value;
+          context.fillRect(0, 0, 1, 1);
+          const [r, g, b] = context.getImageData(0, 0, 1, 1).data;
+          return { r, g, b };
+        };
+
+        const luminance = ({ r, g, b }: { r: number; g: number; b: number }) => {
+          const channel = (value: number) => {
+            const scaled = value / 255;
+            return scaled <= 0.03928 ? scaled / 12.92 : ((scaled + 0.055) / 1.055) ** 2.4;
+          };
+          return 0.2126 * channel(r) + 0.7152 * channel(g) + 0.0722 * channel(b);
+        };
+
+        const style = getComputedStyle(el);
+        const fill = luminance(rgb(style.backgroundColor));
+        const label = luminance(rgb(style.color));
+        const lightest = Math.max(fill, label);
+        const darkest = Math.min(fill, label);
+
+        return { fill, label, contrast: (lightest + 0.05) / (darkest + 0.05) };
+      });
+
+      // The fill is a tint of the bar in its own theme - light in the light theme, dark in
+      // the dark one - and not a block of the opposite ink. The light pill used to be the
+      // solid-control colour `primary-600` (#222), the darkest thing on a white bar, in a
+      // row whose other controls stay quiet until they are hovered.
+      if (theme === 'light') {
+        expect(pill.fill, 'the light-theme pill is a dark block').toBeGreaterThan(0.5);
+      } else {
+        expect(pill.fill, 'the dark-theme pill is a block of light ink').toBeLessThan(0.5);
+      }
+
+      // And the tint is still dark enough (or light enough) to read its label on.
+      expect(pill.contrast, `${theme}: the picker's label does not read on its own fill`).toBeGreaterThan(4.5);
+    }
+  });
+
   test('tablet widths do not scroll the page sideways', async ({ page, isMobile }) => {
     test.skip(isMobile, 'The check drives the viewport itself.');
 
