@@ -129,6 +129,27 @@ test.describe('public pages', () => {
     expect(titleFor(english, '/koha/')?.content).toContain('in the world');
     expect(titleFor(finnish, '/koha/')?.content).toContain('maailman ensimmäinen');
   });
+
+  test('search index carries the Finnish names of the banking rows', async ({ page }) => {
+    type Entry = { slug: string; content: string };
+    const contentFor = (entries: Entry[], slug: string) =>
+      entries.find((entry) => entry.slug === slug)?.content ?? '';
+
+    const english = (await (await page.goto('/search-index.json'))!.json()) as Entry[];
+    const finnish = (await (await page.goto('/search-index.json?l=fi'))!.json()) as Entry[];
+
+    // "Tilinumero" (IBAN) and "Pankki" (BIC) stand in the markup of the billing rows, out of
+    // sight, so the index reads them as the text of the page: a search for either word finds
+    // /contact/ and the snippet of the result shows the code the word stands for. The English
+    // payload is read first because `?l=fi` is remembered in the language cookie, so a request
+    // without the parameter afterwards would answer in Finnish too.
+    expect(contentFor(finnish, '/contact/')).toContain('IBAN Tilinumero FI50 7997 7996 3875 56');
+    expect(contentFor(finnish, '/contact/')).toContain('BIC Pankki HOLVFIHH');
+
+    // The English page is not written in Finnish, hidden words included.
+    expect(contentFor(english, '/contact/')).not.toContain('Tilinumero');
+    expect(contentFor(english, '/contact/')).not.toContain('Pankki');
+  });
 });
 
 test.describe('head metadata', () => {
@@ -834,6 +855,56 @@ test.describe('navigation', () => {
     await expect(marks).toHaveCount(2);
     await expect(marks.nth(0)).toHaveText(/^maailman$/i);
     await expect(marks.nth(1)).toHaveText(/^ensimmäinen$/i);
+  });
+
+  test('command palette points at the banking rows by their Finnish names', async ({ page }) => {
+    await page.goto('/contact/?l=fi');
+    await page.keyboard.press('Control+k');
+
+    // "Tilinumero" and "Pankki" are in no title and in no description: they are the hidden
+    // words of the IBAN and BIC rows, so the row of the result shows the code they stand for
+    // and highlights the word that was searched for.
+    const searches = [
+      { term: 'tilinumero', code: 'FI50 7997 7996 3875 56' },
+      { term: 'pankki', code: 'HOLVFIHH' },
+    ];
+
+    for (const { term, code } of searches) {
+      await page.locator('#search-input').fill(term);
+
+      const options = page.locator('#search-results [role="option"]');
+      await expect(options).toHaveCount(1);
+      await expect(options.first().locator('a')).toHaveAttribute('href', '/contact/');
+
+      const snippet = options.first().locator('.palette-snippet');
+      await expect(snippet).toContainText(code);
+      await expect(snippet.locator('mark')).toHaveText(new RegExp(`^${term}$`, 'i'));
+    }
+  });
+
+  test('the Finnish contact page hides the words it is searched by', async ({ page }) => {
+    // The words above are printed nowhere: each one is clipped to a speck inside the row it
+    // belongs to, so the panel still shows IBAN and BIC and nothing else.
+    const rows = [
+      { label: 'IBAN', term: 'Tilinumero' },
+      { label: 'BIC', term: 'Pankki' },
+    ];
+
+    // The English page carries no Finnish words at all. It is visited first because `?l=fi` is
+    // remembered in the language cookie, so the other way round would answer in Finnish here.
+    await page.goto('/contact/');
+    await expect(page.locator('#contact-info span.sr-only')).toHaveCount(0);
+
+    await page.goto('/contact/?l=fi');
+
+    for (const { label, term } of rows) {
+      const hidden = page.locator('#contact-info dt', { hasText: label }).locator('span.sr-only');
+      await expect(hidden).toHaveText(term);
+
+      const box = await hidden.boundingBox();
+      expect(box).not.toBeNull();
+      expect(Math.max(box!.width, box!.height)).toBeLessThanOrEqual(1);
+    }
   });
 
   test('command palette highlights the words it matched', async ({ page }) => {

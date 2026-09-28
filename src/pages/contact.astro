@@ -5,6 +5,7 @@ import Button from '../components/Button.astro';
 import FormValidation from '../components/FormValidation.astro';
 
 import { resolvePath } from '../utils/navigation';
+import { FALLBACK_LANG, isLanguage, type Language } from '../i18n/ui';
 import { useTranslations } from '../i18n/utils';
 import {
   checkFormToken,
@@ -52,6 +53,7 @@ const i18n = {
   }
 };
 const t = useTranslations(i18n, Astro);
+const lang: Language = isLanguage(Astro.locals.lang) ? Astro.locals.lang : FALLBACK_LANG;
 
 const formId = 'contact' as const;
 const errors = { name: "", email: "", organization: "", form: "" };
@@ -229,12 +231,24 @@ if (Astro.request.method === "POST") {
                     <span class="text-base text-zinc-500 dark:text-primary-200">(Apix Messaging Oy)</span>
                   </dd>
                 </div>
+                {/*
+                  The Finnish name of the IBAN row, hidden rather than printed: /search-index.json
+                  indexes the text of the page, so a search for "Tilinumero" points at this row and
+                  the snippet of the result shows the number the word stands for. Only the Finnish
+                  page carries it, and the note is an Astro comment rather than an HTML one so that
+                  the word is in no served markup of the English page either.
+                */}
                 <div>
-                  <dt class="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-primary-200 mb-1">IBAN</dt>
+                  <dt class="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-primary-200 mb-1">
+                    IBAN{lang === 'fi' && <span class="sr-only">Tilinumero</span>}
+                  </dt>
                   <dd class="font-mono text-lg text-zinc-600 dark:text-zinc-400">FI50 7997 7996 3875 56</dd>
                 </div>
+                {/* "Pankki" (bank) stands for the BIC the same way. */}
                 <div>
-                  <dt class="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-primary-200 mb-1">BIC</dt>
+                  <dt class="text-xs font-bold uppercase tracking-widest text-zinc-500 dark:text-primary-200 mb-1">
+                    BIC{lang === 'fi' && <span class="sr-only">Pankki</span>}
+                  </dt>
                   <dd class="font-mono text-lg text-zinc-600 dark:text-zinc-400">HOLVFIHH</dd>
                 </div>
               </dl>

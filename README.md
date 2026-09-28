@@ -163,6 +163,14 @@ piece, and both it and the title/description highlight the words in the casing o
 A word that only `keywords` carries (`kirjasto` on an English page, for example) is still
 matched but cannot be highlighted, because it is not part of the visible copy.
 
+The contact page carries two words that are printed nowhere: `Tilinumero` beside the IBAN and
+`Pankki` beside the BIC, each one `sr-only` inside the row it names and only on the Finnish
+page. They are the Finnish names of those two codes, and since the index reads the text of the
+page, a search for either word points at `/contact/` with the code the word stands for in the
+snippet (see the billing block above). They are markup rather than `keywords` so that the
+result points at the row that actually carries the number, which `keywords` - one flat string
+per page - cannot do.
+
 Because the payload depends on the language cookie, it is served with
 `Cache-Control: private` and `Vary: Cookie` and must not be cached by a shared proxy.
 Keep those headers when adding entries, and keep the entry shape (`title`,
