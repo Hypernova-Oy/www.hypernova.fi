@@ -415,19 +415,35 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   fonts, eight scripts, one image), so the ones over the limit wait for a connection before
   they can even be sent - the 985 ms chain document → page.js → index.js a PageSpeed run drew
   was made of that. `configure_apache` enables `mod_http2` when the host has it (`apache2`
-  carries it on Debian and Ubuntu), and the `Protocols h2 h2c http/1.1` the package installs
-  next to the module is included at server scope, so the `:443` virtual host certbot wrote on
-  the first deploy is covered without being rewritten - a `Protocols` line in the vhost would
-  only ever reach the host the deploy writes it into. Before this the run reported *15 requests
-  not served via HTTP/2* and 460 ms under *Use HTTP/2 for faster loading*. Measured on one
-  machine, the same build behind three Apache virtual hosts that differ only in these directives,
-  three mobile runs each: as the deploy wrote it before, 98 with first contentful paint at 1.6 s;
-  the compression fix on its own, still over HTTP/1.1, 99 and 1.4 s; both, 100 and 0.9 s, with
-  the eight scripts of `/` at 9424 bytes over the wire against 27210. Both changes are needed,
-  and the second one is worth its 2.7 KB of headers alone: HPACK compresses them, where HTTP/1.1
-  sends about 350 bytes of them with every response.
-  `tests/unit/apache-http2.test.ts` holds both ends: the enabling, and that the protocol is not
-  set from the virtual host.
+  carries it on Debian and Ubuntu), and the `Protocols h2 h2c http/1.1` that selects the
+  protocol is written by the deploy in both places the directive can stand. At server scope:
+  `conf-available/hypernova-protocols.conf`, guarded by `<IfModule mod_http2.c>` and taken back
+  if Apache rejects it, so a host whose package file names no protocol any more still serves
+  h2. Measured on this platform, the *first* file that names the directive at that scope is the
+  one that counts - `mods-enabled` is included before `conf-enabled`, and the package's list won
+  over the deploy's - so the copy is read only where the files before it name nothing, and it
+  never narrows a list one of them set. Inside the `:443` virtual host certbot wrote on the
+  first deploy: a `Protocols` line *there* replaces the server-scope list
+  instead of adding to it, so a list that host carries of its own is what every browser gets,
+  and a host carrying `Protocols h2c` offers no `h2` at all. That was the state of the
+  production server when this was measured - `:80` answered an h2c upgrade while `:443`
+  negotiated no ALPN, HTTP/1.1 for every browser, with Brotli already live on that same host and
+  the rest of the response coming from the same virtual host. `repair_tls_vhost_protocols` reads
+  certbot's file and writes it only when it carries a `Protocols` line or the deploy's marker,
+  replacing either in place with the marked block `tls_vhost_protocols_block` prints; every
+  other line of that file comes out byte for byte, and a file that already carries the block
+  produces no write at all (`write_config` compares the text first), so a second deploy of the
+  same host rewrites nothing.
+  Before this the run reported *15 requests not served via HTTP/2* and 460 ms under *Use HTTP/2
+  for faster loading*. Measured on one machine, the same build behind three Apache virtual hosts
+  that differ only in these directives, three mobile runs each: as the deploy wrote it before, 98
+  with first contentful paint at 1.6 s; the compression fix on its own, still over HTTP/1.1, 99
+  and 1.4 s; both, 100 and 0.9 s, with the eight scripts of `/` at 9424 bytes over the wire
+  against 27210. Both changes are needed, and the second one is worth its 2.7 KB of headers
+  alone: HPACK compresses them, where HTTP/1.1 sends about 350 bytes of them with every response.
+  `tests/unit/apache-http2.test.ts` holds the enabling, the server-scope copy with its guard and
+  its rollback, the replacement of a list the `:443` host carries of its own, and that running
+  the repair again writes nothing.
 - **Images are resized and re-encoded at the size they are drawn.** `astro.config.mjs` uses
   the default image service (sharp, already a dependency) instead of the
   `passthroughImageService()` it had, which answered every request with the original file: the
@@ -644,7 +660,9 @@ that is not the address of the site with the same redirect the virtual host send
 (`src/utils/canonical-host.ts`). The two halves matter because a request does not always arrive
 through the virtual host this script writes: the `:443` host `certbot` created once keeps its
 own copy of the directives, and the deploy does not rewrite that file while the certificate is
-there. Both are checked at the end of a run.
+there - the one line it does replace in it is a `Protocols` list that host carries of its own,
+which would otherwise leave every browser on HTTP/1.1 (the HTTP/2 bullet above). Both are
+checked at the end of a run.
 
 The two names of a deployment are not two sites. The certificate covers both, and every request
 that arrives under the other one is answered with a permanent redirect to `--domain`:

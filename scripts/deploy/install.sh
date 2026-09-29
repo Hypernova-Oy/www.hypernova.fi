@@ -858,6 +858,142 @@ $(compression_directives)
 COMPRESSION
 }
 
+# --- HTTP/2: the protocol, at server scope and in the host certbot wrote ------------------
+# HTTP/1.1 opens at most six connections per origin, and the document of `/` is followed by
+# thirteen requests on that origin - the stylesheet, three fonts, eight scripts and an image -
+# so the ones over that limit wait for a connection to come free, one round trip each on the
+# phone connection PageSpeed simulates. That queue is what the 985 ms chain a run of this site
+# was drawn with - document to page.js to index.js - was made of, and mod_http2 multiplexes
+# all of them over the connection the document arrived on.
+#
+# `Protocols` is the directive that selects the protocol, and where it stands decides how far
+# it reaches:
+#
+#   * set at server scope, the first file that names it is the one that counts - measured on a
+#     host of this platform, the package's `Protocols h2c http/1.1` in mods-enabled still won
+#     over `Protocols h2 h2c http/1.1` in a conf-enabled file, which Apache includes later - so
+#     a copy of the deploy's own is read only where the files before it name nothing, and it
+#     never narrows a list one of them set;
+#   * set inside a virtual host, the list *replaces* the one from server scope - measured the
+#     same way, a vhost naming `Protocols h2c http/1.1` answered a client that offered `h2`
+#     with `http/1.1` alone, while a vhost naming no `Protocols` next to it answered `h2`.
+#
+# Debian and Ubuntu ship `Protocols h2 h2c http/1.1` in mods-available/http2.conf next to the
+# module, and configure_apache enables the module, so a host that names no `Protocols` at all
+# is already covered - the `:443` virtual host certbot writes from the `:80` one included,
+# which is what this script used to rely on: while a certificate exists certbot does not run
+# again, and that host is not written again either (obtain_certificate). Two things that leaves
+# open are a host where the package's file names no protocol any more - deleted, emptied or
+# replaced, with the module still loaded - and a `:443` host that carries `Protocols` of its
+# own, because that list replaces the one from server scope and decides for the host whichever
+# file names the other. Measured on the production server of this site: `:80` answered an h2c
+# upgrade while `:443` negotiated no ALPN at all, which is HTTP/1.1 for every browser, with the
+# rest of the response coming from the same virtual host. Hence the two below, one for each of
+# the places the directive can stand.
+render_protocols_conf() {
+  cat <<PROTOCOLS
+<IfModule mod_http2.c>
+  Protocols h2 h2c http/1.1
+</IfModule>
+PROTOCOLS
+}
+
+# The same list inside a virtual host, marked with the service name so that the next run of
+# the deploy finds the block again and keeps it in step: the marked block replaces the one that
+# stands there, a list written by hand is replaced where it stands, and a host that already
+# carries the block comes out of tls_vhost_with_protocols() byte for byte unchanged, which is
+# what lets write_config() leave that file alone (see repair_tls_vhost_protocols).
+tls_vhost_protocols_block() {
+  cat <<PROTOCOLS
+  # BEGIN $SERVICE protocols, written by scripts/deploy/install.sh; replaced on every deploy
+  # A list of its own replaces the one at server scope, so the protocol is named here too.
+  Protocols h2 h2c http/1.1
+  # END $SERVICE protocols
+PROTOCOLS
+}
+
+# Reads a virtual host on stdin and writes it back with the deploy's protocol list named once:
+# in place of the marked block of an earlier deploy, or in place of a list the host carries of
+# its own. Every other line comes out byte for byte, because the file this is applied to is
+# certbot's - it carries the certificate paths, the redirect and the rest of the directives
+# this script wrote before certbot copied them. A host that names no `Protocols` at all is
+# returned unchanged: such a host reads the list at server scope, which is the file above.
+tls_vhost_with_protocols() {
+  local line trimmed named="" inside_block=0 block_written=0
+
+  while IFS= read -r line || [ -n "$line" ]; do
+    # The line without the indentation of the virtual host, so that a list written by hand is
+    # found wherever it stands. Escaping the name of the class keeps the expansion literal.
+    trimmed="${line#"${line%%[![:space:]]*}"}"
+
+    # Inside the block of an earlier deploy: it is replaced as a whole, from its first marker
+    # to its last, and nothing of what it held is written back.
+    if [ "$inside_block" -eq 1 ]; then
+      case "$line" in
+        "  # END $SERVICE protocols"*) inside_block=0 ;;
+      esac
+      continue
+    fi
+
+    case "$line" in
+      "  # BEGIN $SERVICE protocols"*)
+        inside_block=1
+        if [ "$block_written" -eq 0 ]; then
+          tls_vhost_protocols_block
+          block_written=1
+        fi
+        continue
+        ;;
+    esac
+
+    case "$trimmed" in
+      "Protocols "*)
+        named="${named:+$named, }$trimmed"
+        # The first list of its own is replaced where it stands. A second one would name the
+        # directive twice in that host, which is not something the file should be left to decide,
+        # so it goes as well.
+        if [ "$block_written" -eq 0 ]; then
+          tls_vhost_protocols_block
+          block_written=1
+        fi
+        continue
+        ;;
+    esac
+
+    printf '%s\n' "$line"
+  done
+
+  if [ -n "$named" ]; then
+    warn "The $DOMAIN host certbot wrote names \`$named\` of its own, which replaces the list at
+   server scope and leaves a browser that offers h2 on HTTP/1.1 there; the deploy's
+   \`Protocols h2 h2c http/1.1\` replaces it in that file."
+  fi
+}
+
+# The `:443` virtual host certbot wrote, repaired where it stands. certbot takes a copy of the
+# `:80` host once, when the certificate is issued, and obtain_certificate() returns before
+# certbot runs again while a certificate is there, so that host keeps whatever it was written
+# with: it is the one file the deploy cannot keep in step by writing it. A `Protocols` line of
+# its own is what takes h2 out of that host (see the comment above render_protocols_conf),
+# while a host that names no `Protocols` reads the server-scope list - so the file is read
+# first and written only when there is something to repair. It is certbot's file, and the rest
+# of it is what the site answers with.
+repair_tls_vhost_protocols() {
+  local file="/etc/apache2/sites-available/$SERVICE-le-ssl.conf"
+
+  [ -f "$file" ] || return 0
+
+  if ! grep -qE "^[[:space:]]*# BEGIN .* protocols|^[[:space:]]*Protocols[[:space:]]" "$file"; then
+    return 0
+  fi
+
+  if write_config 644 root:root "$file" < <(tls_vhost_with_protocols < "$file"); then
+    info "the :443 host certbot wrote carries the deploy's protocol list now"
+  else
+    info "the :443 host certbot wrote carries the deploy's protocol list already"
+  fi
+}
+
 # --- Apache response caching -------------------------------------------------------------
 # The Node entry answers every file under /_astro/ with `Cache-Control: public, max-age=0`
 # and a weak ETag - the static handler's default - so the browser asks again on every
@@ -1101,11 +1237,11 @@ configure_apache() {
   fi
 
   # The document of `/` is followed by thirteen requests on the same origin - the stylesheet,
-  # three fonts and eight scripts - and HTTP/1.1 opens six connections per origin: the ones
-  # over that limit wait for a connection to come free, one round trip each on the phone
-  # connection PageSpeed simulates. That queue is what the 985 ms chain the run drew - document
-  # to page.js to index.js - was made of. mod_http2 multiplexes every one of them over the
-  # connection the document already arrived on.
+  # three fonts, eight scripts and an image - and HTTP/1.1 opens six connections per origin:
+  # the ones over that limit wait for a connection to come free, one round trip each on the
+  # phone connection PageSpeed simulates. That queue is what the 985 ms chain the run drew -
+  # document to page.js to index.js - was made of. mod_http2 multiplexes every one of them over
+  # the connection the document already arrived on.
   #
   # Debian and Ubuntu ship the module in the apache2 package, with a mods-available/http2.conf
   # that carries `Protocols h2 h2c http/1.1`. That file is included at server scope, so
@@ -1114,8 +1250,30 @@ configure_apache() {
   # certificate is already there, so the protocol may not be left to the vhost below. h2c is
   # the cleartext variant a client has to ask for; a browser only negotiates h2 over TLS, so a
   # --no-tls host is served over HTTP/1.1 either way.
+  #
+  # The list is written by the deploy as well, so that a host whose package file was edited or
+  # replaced still serves h2, and repaired inside the `:443` host certbot wrote when that host
+  # carries a list of its own, which would override the server-scope one (see
+  # render_protocols_conf and repair_tls_vhost_protocols).
   if [ -e /etc/apache2/mods-available/http2.load ]; then
     run a2enmod -q http2
+
+    if write_config 644 root:root "/etc/apache2/conf-available/$SERVICE-protocols.conf" < <(render_protocols_conf); then
+      info "enabling the server-wide protocol list"
+    else
+      info "/etc/apache2/conf-available/$SERVICE-protocols.conf is already up to date"
+    fi
+    run a2enconf -q "$SERVICE-protocols"
+
+    # A configuration Apache rejects would keep every later reload of this host broken, so the
+    # file goes away again when it is the reason for that - the module's own file still carries
+    # the protocol for the hosts that read it.
+    if [ "$DRY_RUN" -eq 0 ] && ! apache2ctl configtest; then
+      warn "Apache rejected $SERVICE-protocols.conf; the protocol is left to the module's own file."
+      run a2disconf -q "$SERVICE-protocols"
+    fi
+
+    run repair_tls_vhost_protocols
   else
     warn "mod_http2 is not available here; the site is served over HTTP/1.1."
   fi
