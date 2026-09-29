@@ -4,7 +4,7 @@ import Badge from './Badge.astro';
 import { FOOTER_LINKS, BRAND_NAME, SITE_DESCRIPTION, SITE_DESCRIPTION_I18N, SOCIAL_LINKS } from '../config';
 import { resolvePath } from '../utils/navigation';
 import hypernovaLogo from '../images/hypernova-logo.png';
-import { FALLBACK_LANG, isLanguage, type i18n, type Language } from '../i18n/ui';
+import type { i18n } from '../i18n/ui';
 import { useTranslations } from '../i18n/utils';
 
 const i18n: i18n = {
@@ -25,23 +25,15 @@ const i18n: i18n = {
     '", a fork of "': '", joka on "',
     // The trust badge under the tagline. It is not one sentence translated twice: the Finnish
     // pages make the Finnish claim a domestic buyer is looking for, and the English pages the
-    // one a reader abroad is, each with the flag that belongs to it (TRUST_FLAG below). The
-    // English key is the English sentence, as everywhere else in these dictionaries.
-    'GDPR and privacy first': 'Kotimaista laatutyötä',
+    // one a reader abroad is. The flag beside it is the same in both languages - Finland's, the
+    // country of origin, given to the badge below - so the mark does not change with the
+    // language. The English key is the English sentence, as everywhere else in these dictionaries.
+    'Nordic quality. Privacy first.': 'Kotimaista laatutyötä',
     '".': '"-teeman haarautuma.'
   }
 };
 i18n['fi'][SITE_DESCRIPTION] = SITE_DESCRIPTION_I18N['fi'];
 const t = useTranslations(i18n, Astro);
-
-const lang: Language = isLanguage(Astro.locals.lang) ? Astro.locals.lang : FALLBACK_LANG;
-
-/**
- * The flag the trust badge wears, per language: Finland on the Finnish pages, the European Union
- * on the English ones, in each case the flag of the claim written beside it. `Badge.astro` draws
- * the mark from `src/images/flags` and holds the rules for both files.
- */
-const TRUST_FLAG: Record<Language, 'fi' | 'eu'> = { fi: 'fi', en: 'eu' };
 ---
 
 <footer class="bg-white dark:bg-night border-t border-zinc-200 dark:border-night-line pt-16 pb-8 transition-colors">
@@ -58,7 +50,9 @@ const TRUST_FLAG: Record<Language, 'fi' | 'eu'> = { fi: 'fi', en: 'eu' };
         <p class="text-zinc-600 dark:text-zinc-400 text-sm mb-6">
           {t(SITE_DESCRIPTION)}
         </p>
-        <Badge variant="neutral" flag={TRUST_FLAG[lang]}>{t('GDPR and privacy first')}</Badge>
+        {/* The flag is the country's, not the language's: one company, one country of origin,
+            whichever language the claim beside the mark is written in. */}
+        <Badge variant="neutral" flag="fi">{t('Nordic quality. Privacy first.')}</Badge>
       </div>
 
       <!-- Links -->

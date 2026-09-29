@@ -1,19 +1,20 @@
 /**
- * Unit tests for the trust badge in the footer - the flag-marked label under the site's tagline -
- * and for the flag files it draws.
+ * Unit tests for the trust badge in the footer - the Finnish flag-marked label under the site's
+ * tagline - and for the flag file it draws.
  *
  * It is the one place where the two languages do not say the same thing in two languages: a
- * Finnish reader is told the work is Finnish and a reader of the English pages where their data
- * stays, each with the flag that belongs to it (TRUST_FLAG in Footer.astro). The first test holds
- * that pair; the second holds the files behind the marks and the ratio they are drawn at, because
- * a mark with no file behind it draws nothing, and one drawn into a box of another shape than the
- * flag letterboxes it.
+ * Finnish reader reads that the work is Finnish (`Kotimaista laatutyötä`) and a reader of the
+ * English pages that the quality is Nordic and privacy comes first. The flag is not the
+ * language's, though: both wear Finland's (`flag="fi"` in Footer.astro), the country of origin of
+ * the company the claim is about. The first test holds that pair; the second holds the file
+ * behind the mark and the ratio it is drawn at, because a mark with no file behind it draws
+ * nothing, and one drawn into a box of another shape than the flag letterboxes it.
  *
- * The third holds the budget the marks stay inside. The e2e case *the language picker draws its
+ * The third holds the budget the mark stays inside. The e2e case *the language picker draws its
  * own flag* counts the rules on a page that read as a country flag and allows two - the pair the
- * picker draws (LanguagePicker.astro) - so a badge whose marks were named the way the picker names
- * its flags (`fi-eu`, say) would fail a page check over about a kilobyte of SVG. That is why they
- * are `badge-flag-*`, and this is what keeps them that way.
+ * picker draws (LanguagePicker.astro) - so a badge whose mark were named the way the picker names
+ * its flags (`fi-fi`, say) would fail a page check over about a kilobyte of SVG. That is why it is
+ * `badge-flag-fi`, and this is what keeps it that way.
  *
  * They run with Node's own test runner and type stripping, so no test framework is needed:
  *
@@ -48,57 +49,62 @@ function viewBoxRatio(source: string): number {
   return Number(width) / Number(height);
 }
 
-test('the footer makes a different claim in each language, with its own flag', () => {
+test('the footer makes a different claim in each language, under the one flag', () => {
   const footer = readFileSync(FOOTER, 'utf8');
 
   // One entry, whose Finnish side is not a translation of its English key: each is the claim of
   // the reader it is written for.
   assert.match(
     footer,
-    /'GDPR and privacy first': 'Kotimaista laatutyötä'/,
+    /'Nordic quality\. Privacy first\.': 'Kotimaista laatutyötä'/,
     `${FOOTER} no longer says the Finnish thing under the Finnish tagline`,
   );
 
-  // The flag follows the language the page is read in, and the pair is the one intended.
-  const map = /const TRUST_FLAG[^=]*=\s*\{([^}]*)\}/.exec(footer)?.[1] ?? '';
-  const flags = Object.fromEntries(
-    [...map.matchAll(/(\w+):\s*'(\w+)'/g)].map((match) => [match[1], match[2]]),
-  );
-
-  assert.deepEqual(
-    flags,
-    { fi: 'fi', en: 'eu' },
-    `${FOOTER} draws ${JSON.stringify(flags)}: the Finnish pages carry the Finnish flag and the ` +
-      'English pages the European one, each beside the claim it belongs to',
-  );
-
+  // One flag for both languages, and it is Finland's: the mark is the country of origin of the
+  // company, not a label of the language the page is read in.
   assert.match(
     footer,
-    /flag=\{TRUST_FLAG\[lang\]\}/,
-    `${FOOTER} no longer gives the badge the flag of the language it is read in`,
+    /flag="fi"/,
+    `${FOOTER} no longer gives the badge the Finnish flag`,
+  );
+
+  // The claim the badge used to make in English is gone, and with it the mark it wore.
+  assert.doesNotMatch(
+    footer,
+    /GDPR|European Union/,
+    `${FOOTER} still carries the GDPR claim the badge dropped`,
   );
 });
 
 test('the badge draws a flag the site holds a file for, at the flag its file is drawn in', () => {
   const badge = readFileSync(BADGE, 'utf8');
+  const path = join(FLAGS, 'fi.svg');
 
-  for (const file of ['fi.svg', 'eu.svg']) {
-    const path = join(FLAGS, file);
+  assert.ok(existsSync(path), `${path} is gone, and the mark that names it draws nothing`);
+  assert.match(
+    badge,
+    /url\('\.\.\/images\/flags\/fi\.svg'\)/,
+    `${BADGE} no longer draws fi.svg`,
+  );
 
-    assert.ok(existsSync(path), `${path} is gone, and the mark that names it draws nothing`);
-    assert.match(
-      badge,
-      new RegExp(`url\\('\\.\\./images/flags/${file.replace('.', '\\.')}'\\)`),
-      `${BADGE} no longer draws ${file}`,
-    );
+  // 4:3, the shape of the mark's box, so `contain` fills it rather than letterboxing the flag.
+  assert.equal(
+    viewBoxRatio(readFileSync(path, 'utf8')),
+    4 / 3,
+    `${path} is not the 4:3 file the mark's box is drawn for`,
+  );
 
-    // 4:3, the shape of the mark's box, so `contain` fills it rather than letterboxing the flag.
-    assert.equal(
-      viewBoxRatio(readFileSync(path, 'utf8')),
-      4 / 3,
-      `${path} is not the 4:3 file the mark's box is drawn for`,
-    );
-  }
+  // The European flag the badge used to wear is out of the repository and out of the stylesheet,
+  // so nothing draws it back by naming a file that is no longer there.
+  assert.ok(
+    !existsSync(join(FLAGS, 'eu.svg')),
+    `${join(FLAGS, 'eu.svg')} is back, and no rule draws it`,
+  );
+  assert.doesNotMatch(
+    badge,
+    /badge-flag-eu|eu\.svg/,
+    `${BADGE} still names the European flag, which no file draws any more`,
+  );
 
   assert.match(
     badge,
@@ -113,8 +119,8 @@ test('the badge marks stay out of the flag rule budget the picker owns', () => {
 
   assert.deepEqual(
     classes,
-    ['badge-flag', 'badge-flag-fi', 'badge-flag-eu'],
-    `${BADGE} styles something other than the two flags it can draw`,
+    ['badge-flag', 'badge-flag-fi'],
+    `${BADGE} styles something other than the one flag it can draw`,
   );
 
   for (const name of classes) {

@@ -1077,15 +1077,17 @@ test.describe('localization', () => {
     await expect(footer.locator('a[href="https://github.com/farrosfr/zenix"]')).toHaveText('Zenix');
   });
 
-  test('the trust badge under the tagline follows the language, flag and all', async ({ page }) => {
+  test('the trust badge under the tagline follows the language, under one flag', async ({ page }) => {
     const footer = page.locator('body > footer').first();
     const mark = footer.locator('.badge-flag').first();
 
     await page.goto('/');
 
     const tagline = footer.getByText('Cost-effective Open Source Services');
-    const badge = footer.getByText('GDPR and privacy first');
+    const badge = footer.getByText('Nordic quality. Privacy first.');
     await expect(badge).toBeVisible();
+    // The English claim the badge used to make is gone, with the European flag that came with it.
+    await expect(footer.getByText('GDPR and privacy first')).toHaveCount(0);
 
     /*
      * The mark is a background image on an empty span, so a mark that is really there - and
@@ -1108,14 +1110,15 @@ test.describe('localization', () => {
       'the trust badge is not in the column the tagline is written in',
     ).toBeLessThan(1);
 
-    // Read in Finnish: the same badge, saying the Finnish thing under the Finnish flag.
+    // Read in Finnish: the same badge, saying the Finnish thing under the same flag - the mark is
+    // the country's, not the language's, so it does not follow the page.
     await page.goto('/?l=fi');
     await expect(footer.getByText('Kotimaista laatutyötä')).toBeVisible();
-    await expect(footer.getByText('GDPR and privacy first')).toHaveCount(0);
+    await expect(footer.getByText('Nordic quality. Privacy first.')).toHaveCount(0);
 
     const finnish = await mark.evaluate((el) => getComputedStyle(el).backgroundImage);
     expect(finnish, 'the Finnish trust badge draws no flag').toContain('svg');
-    expect(finnish, 'both languages draw the same flag').not.toBe(english);
+    expect(finnish, 'the two languages draw the same flag').toBe(english);
   });
 
 });

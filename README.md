@@ -240,9 +240,10 @@ entries for that reason.
 
 The trust badge under the tagline at the top of the footer is the one entry in these
 dictionaries whose Finnish side is not a translation of its English key: the Finnish pages
-carry the claim of a reader here and the English pages the claim of a reader abroad, and each
-keeps the flag that belongs to it - `TRUST_FLAG` in `Footer.astro`, Finland for `fi` and the
-European Union for `en` - which `Badge.astro` draws from `src/images/flags`.
+carry the claim of a reader here (`Kotimaista laatutyötä`) and the English pages the claim of
+a reader abroad (`Nordic quality. Privacy first.`), and both wear the same flag - Finland's,
+the company's country of origin, written into the markup as `flag="fi"` in `Footer.astro` -
+which `Badge.astro` draws from `src/images/flags`.
 
 The language switcher is `src/components/LanguagePicker.astro`. It links to the same page
 with `?l=`, so changing language never leaves the page the visitor is on. The desktop nav
@@ -394,8 +395,8 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   the language code the markup holds (`fi-en` beside `fi-fi`) while the file keeps the code
   `flag-icons` names the flag by, which for English is a country's - there is no English flag,
   and `gb.svg` is what the picker has always drawn beside its English label. The footer's trust
-  badge draws a third file, `eu.svg` (same source, the package's `flags/4x3`), from
-  `Badge.astro` and its rules live there - named `badge-flag-*` rather than the `fi-*` shape
+  badge draws the Finnish file too, beside a claim written in either language, from
+  `Badge.astro`, and its rule lives there - named `badge-flag-fi` rather than the `fi-*` shape
   a language code gives, because a rule that reads as a country flag to the case below is a
   rule it counts. The e2e case *the language picker draws its own flag* fails if a page
   carries a flag rule for a language the picker does not link to.
