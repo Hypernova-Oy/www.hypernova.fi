@@ -30,7 +30,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(dirname -- "$SCRIPT_DIR")"
 
 # Every language the index is localized for (src/i18n/ui.ts).
-LANGS="gb fi"
+LANGS="en fi"
 
 # Mirrors astro.config.mjs (`site`) and the service name used on the servers. All of them
 # can be overridden per run or through the environment.
@@ -170,7 +170,7 @@ fi
 if [ "$DO_RESTART" -eq 1 ]; then
   restart_service
   info "Waiting for $BASE_URL to answer again"
-  wait_for_url "$BASE_URL/search-index.json?l=gb" "$WAIT_SECONDS" ||
+  wait_for_url "$BASE_URL/search-index.json?l=en" "$WAIT_SECONDS" ||
     fail "$BASE_URL did not serve JSON within ${WAIT_SECONDS}s after the restart"
 else
   info "Skipping the restart (--no-restart)"
@@ -187,7 +187,7 @@ info "Starting the new build on $PROBE_BASE for comparison"
 HOST=127.0.0.1 PORT="$PROBE_PORT" node "$SERVER_ENTRY" >"$PROBE_LOG" 2>&1 &
 PROBE_PID=$!
 
-if ! wait_for_url "$PROBE_BASE/search-index.json?l=gb" 30; then
+if ! wait_for_url "$PROBE_BASE/search-index.json?l=en" 30; then
   warn "The new build did not answer on $PROBE_BASE:"
   tail -n 20 "$PROBE_LOG" >&2 || true
   fail "cannot compare the indexes without the new build running"
@@ -199,7 +199,7 @@ STATUS=0
 CHECK_LIVE_BASE="$BASE_URL" CHECK_PROBE_BASE="$PROBE_BASE" CHECK_LANGS="$LANGS" \
   node --input-type=module -e "$(cat <<'NODE'
 const FIELDS = ['slug', 'title', 'description', 'keywords', 'content', 'type'];
-const langs = (process.env.CHECK_LANGS ?? 'gb').trim().split(/\s+/);
+const langs = (process.env.CHECK_LANGS ?? 'en').trim().split(/\s+/);
 const bases = {
   'live site': process.env.CHECK_LIVE_BASE,
   'new build': process.env.CHECK_PROBE_BASE,

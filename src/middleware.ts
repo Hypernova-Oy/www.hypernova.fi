@@ -1,5 +1,5 @@
 import { defineMiddleware } from 'astro:middleware';
-import { FALLBACK_LANG, isLanguage } from './i18n/ui';
+import { FALLBACK_LANG, resolveLanguage } from './i18n/ui';
 import { canonicalRedirectTarget } from './utils/canonical-host';
 
 const LANGUAGE_COOKIE = 'language';
@@ -15,8 +15,11 @@ const UNCACHEABLE_PAGES = new Set(['/contact/', '/koha/']);
  * Resolves the UI language once per request and stores it in `Astro.locals.lang`
  * so every page and component reads the same, request-scoped value.
  *
- * Precedence: `?l=` query parameter -> `language` cookie -> English fallback.
- * The choice is persisted in the `language` cookie (skipped for link prefetches).
+ * Precedence: `?l=` query parameter -> `language` cookie -> English fallback. A value that names
+ * no language of ours is skipped, with one exception: `gb`, the code the previous site wrote for
+ * English, is read as `en` (LEGACY_LANG in src/i18n/ui.ts). The choice is persisted in the
+ * `language` cookie (skipped for link prefetches), so a cookie still holding that old code is
+ * rewritten with the one this site carries.
  *
  * Before any of that, a request that arrives under the other name of the site is sent to the
  * address of the deployment - `site` in astro.config.mjs, which is the name the virtual host in
@@ -36,7 +39,7 @@ export const onRequest = defineMiddleware(async (context, next) => {
   const requested = url.searchParams.get('l');
   const stored = cookies.get(LANGUAGE_COOKIE)?.value;
 
-  const lang = [requested, stored].find((value) => isLanguage(value)) ?? FALLBACK_LANG;
+  const lang = [requested, stored].map(resolveLanguage).find((value) => value) ?? FALLBACK_LANG;
 
   locals.lang = lang;
 

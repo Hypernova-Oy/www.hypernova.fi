@@ -1,5 +1,5 @@
 export const languages = {
-    gb: 'English',
+    en: 'English',
     fi: 'Suomi',
   };
   
@@ -10,7 +10,7 @@ export const languages = {
 export const defaultLang = 'fi';
 
 /** Language used when the visitor has not chosen one. */
-export const FALLBACK_LANG = 'gb';
+export const FALLBACK_LANG = 'en';
 
 export type Language = keyof typeof languages;
 
@@ -21,18 +21,24 @@ export function isLanguage(value: unknown): value is Language {
 }
 
 /**
- * The `lang` attribute of the document, per UI language. The codes this site carries in its
- * URLs, its `?l=` parameter and its cookie are labels of its own - `gb` is not an ISO 639-1
- * code, and the previous site's URLs (and their search entries) are built on it - while `lang`
- * has to be a real language tag: it is the language a screen reader picks a voice with and the
- * one the browser hyphenates and spell-checks with.
+ * The name the previous site gave English, in the URLs it handed out, in its search entries and in
+ * the `language` cookie it left in its visitors' browsers: `gb`, a country code rather than a
+ * language one. That is why this site does not carry it over into `languages`: what it writes is
+ * `en`, a code that is also the language tag the document needs for a screen reader to pick a
+ * voice with, and for the browser to hyphenate and spell-check with.
+ *
+ * The old name is still answered, and answered as English, wherever a language arrives from
+ * outside - a `?l=` value in a link that is years old, or a cookie a returning visitor's browser
+ * has held since then - and nothing writes it: src/middleware.ts resolves the request and stores
+ * the code it resolved, so the cookie is rewritten with `en` the first time such a visitor is back.
  */
-export const HTML_LANG: Record<Language, string> = {
+const LEGACY_LANG: Record<string, Language | undefined> = {
     gb: 'en',
-    fi: 'fi',
 };
 
-/** The `lang` attribute for a resolved request language, English when it is not one of ours. */
-export function htmlLang(value: unknown): string {
-    return HTML_LANG[isLanguage(value) ? value : FALLBACK_LANG];
+/** The language a `?l=` value or a stored cookie names, `undefined` when it names none of ours. */
+export function resolveLanguage(value: unknown): Language | undefined {
+    if (typeof value !== 'string') return undefined;
+
+    return isLanguage(value) ? value : LEGACY_LANG[value];
 }

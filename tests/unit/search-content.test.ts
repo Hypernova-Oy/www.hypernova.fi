@@ -179,7 +179,7 @@ test('a page that cannot be read only loses its own text', async () => {
     const text = await withoutWarnings(async (warnings) => {
       const result = await loadPageText({
         origin: site.origin,
-        lang: 'gb',
+        lang: 'en',
         slugs: ['/koha/', '/privacy/', '/terms/'],
       });
 
@@ -202,7 +202,7 @@ test('without cache every request reads the pages again', async () => {
   const site = await startSite({ '/terms/': '<main>Terms</main>' });
 
   try {
-    const options = { origin: site.origin, lang: 'gb', slugs: ['/terms/'] } as const;
+    const options = { origin: site.origin, lang: 'en', slugs: ['/terms/'] } as const;
 
     await loadPageText(options);
     await loadPageText(options);

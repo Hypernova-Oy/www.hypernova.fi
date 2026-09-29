@@ -2,9 +2,9 @@
 import BaseLayout from '../layouts/BaseLayout.astro';
 import LegalDocument from '../components/LegalDocument.astro';
 import { privacyPolicy } from '../legal/privacy-policy';
-import { isLanguage, type Language } from '../i18n/ui';
+import { FALLBACK_LANG, isLanguage, type Language } from '../i18n/ui';
 
-const lang: Language = isLanguage(Astro.locals.lang) ? Astro.locals.lang : 'gb';
+const lang: Language = isLanguage(Astro.locals.lang) ? Astro.locals.lang : FALLBACK_LANG;
 ---
 
 <BaseLayout title={privacyPolicy.title[lang]} description={privacyPolicy.description[lang]}>

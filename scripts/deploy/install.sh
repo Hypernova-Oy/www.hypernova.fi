@@ -1346,7 +1346,7 @@ obtain_certificate() {
 # index it serves is complete - for every language.
 check_search_index() {
   local base="$1" language json
-  local languages=("gb" "fi")
+  local languages=("en" "fi")
 
   for language in "${languages[@]}"; do
     json="$(curl -fsS --max-time 30 "$base/search-index.json?l=$language")" || {

@@ -41,7 +41,7 @@ const lang: Language = isLanguage(Astro.locals.lang) ? Astro.locals.lang : FALLB
  * on the English ones, in each case the flag of the claim written beside it. `Badge.astro` draws
  * the mark from `src/images/flags` and holds the rules for both files.
  */
-const TRUST_FLAG: Record<Language, 'fi' | 'eu'> = { fi: 'fi', gb: 'eu' };
+const TRUST_FLAG: Record<Language, 'fi' | 'eu'> = { fi: 'fi', en: 'eu' };
 ---
 
 <footer class="bg-white dark:bg-night border-t border-zinc-200 dark:border-night-line pt-16 pb-8 transition-colors">

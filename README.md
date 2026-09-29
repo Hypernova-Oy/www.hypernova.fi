@@ -212,6 +212,12 @@ Keep those headers when adding entries, and keep the entry shape (`title`,
 The current language is resolved once per request in `src/middleware.ts`
 (`?l=` parameter → `language` cookie → English) and stored in `Astro.locals.lang`.
 
+The codes it resolves to are `en` and `fi` (`languages` in `src/i18n/ui.ts`), and each is also
+the `lang` attribute of the document it renders: both are real language tags, which is what that
+attribute has to be. The name the previous site gave English, `gb`, is read as `en` in the links
+and the cookies that still carry it (`LEGACY_LANG` in `src/i18n/ui.ts`) and never written: the
+cookie stores the code that was resolved, so an old one is rewritten on the next visit.
+
 Pages and components declare their own dictionary and translate through
 `useTranslations`:
 
@@ -236,7 +242,7 @@ The trust badge under the tagline at the top of the footer is the one entry in t
 dictionaries whose Finnish side is not a translation of its English key: the Finnish pages
 carry the claim of a reader here and the English pages the claim of a reader abroad, and each
 keeps the flag that belongs to it - `TRUST_FLAG` in `Footer.astro`, Finland for `fi` and the
-European Union for `gb` - which `Badge.astro` draws from `src/images/flags`.
+European Union for `en` - which `Badge.astro` draws from `src/images/flags`.
 
 The language switcher is `src/components/LanguagePicker.astro`. It links to the same page
 with `?l=`, so changing language never leaves the page the visitor is on. The desktop nav
@@ -384,7 +390,10 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   rule per country - about 250 of them, most carrying a base64 copy of the flag. Imported
   globally it resolved to 421 KB of CSS, which every page then carried: `/` weighed
   563 KB, 421 KB of it flags for countries the site cannot be read in. The two files it
-  needs live in `src/images/flags` and the rules are in the component. The footer's trust
+  needs live in `src/images/flags` and the rules are in the component: the class is built from
+  the language code the markup holds (`fi-en` beside `fi-fi`) while the file keeps the code
+  `flag-icons` names the flag by, which for English is a country's - there is no English flag,
+  and `gb.svg` is what the picker has always drawn beside its English label. The footer's trust
   badge draws a third file, `eu.svg` (same source, the package's `flags/4x3`), from
   `Badge.astro` and its rules live there - named `badge-flag-*` rather than the `fi-*` shape
   a language code gives, because a rule that reads as a country flag to the case below is a
@@ -611,7 +620,7 @@ The privacy policy and the terms of service are structured, bilingual content in
   separate agreement, order confirmation and service description for each service.
 
 Both language versions live in the same file. When you change wording, update the English
-(`gb`) and Finnish (`fi`) text together, bump `version` and `updated`, and have the change
+(`en`) and Finnish (`fi`) text together, bump `version` and `updated`, and have the change
 reviewed before publishing.
 
 ## Deployment

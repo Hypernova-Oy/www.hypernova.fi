@@ -724,7 +724,7 @@ test.describe('navigation', () => {
 
     await page.getByRole('button', { name: 'Avaa päävalikko' }).click();
     await expect(menu.getByText('Kieli', { exact: true })).toBeVisible();
-    await expect(menu.locator('a[href="?l=gb"]')).toContainText('English');
+    await expect(menu.locator('a[href="?l=en"]')).toContainText('English');
   });
 
   test('command palette opens with Ctrl+K and closes with Escape', async ({ page }) => {
@@ -980,10 +980,28 @@ test.describe('localization', () => {
   test('English is the default without a language cookie', async ({ page }) => {
     await page.goto('/');
 
-    // `en`, not the site's own code for English (`gb`, the one in its URLs and its cookie):
-    // the attribute is a real language tag, see HTML_LANG in src/i18n/ui.ts.
+    // `en`, the code of the English pages in src/i18n/ui.ts and a real language tag at once: the
+    // `lang` attribute is what a screen reader picks a voice with, so it is never a label of the
+    // site's own.
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.getByRole('heading', { name: 'Free & Open' })).toBeVisible();
+  });
+
+  test('the old name for English is read as English, cookie or not', async ({ page }) => {
+    // The previous site named English `gb` in the `?l=` of the URLs it handed out, in its search
+    // entries and in the `language` cookie it left behind, so that name is still answered - as
+    // English (LEGACY_LANG in src/i18n/ui.ts). Finnish first, because a name that was dropped
+    // instead of read would leave this request to the cookie, which says Finnish.
+    await page.goto('/?l=fi');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fi');
+
+    await page.goto('/?l=gb');
+    await expect(page.locator('html')).toHaveAttribute('lang', 'en');
+    await expect(page.getByRole('heading', { name: 'Free & Open' })).toBeVisible();
+
+    // What is remembered is the code this site carries, so the old one is answered once rather
+    // than kept alive in the visitor's browser.
+    expect(await page.evaluate(() => document.cookie)).toContain('language=en');
   });
 
   test('an unsupported language falls back to English instead of crashing', async ({ page }) => {
@@ -1483,8 +1501,7 @@ test.describe('layout regressions', () => {
       'the prefetch wrote the language cookie',
     ).not.toContain('language=fi');
 
-    // Still the English document: the attribute is `en`, not the site's own code for it (see
-    // HTML_LANG in src/i18n/ui.ts).
+    // Still the English document; its `lang` is the code of the page, `en` (src/i18n/ui.ts).
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   });
 

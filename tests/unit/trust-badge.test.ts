@@ -67,7 +67,7 @@ test('the footer makes a different claim in each language, with its own flag', (
 
   assert.deepEqual(
     flags,
-    { fi: 'fi', gb: 'eu' },
+    { fi: 'fi', en: 'eu' },
     `${FOOTER} draws ${JSON.stringify(flags)}: the Finnish pages carry the Finnish flag and the ` +
       'English pages the European one, each beside the claim it belongs to',
   );

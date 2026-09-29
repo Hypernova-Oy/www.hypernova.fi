@@ -7,7 +7,7 @@ import Footer from '../components/Footer.astro';
 import CommandPalette from '../components/CommandPalette.astro';
 import { SITE_TITLE, SITE_DESCRIPTION, SITE_DESCRIPTION_I18N, SITE_URL } from '../config';
 import { resolvePath } from '../utils/navigation';
-import { htmlLang, type i18n } from '../i18n/ui';
+import { FALLBACK_LANG, resolveLanguage, type i18n } from '../i18n/ui';
 import { useTranslations } from '../i18n/utils';
 /*
  * The theme script is inlined into the document exactly as it is written here (see the
@@ -91,12 +91,12 @@ const structuredData =
         url: siteURL,
       };
 
-// The UI language is resolved per request in src/middleware.ts. Its codes are this site's own
-// labels - `gb` is not an ISO 639-1 code, and the previous site's URLs are built on it - while
-// the `lang` attribute has to be a real language tag: it is what a screen reader picks a voice
-// with (see HTML_LANG in src/i18n/ui.ts).
-const lang = Astro.locals.lang;
-const documentLang = htmlLang(lang);
+// The UI language is resolved per request in src/middleware.ts, and it is also the code the document
+// carries as its `lang` attribute: both codes of src/i18n/ui.ts - `en` and `fi` - are real language
+// tags, which is what that attribute has to be. It is the tag a screen reader picks a voice with,
+// and the one the browser hyphenates and spell-checks with. The name the previous site used for
+// English (`gb`) is read as `en` before it reaches here, and is never written back.
+const documentLang = resolveLanguage(Astro.locals.lang) ?? FALLBACK_LANG;
 ---
 
 <!DOCTYPE html>

@@ -26,11 +26,11 @@ const PAGES: PageEntry[] = [
     slug: '/',
     type: 'Page',
     title: {
-      gb: 'Home - Free and Open Source software services',
+      en: 'Home - Free and Open Source software services',
       fi: 'Etusivu - vapaan ja avoimen lähdekoodin palvelut',
     },
     description: {
-      gb: 'What we host, support and develop for libraries - and why we build on open source.',
+      en: 'What we host, support and develop for libraries - and why we build on open source.',
       fi: 'Mitä ylläpidämme, tuemme ja kehitämme kirjastoille - ja miksi rakennamme avoimelle lähdekoodille.',
     },
     keywords: 'hypernova foss avoin lähdekoodi open source kirjasto library yleisesittely',
@@ -38,9 +38,9 @@ const PAGES: PageEntry[] = [
   {
     slug: '/services/',
     type: 'Page',
-    title: { gb: 'Our services', fi: 'Palvelumme' },
+    title: { en: 'Our services', fi: 'Palvelumme' },
     description: {
-      gb: 'Koha hosting, Lainuri and Toveri - what we deliver and to whom.',
+      en: 'Koha hosting, Lainuri and Toveri - what we deliver and to whom.',
       fi: 'Koha-pilvipalvelu, Lainuri ja Toveri - mitä toimitamme ja kenelle.',
     },
     keywords: 'services palvelut tarjonta kokonaisuus hinnasto quote tarjous',
@@ -48,9 +48,9 @@ const PAGES: PageEntry[] = [
   {
     slug: '/koha/',
     type: 'Page',
-    title: { gb: 'Koha library system', fi: 'Koha-kirjastojärjestelmä' },
+    title: { en: 'Koha library system', fi: 'Koha-kirjastojärjestelmä' },
     description: {
-      gb: 'The Open Source library system for acquisitions, circulation and catalogue.',
+      en: 'The Open Source library system for acquisitions, circulation and catalogue.',
       fi: 'Avoimen lähdekoodin kirjastojärjestelmä hankintaan, lainaukseen ja luettelointiin.',
     },
     keywords:
@@ -59,9 +59,9 @@ const PAGES: PageEntry[] = [
   {
     slug: '/koha-hosting/',
     type: 'Page',
-    title: { gb: 'Koha cloud hosting', fi: 'Kohan pilvipalvelu' },
+    title: { en: 'Koha cloud hosting', fi: 'Kohan pilvipalvelu' },
     description: {
-      gb: 'We host, update and monitor your Koha library system on our own servers in Finland.',
+      en: 'We host, update and monitor your Koha library system on our own servers in Finland.',
       fi: 'Ylläpidämme, päivitämme ja valvomme Koha-kirjastojärjestelmääsi omilla palvelimillamme Suomessa.',
     },
     keywords:
@@ -70,9 +70,9 @@ const PAGES: PageEntry[] = [
   {
     slug: '/lainuri-checkout-machine/',
     type: 'Page',
-    title: { gb: 'Lainuri checkout machine', fi: 'Lainuri-lainausautomaatti' },
+    title: { en: 'Lainuri checkout machine', fi: 'Lainuri-lainausautomaatti' },
     description: {
-      gb: 'Self-service checkout machine with an integrated receipt printer.',
+      en: 'Self-service checkout machine with an integrated receipt printer.',
       fi: 'Itsepalvelulainausautomaatti ja integroitu kuittitulostin.',
     },
     keywords:
@@ -81,9 +81,9 @@ const PAGES: PageEntry[] = [
   {
     slug: '/toveri-access-control-device/',
     type: 'Page',
-    title: { gb: 'Toveri access control device', fi: 'Toveri-kulunvalvontalaite' },
+    title: { en: 'Toveri access control device', fi: 'Toveri-kulunvalvontalaite' },
     description: {
-      gb: 'Access control for self-service libraries, with Koha patron authentication.',
+      en: 'Access control for self-service libraries, with Koha patron authentication.',
       fi: 'Kulunvalvonta itsepalvelukirjastoihin ja tunnistautuminen Koha-kirjaston asiakastiedoilla.',
     },
     keywords:
@@ -92,9 +92,9 @@ const PAGES: PageEntry[] = [
   {
     slug: '/contact/',
     type: 'Page',
-    title: { gb: 'Contact us', fi: 'Yhteystiedot' },
+    title: { en: 'Contact us', fi: 'Yhteystiedot' },
     description: {
-      gb: 'Contact details, quote requests and billing information.',
+      en: 'Contact details, quote requests and billing information.',
       fi: 'Yhteystiedot, tarjouspyynnöt ja laskutustiedot.',
     },
     keywords: 'yhteys contact yhteystiedot email sähköposti puhelin phone osoite address laskutus billing',
@@ -102,9 +102,9 @@ const PAGES: PageEntry[] = [
   {
     slug: '/privacy/',
     type: 'Page',
-    title: { gb: 'Privacy Policy', fi: 'Tietosuojaseloste' },
+    title: { en: 'Privacy Policy', fi: 'Tietosuojaseloste' },
     description: {
-      gb: 'How we process personal data, and your rights under the GDPR.',
+      en: 'How we process personal data, and your rights under the GDPR.',
       fi: 'Miten käsittelemme henkilötietoja ja mitkä ovat oikeutesi tietosuoja-asetuksen mukaan.',
     },
     keywords: 'tietosuoja gdpr privacy henkilötiedot personal data evästeet cookies rekisteri',
@@ -112,9 +112,9 @@ const PAGES: PageEntry[] = [
   {
     slug: '/terms/',
     type: 'Page',
-    title: { gb: 'Terms of Service', fi: 'Palveluehdot' },
+    title: { en: 'Terms of Service', fi: 'Palveluehdot' },
     description: {
-      gb: 'The terms that apply to using this website.',
+      en: 'The terms that apply to using this website.',
       fi: 'Verkkosivuston käyttöä koskevat ehdot.',
     },
     keywords: 'ehdot terms käyttöehdot sopimusehdot tekijänoikeus copyright vastuu liability',
@@ -131,9 +131,9 @@ const toIndexEntry = (page: PageEntry, lang: Language, content = '') => ({
   title: localized(page.title, lang),
   description: localized(page.description, lang),
   keywords: [
-    page.title.gb,
+    page.title.en,
     page.title.fi,
-    page.description.gb,
+    page.description.en,
     page.description.fi,
     page.keywords,
   ].join(' '),
@@ -182,9 +182,9 @@ export const GET: APIRoute = async ({ locals, url }) => {
             {
               slug: '/blog/',
               type: 'Blog',
-              title: { gb: 'Blog', fi: 'Blogi' },
+              title: { en: 'Blog', fi: 'Blogi' },
               description: {
-                gb: 'Articles about Free and Open Source software.',
+                en: 'Articles about Free and Open Source software.',
                 fi: 'Artikkeleita vapaasta ja avoimesta lähdekoodista.',
               },
               keywords: 'blog blogi artikkelit articles kirjoitukset',
@@ -208,9 +208,9 @@ export const GET: APIRoute = async ({ locals, url }) => {
             {
               slug: '/changelog/',
               type: 'Changelog',
-              title: { gb: 'Changelog', fi: 'Muutosloki' },
+              title: { en: 'Changelog', fi: 'Muutosloki' },
               description: {
-                gb: 'Product updates and release notes.',
+                en: 'Product updates and release notes.',
                 fi: 'Palveluiden päivitykset ja julkaisutiedotteet.',
               },
               keywords: 'muutosloki changelog release notes päivitykset updates versio',
