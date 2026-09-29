@@ -232,6 +232,12 @@ a sentence like that is broken into pieces around its links and each piece is
 translated where it sits. The credits line at the bottom of the footer is four
 entries for that reason.
 
+The trust badge under the tagline at the top of the footer is the one entry in these
+dictionaries whose Finnish side is not a translation of its English key: the Finnish pages
+carry the claim of a reader here and the English pages the claim of a reader abroad, and each
+keeps the flag that belongs to it - `TRUST_FLAG` in `Footer.astro`, Finland for `fi` and the
+European Union for `gb` - which `Badge.astro` draws from `src/images/flags`.
+
 The language switcher is `src/components/LanguagePicker.astro`. It links to the same page
 with `?l=`, so changing language never leaves the page the visitor is on. The desktop nav
 bar holds it as a pill of its own (`variant="inline"`, the default): the bar around it is
@@ -378,9 +384,12 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   rule per country - about 250 of them, most carrying a base64 copy of the flag. Imported
   globally it resolved to 421 KB of CSS, which every page then carried: `/` weighed
   563 KB, 421 KB of it flags for countries the site cannot be read in. The two files it
-  needs live in `src/images/flags` and the rules are in the component. The e2e case *the
-  language picker draws its own flag* fails if a page carries a flag rule for a language
-  the picker does not link to.
+  needs live in `src/images/flags` and the rules are in the component. The footer's trust
+  badge draws a third file, `eu.svg` (same source, the package's `flags/4x3`), from
+  `Badge.astro` and its rules live there - named `badge-flag-*` rather than the `fi-*` shape
+  a language code gives, because a rule that reads as a country flag to the case below is a
+  rule it counts. The e2e case *the language picker draws its own flag* fails if a page
+  carries a flag rule for a language the picker does not link to.
 - **The stylesheet is a file, not a copy in every page.** `build.inlineStylesheets:
   'auto'` in `astro.config.mjs` keeps Astro's default: small sheets are inlined, big ones
   are written to `/_astro/`. Tailwind's output is about 100 KB, and inlined it was re-sent

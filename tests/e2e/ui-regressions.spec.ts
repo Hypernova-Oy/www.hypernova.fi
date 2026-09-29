@@ -1055,6 +1055,48 @@ test.describe('localization', () => {
     await expect(footer.locator('a[href="https://github.com/Hypernova-Oy/www.hypernova.fi"]')).toHaveText('hypernova');
     await expect(footer.locator('a[href="https://github.com/farrosfr/zenix"]')).toHaveText('Zenix');
   });
+
+  test('the trust badge under the tagline follows the language, flag and all', async ({ page }) => {
+    const footer = page.locator('body > footer').first();
+    const mark = footer.locator('.badge-flag').first();
+
+    await page.goto('/');
+
+    const tagline = footer.getByText('Cost-effective Open Source Services');
+    const badge = footer.getByText('GDPR and privacy first');
+    await expect(badge).toBeVisible();
+
+    /*
+     * The mark is a background image on an empty span, so a mark that is really there - and
+     * sized - is the only thing that makes the flag visible; and the badge sits under the tagline
+     * it belongs to, in the tagline's own column.
+     */
+    const english = await mark.evaluate((el) => getComputedStyle(el).backgroundImage);
+    expect(english, 'the trust badge draws no flag').toContain('svg');
+
+    const boxes = await Promise.all([tagline.boundingBox(), badge.boundingBox(), mark.boundingBox()]);
+    for (const box of boxes) expect(box).not.toBeNull();
+
+    expect(boxes[2]!.width, 'the flag of the trust badge has collapsed to nothing').toBeGreaterThan(8);
+    expect(
+      boxes[1]!.y,
+      'the trust badge is not under the tagline it belongs to',
+    ).toBeGreaterThanOrEqual(boxes[0]!.y + boxes[0]!.height - 1);
+    expect(
+      Math.abs(boxes[1]!.x - boxes[0]!.x),
+      'the trust badge is not in the column the tagline is written in',
+    ).toBeLessThan(1);
+
+    // Read in Finnish: the same badge, saying the Finnish thing under the Finnish flag.
+    await page.goto('/?l=fi');
+    await expect(footer.getByText('Kotimaista laatutyötä')).toBeVisible();
+    await expect(footer.getByText('GDPR and privacy first')).toHaveCount(0);
+
+    const finnish = await mark.evaluate((el) => getComputedStyle(el).backgroundImage);
+    expect(finnish, 'the Finnish trust badge draws no flag').toContain('svg');
+    expect(finnish, 'both languages draw the same flag').not.toBe(english);
+  });
+
 });
 
 test.describe('forms', () => {

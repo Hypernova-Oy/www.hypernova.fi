@@ -1,10 +1,16 @@
 ---
 interface Props {
   variant?: 'primary' | 'success' | 'warning' | 'error' | 'neutral';
+  /**
+   * A country flag drawn before the label, for the badges that make a claim about where the
+   * company or the data is. The mark is decorative - the label beside it carries the meaning -
+   * and both files it can draw are in `src/images/flags`.
+   */
+  flag?: 'fi' | 'eu';
   class?: string;
 }
 
-const { variant = 'primary', class: className = '' } = Astro.props;
+const { variant = 'primary', flag, class: className = '' } = Astro.props;
 
 const baseStyles = "inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase";
 
@@ -16,9 +22,48 @@ const variants = {
   neutral: "bg-zinc-100 dark:bg-night-raise text-zinc-800 dark:text-zinc-300 border border-zinc-200 dark:border-night-line-strong",
 };
 
-const combinedClasses = `${baseStyles} ${variants[variant]} ${className}`;
+const combinedClasses = `${baseStyles} ${variants[variant]} ${flag ? 'gap-1.5' : ''} ${className}`;
 ---
 
 <span class={combinedClasses}>
+  {flag && <span class={`badge-flag badge-flag-${flag}`} aria-hidden="true"></span>}
   <slot />
 </span>
+
+<style>
+  /*
+   * The flag mark. Its files are the MIT-licensed flag-icons ones the picker's flags came from,
+   * copied into src/images/flags next to them (see LanguagePicker.astro for why the package's
+   * stylesheet is not imported). `assetsInlineLimit: 0` in astro.config.mjs keeps the two out of
+   * the stylesheet, so a marked badge is one small file under /_astro/ (eu.svg is 1.3 KB),
+   * fetched and cached like every other asset.
+   *
+   * The box is the flag's own 4:3: an empty span has no height of its own, and
+   * `background-size: contain` on a zero-high box draws nothing. `flex: none` keeps the label
+   * the thing that decides how wide the pill is.
+   *
+   * The names are `badge-flag-*`, deliberately not the `fi-*` shape the picker builds from a
+   * language code: the e2e case *the language picker draws its own flag* counts the rules on a
+   * page that read as a country flag and allows two - the pair the picker draws - so a third
+   * rule shaped like one fails a page check over a mark that costs about a kilobyte.
+   * tests/unit/trust-badge.test.ts holds that, and the translation and flag behind the footer
+   * badge this was added for.
+   */
+  .badge-flag {
+    display: inline-block;
+    flex: none;
+    width: 1.333333em;
+    aspect-ratio: 4 / 3;
+    background-position: 50%;
+    background-repeat: no-repeat;
+    background-size: contain;
+  }
+
+  .badge-flag-fi {
+    background-image: url('../images/flags/fi.svg');
+  }
+
+  .badge-flag-eu {
+    background-image: url('../images/flags/eu.svg');
+  }
+</style>

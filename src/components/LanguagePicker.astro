@@ -55,8 +55,9 @@ const linkClass =
    *
    * These are those rules, as the package has them: the box (1.333333em wide, one
    * line tall - the `:before` space is what gives the empty span its height) and
-   * the two backgrounds. Vite inlines assets this small, so the pair costs under a
-   * kilobyte in the page and no extra request. Both SVGs are the MIT-licensed
+   * the two backgrounds. They are two files under /_astro/, not data: URLs in the sheet:
+   * `assetsInlineLimit: 0` in astro.config.mjs keeps every asset a file of its own. Both SVGs
+   * are the MIT-licensed
    * flag-icons files (flags/4x3 in that package), renamed to the language codes this
    * component builds the class name from; the package itself was uninstalled, so a
    * third language means copying one more of its files here.
