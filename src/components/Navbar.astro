@@ -72,19 +72,29 @@ const t = useTranslations(i18n, Astro);
           Search button. It asks the palette to open through `data-search-trigger` and not through
           an inline `onclick`: `script-src` has no 'unsafe-inline' and a bare hash does not cover
           an attribute, so a browser refuses an inline handler and the button does nothing (the
-          bindings are in src/components/CommandPalette.astro).
+          bindings are in src/components/CommandPalette.astro). The accelerator is bound in that
+          same file but is not written on the control: the closed trigger is a search box, and the
+          badge only repeated what the palette's own empty state already says.
+
+          The label is `zinc-700` on `zinc-200` rather than the `zinc-500` on `zinc-100` it used
+          to be: at 14px that pair read 4.4:1, just under the 4.5:1 floor, and the two greys were
+          close enough that the closed control looked disabled next to the nav links
+          (tests/unit/search-trigger.test.ts holds both ends of that).
+
+          The chip is content-sized until xl and then keeps a floor of 11rem, which is the first
+          place the row has spare width for it (measured: 227px free with the Finnish labels at
+          1280, 91px at 1024, and none at 768, where the row already wraps). The floor is what
+          makes the box the same width in both languages - `Haku` is a shorter word than `Search`
+          - and it leaves the widening out of the layouts that have no room for it.
         -->
         <button
           type="button"
           data-search-trigger
-          class="flex items-center gap-2 px-3 py-1.5 text-sm font-medium text-zinc-500 dark:text-zinc-400 hover:text-zinc-900 dark:hover:text-white bg-zinc-100 dark:bg-night-raise rounded-lg border border-zinc-200 dark:border-night-line-strong transition-colors"
+          class="flex items-center gap-2 xl:min-w-44 px-3 py-1.5 text-sm font-medium text-zinc-700 dark:text-zinc-300 hover:text-zinc-900 dark:hover:text-white bg-zinc-200 dark:bg-night-line rounded-lg border border-zinc-300 dark:border-night-line-strong transition-colors"
           aria-label={t('Search')}
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
           <span>{t('Search')}</span>
-          <kbd class="hidden lg:inline-flex h-5 items-center gap-1 rounded border border-zinc-300 dark:border-zinc-600 bg-white dark:bg-night-card px-1.5 font-mono text-[10px] font-medium text-zinc-400">
-            <span data-search-shortcut>Ctrl K</span>
-          </kbd>
         </button>
 
         <!-- Theme Toggle -->
@@ -96,7 +106,12 @@ const t = useTranslations(i18n, Astro);
 
       <!-- Mobile menu button & Theme toggle -->
       <div class="md:hidden flex items-center gap-2">
-        <button type="button" data-search-trigger aria-label={t('Search')} class="p-2 text-zinc-500 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-night-raise focus:outline-none rounded-lg text-sm">
+        <!--
+          The narrow layout has no room for the label, so this is the same control as an icon. It
+          carries the weight the menu button beside it carries, rather than the lighter grey it
+          used to: one control should not be two colours between the two layouts.
+        -->
+        <button type="button" data-search-trigger aria-label={t('Search')} class="p-2 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-night-raise focus:outline-none rounded-lg text-sm">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><path d="m21 21-4.3-4.3"></path></svg>
         </button>
 
@@ -208,24 +223,13 @@ const t = useTranslations(i18n, Astro);
     }
   }
 
-  // Show the accelerator the current platform actually uses.
-  function setupSearchShortcutHint() {
-    const hint = document.querySelector('[data-search-shortcut]');
-    if (!hint) return;
-
-    const isApple = /Mac|iP(hone|ad|od)/.test(navigator.userAgent);
-    hint.textContent = isApple ? '⌘K' : 'Ctrl K';
-  }
-
   // Run on initial load
   setupTheme();
   setupMobileMenu();
-  setupSearchShortcutHint();
   
   // Run on View Transitions page changes
   document.addEventListener('astro:page-load', () => {
     setupTheme();
     setupMobileMenu();
-    setupSearchShortcutHint();
   });
 </script>

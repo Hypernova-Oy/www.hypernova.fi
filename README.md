@@ -140,6 +140,22 @@ The navbar search button and `Ctrl`/`Cmd` + `K` open the shared palette componen
 language and matches every word of the query against the title, the description, the
 hidden `keywords` and the `content` of an entry.
 
+The closed button is a chip with a fill of its own, not bare text like the links beside it, and
+the greys it wore first - `zinc-500` on `zinc-100` in light mode, `zinc-400` on `night-raise` in
+dark - read 4.39:1 and 5.35:1 there, close enough to their own fill that a closed search box looked
+disabled. A step further apart (`zinc-700` on `zinc-200`, 8.2:1, and `zinc-300` on the `night-line`
+surface, 8.0:1) leaves the label plainly the foreground and the fill plainly a surface above the
+bar. The chip does not write the accelerator on itself either: a `Ctrl K` badge that a script
+rewrote to `⌘K` on Apple hardware repeated what the palette's own empty state says one click later,
+and was a second place to keep in step with what actually opens the palette.
+`tests/unit/search-trigger.test.ts` holds the badge's absence and both ratios, so a restyle back
+into the old pair fails there rather than on a page.
+
+The chip is content-sized until `xl` and keeps a floor of 11rem from there, so `Search` and the
+shorter `Haku` give a box of the same width at the size most desktops are, and the layouts without
+room for it (1024px is down to 91px of spare width, 768px has none and already wraps) are left as
+they were.
+
 The component ships as a bundled script (`<script>`, not `is:inline`): the base path and the
 localized message it needs are `data-` attributes on the palette element, so one file - cached
 by its hash, see Performance notes - serves both languages and is parsed once rather than
