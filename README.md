@@ -386,9 +386,48 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
 - **Apache sends the pages Brotli-compressed where the browser can read it.** The deploy's
   virtual host adds the filter and enables `mod_brotli` when the host has the module, and
   `SetEnvIfExpr` takes mod_deflate out of a request whose client accepts `br` - that filter is
-  registered first and would otherwise answer with gzip. `/` is 12752 bytes over the wire
-  against gzip's 13417, and `/search-index.json`, which the stock gzip configuration does not
-  cover at all, is 9340 against 29467.
+  registered first and would otherwise answer with gzip. `/` is 9368 bytes over the wire
+  against gzip's 9900, and `/search-index.json`, which the stock gzip configuration does not
+  cover at all, is 9340 against 29467. A filter matches a response by its media type, so the
+  list has to name the one that is sent: it carried `application/javascript` and not the
+  `text/javascript; charset=utf-8` the Node adapter answers a bundled script with, so the
+  scripts of every page went out uncompressed to every browser - 21 KB of script source on `/`,
+  12 KiB of it under *Enable text compression* in a PageSpeed run - while a client that offers
+  only gzip still got a compressed file, because `no-gzip` takes the gzip filter out of exactly
+  the requests that offer `br`. The virtual host is not the only carrier: the deploy also writes
+  the block to `/etc/apache2/conf-available/hypernova-compression.conf` and enables it with
+  `a2enconf`, so the `:443` virtual host certbot wrote on the first deploy reads the list of the
+  day even though the deploy never writes that host again while a certificate exists. That copy
+  sits inside `<Location />` because a block at server scope is not enough there: mod_filter
+  merges the filter list of a virtual host with the server-scope one by the name of the filter
+  they each register, so the older list in that host wins for the types it names. Measured on a
+  host configured as a frozen `:443` copy - the old list in the vhost, the new one at server
+  scope - a script still went out as 488 bytes against Brotli's 269, exactly as if that second
+  block were not there; the same block inside `<Location />` merged as the filter config of a
+  directory, which is added after the host's own list, and sent 269. Two copies still compress
+  once, not twice: every response decoded to exactly the identity bytes of the file (36108,
+  96463, 488, 29467), which is what the merge by filter name buys.
+  `tests/unit/apache-compression.test.ts` fails if a type a page is made of, the `mod_brotli`
+  guard or the `no-gzip` line goes missing, if the two copies drift apart, or if the
+  server-scope one loses its `<Location />` or is left enabled after Apache rejects it.
+- **HTTP/2 is what keeps the requests of a page off a queue.** HTTP/1.1 opens six connections
+  per origin and `/` makes fourteen requests on one origin (the document, the stylesheet, three
+  fonts, eight scripts, one image), so the ones over the limit wait for a connection before
+  they can even be sent - the 985 ms chain document → page.js → index.js a PageSpeed run drew
+  was made of that. `configure_apache` enables `mod_http2` when the host has it (`apache2`
+  carries it on Debian and Ubuntu), and the `Protocols h2 h2c http/1.1` the package installs
+  next to the module is included at server scope, so the `:443` virtual host certbot wrote on
+  the first deploy is covered without being rewritten - a `Protocols` line in the vhost would
+  only ever reach the host the deploy writes it into. Before this the run reported *15 requests
+  not served via HTTP/2* and 460 ms under *Use HTTP/2 for faster loading*. Measured on one
+  machine, the same build behind three Apache virtual hosts that differ only in these directives,
+  three mobile runs each: as the deploy wrote it before, 98 with first contentful paint at 1.6 s;
+  the compression fix on its own, still over HTTP/1.1, 99 and 1.4 s; both, 100 and 0.9 s, with
+  the eight scripts of `/` at 9424 bytes over the wire against 27210. Both changes are needed,
+  and the second one is worth its 2.7 KB of headers alone: HPACK compresses them, where HTTP/1.1
+  sends about 350 bytes of them with every response.
+  `tests/unit/apache-http2.test.ts` holds both ends: the enabling, and that the protocol is not
+  set from the virtual host.
 - **Images are resized and re-encoded at the size they are drawn.** `astro.config.mjs` uses
   the default image service (sharp, already a dependency) instead of the
   `passthroughImageService()` it had, which answered every request with the original file: the
@@ -574,7 +613,7 @@ keeps the `.env` it was given, and the build it produces, across deploys.
 | --- | --- | --- |
 | `-d, --domain` | `www.hypernova.fi` | Public hostname: the canonical one (`ServerName`, certificate, canonical links). The same name with `www`, or without it, redirects to it |
 | `-p, --port`, `--host` | `4321`, `127.0.0.1` | Where the Node process listens |
-| `-s, --service` | `hypernova` | systemd unit and `/etc/apache2/sites-available/<name>.conf` |
+| `-s, --service` | `hypernova` | systemd unit, `/etc/apache2/sites-available/<name>.conf` and `/etc/apache2/conf-available/<name>-compression.conf` |
 | `-u, --user`, `--dir` | `hypernova`, `/opt/hypernova/app` | Service account and the checkout it owns |
 | `-r, --repo`, `-b, --branch` | this checkout | Git remote and branch to deploy |
 | `--source` | this checkout | Tree to copy into `--dir` |

@@ -797,9 +797,20 @@ install_unit() {
 # --- Apache output compression -----------------------------------------------------------
 # The vhosts below add this block. gzip already covers these types - Debian's
 # mods-enabled/deflate.conf adds it - and Brotli is smaller on them and covers
-# application/json, which that file does not: on this site `/` is 12752 bytes against gzip's
-# 13417, and /search-index.json is 9340 against 29467. The already-compressed formats
+# application/json, which that file does not: on this site `/` is 9368 bytes against gzip's
+# 9900, and /search-index.json is 9340 against 29467. The already-compressed formats
 # (woff2, png, webp, avif) are left alone and are not listed here.
+#
+# A filter matches a response by its media type, so a type the list does not name is not
+# compressed at all - and the type the Node adapter sends for a bundled script is
+# `text/javascript`. The list carried the `application/javascript` of older servers instead,
+# so the eight scripts of `/` (28536 bytes over the wire in a PageSpeed run) went out
+# uncompressed, 21 KB of them script source, ClientRouter.js 13617 bytes of that. Brotli
+# sends the six files the page itself pulls in as 7.4 KB, and the audit "Enable text
+# compression" counted the difference as 12 KiB. A client that offers only gzip still got a
+# compressed file, which is what kept the miss out of sight: `no-gzip` below takes the gzip
+# filter out of the requests that offer `br`, and every browser does, so a type that no
+# filter on the list matches reaches exactly those clients as it is on disk.
 #
 # Both filters are registered for the same types, and mod_deflate's runs first, so a browser
 # that offers `br, gzip` - all of them do - would be answered with gzip and the Brotli filter
@@ -809,12 +820,41 @@ install_unit() {
 #
 # The filter is only added where mod_brotli is loaded, which is why configure_apache()
 # enables the module when the host has it instead of making a host without it fail to start.
+# configure_apache() writes the same block at server scope as well, inside `<Location />`, so
+# the `:443` host certbot wrote on the first deploy reads the list of the day too - this script
+# does not rewrite that host while a certificate exists (see render_compression_conf).
 compression_directives() {
   cat <<'COMPRESSION'
   <IfModule mod_brotli.c>
-    AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/xml application/xml application/javascript application/json image/svg+xml
+    AddOutputFilterByType BROTLI_COMPRESS text/html text/plain text/css text/xml application/xml application/javascript text/javascript application/json image/svg+xml
     SetEnvIfExpr "%{HTTP:Accept-Encoding} =~ /(^|[ ,])br([ ,;]|$)/" no-gzip
   </IfModule>
+COMPRESSION
+}
+
+# The same block has to reach the `:443` virtual host certbot wrote on the first deploy, for the
+# reason obtain_certificate() gives below: while a certificate exists the deploy returns before
+# certbot runs, so that host keeps the text it was written with and render_vhost() never touches
+# it. A copy of the block at server scope - the way mods-available/http2.conf carries the
+# protocol - does reach that host, but a block on its own does not: mod_filter merges the filter
+# list of a virtual host with the one at server scope by the name of the filter they each
+# register, and the host's own list wins for the types it names. Measured on this host, a vhost
+# written with the list above, answered through a server-scope block, still sent its scripts as
+# 488 bytes where Brotli's answer is 269: the type the host's list does not name was left out
+# exactly as if the block were not there. Inside `<Location />` the block is merged as the filter
+# config of a directory instead, which is added after the virtual host's own list, and there it
+# does reach the type - the same vhost sent 269 bytes. The two blocks do not compress a response
+# twice, which is what the merge by filter name buys: everything they have in common decoded to
+# exactly the identity bytes of the file (36108, 96463, 488, 29467). The vhost keeps its own
+# copy, so a certificate issued later copies the current list into the host certbot writes, and
+# a host where this file is missing or rejected still compresses with it.
+render_compression_conf() {
+  cat <<COMPRESSION
+<IfModule mod_brotli.c>
+  <Location />
+$(compression_directives)
+  </Location>
+</IfModule>
 COMPRESSION
 }
 
@@ -1039,8 +1079,45 @@ configure_apache() {
   # <IfModule mod_brotli.c>, so a host without the module still runs - without those types.
   if [ -e /etc/apache2/mods-available/brotli.load ]; then
     run a2enmod -q brotli setenvif
+
+    # render_vhost writes the same block into the vhost, which is what a certificate issued
+    # later copies into the `:443` host; this server-wide copy is what reaches the `:443` host
+    # of a deployment that already has a certificate (see render_compression_conf).
+    if write_config 644 root:root "/etc/apache2/conf-available/$SERVICE-compression.conf" < <(render_compression_conf); then
+      info "enabling the server-wide copy of the compression block"
+    else
+      info "/etc/apache2/conf-available/$SERVICE-compression.conf is already up to date"
+    fi
+    run a2enconf -q "$SERVICE-compression"
+
+    # A configuration Apache rejects would keep every later reload of this host broken, so the
+    # file goes away again when it is the reason for that. The vhost keeps its own copy.
+    if [ "$DRY_RUN" -eq 0 ] && ! apache2ctl configtest; then
+      warn "Apache rejected $SERVICE-compression.conf; the vhost is left to compress on its own."
+      run a2disconf -q "$SERVICE-compression"
+    fi
   else
     warn "mod_brotli is not available here; responses are compressed with gzip only."
+  fi
+
+  # The document of `/` is followed by thirteen requests on the same origin - the stylesheet,
+  # three fonts and eight scripts - and HTTP/1.1 opens six connections per origin: the ones
+  # over that limit wait for a connection to come free, one round trip each on the phone
+  # connection PageSpeed simulates. That queue is what the 985 ms chain the run drew - document
+  # to page.js to index.js - was made of. mod_http2 multiplexes every one of them over the
+  # connection the document already arrived on.
+  #
+  # Debian and Ubuntu ship the module in the apache2 package, with a mods-available/http2.conf
+  # that carries `Protocols h2 h2c http/1.1`. That file is included at server scope, so
+  # enabling the module covers every virtual host of this Apache, including the `:443` one
+  # certbot wrote on the first deploy - which this script does not rewrite while the
+  # certificate is already there, so the protocol may not be left to the vhost below. h2c is
+  # the cleartext variant a client has to ask for; a browser only negotiates h2 over TLS, so a
+  # --no-tls host is served over HTTP/1.1 either way.
+  if [ -e /etc/apache2/mods-available/http2.load ]; then
+    run a2enmod -q http2
+  else
+    warn "mod_http2 is not available here; the site is served over HTTP/1.1."
   fi
 
   if write_config 644 root:root "/etc/apache2/sites-available/$SERVICE.conf" < <(render_vhost); then
