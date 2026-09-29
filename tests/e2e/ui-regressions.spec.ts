@@ -967,6 +967,8 @@ test.describe('localization', () => {
 
     await expect(page.locator('html')).toHaveAttribute('lang', 'fi');
     await expect(page.getByRole('heading', { name: 'Vapaa ja avoin lähdekoodi.' })).toBeVisible();
+    // The line between the heading and its two buttons.
+    await expect(page.locator('main')).toContainText('Kustannustehokkaat vapaan ja avoimen lähdekoodin palvelut');
 
     if (!isMobile) {
       // FI for the NAV_LINKS labels is rendered in the desktop navbar.
@@ -985,6 +987,7 @@ test.describe('localization', () => {
     // site's own.
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
     await expect(page.getByRole('heading', { name: 'Free & Open' })).toBeVisible();
+    await expect(page.locator('main')).toContainText('Cost-effective free and open source services');
   });
 
   test('the old name for English is read as English, cookie or not', async ({ page }) => {

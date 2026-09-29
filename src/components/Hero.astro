@@ -7,6 +7,7 @@ const i18n = {
   fi: {
       'Free & Open': 'Vapaa ja avoin',
       'Source Software': 'lähdekoodi',
+      'Cost-effective free and open source services': 'Kustannustehokkaat vapaan ja avoimen lähdekoodin palvelut',
       'Our Services': 'Palvelumme',
       'Why Free and Open Source?': 'Miksi vapaa ja avoin lähdekoodi?',
   }
@@ -28,6 +29,10 @@ const t = useTranslations(i18n, Astro);
       {t('Free & Open')} <span class="text-gradient">{t('Source Software')}.</span>
     </h1>
     
+    <p class="text-xl sm:text-2xl text-zinc-600 dark:text-zinc-400 mb-12 max-w-3xl mx-auto font-sans leading-relaxed">
+      {t('Cost-effective free and open source services')}
+    </p>
+
     <div class="flex flex-col sm:flex-row items-center justify-center gap-4 mb-20">
       <Button href={resolvePath('/services/')} variant="primary" size="lg" class="w-full sm:w-auto text-lg px-8 py-4 shadow-xl shadow-primary-500/20">
         {t('Our Services')}
