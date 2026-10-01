@@ -7,6 +7,7 @@ import { resolvePath } from '../utils/navigation';
 import { useTranslations } from '../i18n/utils';
 const i18n = {
   fi: {
+      'Open source library systems, hosted and supported': 'Avoimen lähdekoodin kirjastojärjestelmät pilvipalveluna ja tuettuna',
       'Ready to move to open source?': 'Valmiina siirtymään avoimeen lähdekoodiin?',
       'Get in touch to explore how open-source software can support your organization.': 'Kartoitetaan organisaatiosi siirtymä vapaaseen ja avoimeen lähdekoodiin.',
       'Contact us': 'Ota yhteyttä',
@@ -16,7 +17,7 @@ const i18n = {
 const t = useTranslations(i18n, Astro);
 ---
 
-<BaseLayout title="Open source library systems, hosted and supported">
+<BaseLayout title={t('Open source library systems, hosted and supported')}>
   <Hero />
   <Features />
   

@@ -160,6 +160,38 @@
   .dark .hover-glow:hover {
     box-shadow: 0 0 28px -6px color-mix(in srgb, var(--color-accent-500) 40%, transparent);
   }
+
+  /*
+   * The skip link of BaseLayout.astro: out of the page until it is focused, and then over
+   * everything the page draws on top of itself.
+   *
+   * It is `position: fixed` rather than `sr-only` because it has to sit over the sticky bar
+   * (z-90) it is drawn across when it appears, and at `z-index: 100` it shares the palette's
+   * layer: the two are never asked for at once - the link is the first stop in the tab order,
+   * so it is reached before the palette can be opened - and the later one in the document
+   * wins when they ever are. Index 100 is the palette's own (CommandPalette.astro), not a new
+   * layer above it.
+   *
+   * It is moved by `transform` and not by `top`, so nothing lays out twice when it appears,
+   * and there is no transition: this is the control that exists to save a keyboard visitor
+   * time, and an animation would spend some of it. `calc(-100% - 0.75rem)` is its own height
+   * plus the `top` it is drawn at, which clears the viewport for a single-line and a
+   * two-line label alike (the Finnish one is longer).
+   */
+  .skip-link {
+    position: fixed;
+    top: 0.75rem;
+    left: 0.75rem;
+    z-index: 100;
+    transform: translateY(calc(-100% - 0.75rem));
+
+    @apply rounded-lg border border-primary-200 bg-white px-4 py-2 text-sm font-semibold text-zinc-900 shadow-lg
+      dark:border-night-line-strong dark:bg-night-raise dark:text-zinc-100;
+  }
+
+  .skip-link:focus-visible {
+    transform: translateY(0);
+  }
 }
 
 /* Let the browser draw native widgets (scrollbars, autofill, form controls) to match

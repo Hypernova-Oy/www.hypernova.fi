@@ -7,7 +7,7 @@ import Footer from '../components/Footer.astro';
 import CommandPalette from '../components/CommandPalette.astro';
 import { SITE_TITLE, SITE_DESCRIPTION, SITE_DESCRIPTION_I18N, SITE_URL } from '../config';
 import { resolvePath } from '../utils/navigation';
-import { FALLBACK_LANG, resolveLanguage, type i18n } from '../i18n/ui';
+import { FALLBACK_LANG, languages, resolveLanguage, type Language, type i18n } from '../i18n/ui';
 import { useTranslations } from '../i18n/utils';
 /*
  * The theme script is inlined into the document exactly as it is written here (see the
@@ -36,7 +36,9 @@ const DEFAULT_IMAGE_WIDTH = 1200;
 const DEFAULT_IMAGE_HEIGHT = 630;
 
 const i18n: i18n = {
-  fi: {}
+  fi: {
+    'Skip to main content': 'Siirry pääsisältöön',
+  }
 };
 i18n['fi'][SITE_DESCRIPTION] = SITE_DESCRIPTION_I18N['fi'];
 const t = useTranslations(i18n, Astro);
@@ -53,7 +55,56 @@ const {
 
 const siteURL = SITE_URL.endsWith('/') ? SITE_URL : `${SITE_URL}/`;
 const canonicalPath = Astro.url.pathname.endsWith('/') ? Astro.url.pathname : `${Astro.url.pathname}/`;
-const canonicalURL = new URL(canonicalPath, siteURL).href;
+
+// The UI language is resolved per request in src/middleware.ts, and it is also the code the document
+// carries as its `lang` attribute: both codes of src/i18n/ui.ts - `en` and `fi` - are real language
+// tags, which is what that attribute has to be. It is the tag a screen reader picks a voice with,
+// and the one the browser hyphenates and spell-checks with. The name the previous site used for
+// English (`gb`) is read as `en` before it reaches here, and is never written back.
+const documentLang = resolveLanguage(Astro.locals.lang) ?? FALLBACK_LANG;
+
+/** The page without the language that serves it: this is the address a bare `?l=` is dropped to. */
+const pageURL = new URL(canonicalPath, siteURL).href;
+
+/*
+ * The address of one language version of this page.
+ *
+ * The language is carried by the `?l=` parameter, the one the picker links with and the one
+ * the links of the previous site were rewritten to, and the fallback language is the page
+ * without it: `/services/` is the English one, so English keeps the clean address, while
+ * `/?l=en` - which serves the same page - is the duplicate a canonical exists to collapse.
+ */
+const languageURL = (lang: Language) => (lang === FALLBACK_LANG ? pageURL : `${pageURL}?l=${lang}`);
+
+/*
+ * The address this document declares as its own, and every language version of the page.
+ *
+ * A bilingual page needs both, and it is the canonical that decides which of them a crawler
+ * believes: while both languages canonicalised to `/services/`, the Finnish page said it was
+ * the English one and only a duplicate of it, so an `hreflang` pointing at `?l=fi` would have
+ * named an address that denies being its own page. Each version is therefore its own canonical
+ * now - `?l=fi` for the Finnish one, the clean address for the English - and the two of them
+ * plus `x-default` are declared as alternates: `x-default` is what a visitor whose language is
+ * neither of them is served, which is the English page.
+ *
+ * The set is built from `languages`, so a third language of src/i18n/ui.ts is announced by
+ * adding it there and nothing here.
+ */
+const canonicalURL = languageURL(documentLang);
+const languageAlternates = [
+  ...Object.keys(languages).map((lang) => ({ hreflang: lang, href: languageURL(lang as Language) })),
+  { hreflang: 'x-default', href: languageURL(FALLBACK_LANG) },
+];
+
+/*
+ * `og:locale` is not a language tag but a language *and* a territory - `en_GB`, `fi_FI` - and the
+ * territory of English here is the one the site draws beside it: the United Kingdom's flag in the
+ * picker, under the country code the previous site named the language by. Finnish is the language
+ * of Finland, which is also the country the company hosts in.
+ */
+const ogLocale: Record<Language, string> = { en: 'en_GB', fi: 'fi_FI' };
+const otherLanguages = Object.keys(languages).filter((lang) => lang !== documentLang) as Language[];
+
 const imageURL = new URL(image, siteURL).href;
 const fullTitle = `${title} | ${SITE_TITLE}`;
 const robotsContent = 'index, follow';
@@ -91,12 +142,6 @@ const structuredData =
         url: siteURL,
       };
 
-// The UI language is resolved per request in src/middleware.ts, and it is also the code the document
-// carries as its `lang` attribute: both codes of src/i18n/ui.ts - `en` and `fi` - are real language
-// tags, which is what that attribute has to be. It is the tag a screen reader picks a voice with,
-// and the one the browser hyphenates and spell-checks with. The name the previous site used for
-// English (`gb`) is read as `en` before it reaches here, and is never written back.
-const documentLang = resolveLanguage(Astro.locals.lang) ?? FALLBACK_LANG;
 ---
 
 <!DOCTYPE html>
@@ -192,6 +237,9 @@ const documentLang = resolveLanguage(Astro.locals.lang) ?? FALLBACK_LANG;
       }
     </script>
     <link rel="canonical" href={canonicalURL} />
+    {languageAlternates.map((alternate) => (
+      <link rel="alternate" hreflang={alternate.hreflang} href={alternate.href} />
+    ))}
     <link rel="sitemap" href={resolvePath('/sitemap.xml')} />
     <meta name="generator" content={Astro.generator} />
     <meta name="description" content={description} />
@@ -210,6 +258,10 @@ const documentLang = resolveLanguage(Astro.locals.lang) ?? FALLBACK_LANG;
       </>
     )}
     <meta property="og:site_name" content={SITE_TITLE} />
+    <meta property="og:locale" content={ogLocale[documentLang]} />
+    {otherLanguages.map((lang) => (
+      <meta property="og:locale:alternate" content={ogLocale[lang]} />
+    ))}
     {type === 'article' && publishedDate && (
       <meta property="article:published_time" content={publishedDate.toISOString()} />
     )}
@@ -246,9 +298,23 @@ const documentLang = resolveLanguage(Astro.locals.lang) ?? FALLBACK_LANG;
     <script is:inline data-astro-rerun set:html={themeInit} />
   </head>
   <body class="flex flex-col min-h-screen bg-zinc-50 text-zinc-900 transition-colors duration-300 dark:bg-night dark:text-zinc-100">
+    <!--
+      The skip link, first in the tab order of every page.
+
+      The bar is sticky and the palette trigger sits in it, so a keyboard visitor - or anyone
+      driving the page with a switch or a voice - met the whole navigation, the search control
+      and the theme toggle again on every page before the page's own text. The link is drawn
+      out of the way until it is focused (see `.skip-link` in src/styles/global.css) and it is
+      the first thing Tab reaches, which is the only position that saves a visitor the bar.
+
+      `main` is given `tabindex="-1"`: a fragment target that cannot hold focus is where the
+      *next* Tab starts from, but browsers put the focus itself on one that can, so the page is
+      read from here without the visitor tabbing back into the bar they just left.
+    -->
+    <a href="#main-content" class="skip-link">{t('Skip to main content')}</a>
     <CommandPalette />
     <Navbar />
-    <main class="flex-grow">
+    <main id="main-content" tabindex="-1" class="flex-grow scroll-mt-20 focus:outline-none">
       <slot />
     </main>
     <Footer />

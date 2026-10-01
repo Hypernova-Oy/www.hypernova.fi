@@ -1,5 +1,13 @@
 ---
 import { languages } from '../i18n/ui';
+import { useTranslations } from '../i18n/utils';
+
+const i18n = {
+  fi: {
+    'Language': 'Kieli',
+  }
+};
+const t = useTranslations(i18n, Astro);
 
 interface Props {
   /**
@@ -31,11 +39,27 @@ const linkClass =
     ? 'flex items-center gap-3 rounded-md px-3 py-2 text-base font-medium text-zinc-700 transition-colors hover:bg-zinc-50 hover:text-primary-600 dark:text-zinc-300 dark:hover:bg-night-raise dark:hover:text-primary-400'
     : 'inline-flex items-center gap-1.5 rounded-full border border-primary-200 bg-primary-100 px-2 py-1 text-sm font-medium text-primary-800 transition-colors hover:bg-primary-200 dark:border-night-line-strong dark:bg-night-raise dark:text-zinc-100 dark:hover:bg-night-line dark:hover:text-primary-400';
 ---
-<ul class={variant === 'menu' ? 'space-y-1' : undefined}>
+<!--
+  The list is named for what it offers, which in the bar is the only thing that says what the pill
+  is for. The menu does not need it: Navbar.astro draws a visible caption above the picker there,
+  and a label on the list would say the same word twice.
+-->
+<ul aria-label={variant === 'menu' ? undefined : t('Language')} class={variant === 'menu' ? 'space-y-1' : undefined}>
   {Object.entries(languages).map(([lang, label]) => (
     <li>
+      {/*
+        The language in use is not drawn: the control is the offer of the *other* language, which
+        is what keeps the bar one pill wide and the page under the flag budget its e2e case
+        allows it. Nothing here can carry `aria-current`, either - the current language's own
+        anchor is `hidden` and so is not in the accessibility tree, and the language a visitor is
+        reading is already announced from `lang` on the document itself (BaseLayout.astro).
+
+        The label is a word of the language it names, and `lang` says so: without it a screen
+        reader picks the voice of the page it stands in and spells `Suomi` out in English, and
+        the other way round. It is the same reason the document carries a real language tag.
+      */}
       {lang!==currentLang ? (
-        <a href={`?l=${lang}`} class={linkClass}><span class={`fi fi-${lang}`}></span> {label}</a>
+        <a href={`?l=${lang}`} lang={lang} class={linkClass}><span class={`fi fi-${lang}`}></span> {label}</a>
       ) : (
         <a href={`?l=${lang}`} class="hidden">{label}</a>
       )}

@@ -259,6 +259,35 @@ Because that bar is hidden on a small screen, the mobile menu renders the same c
 as full-width rows (`variant="menu"`), next to the navigation links it would otherwise be
 missing from.
 
+The picker draws the language it can offer, not the one in use: the control is the way out
+of the page a visitor is reading, and drawing both would make the bar's one pill two. The
+label is written in the language it names, and the link says so (`lang` on it), so `Suomi`
+is not read with the voice of the page it stands in; the list itself is named for what it
+offers (`Language`, `Kieli`) in the bar, where the pill carries no visible caption, while
+the mobile menu draws a caption of its own above it. The language in use carries no
+`aria-current`: its anchor is `hidden` and therefore outside the accessibility tree, and the
+document already says which language it is written in, with the `lang` attribute it carries
+(`BaseLayout.astro`).
+
+A page exists in two languages at one address, and the head says which is which. The
+canonical - and `og:url` with it - is the version being served, so `/services/` and
+`/services/?l=fi` each declare themselves rather than the Finnish page declaring itself a
+copy of the English one; every language is announced as an alternate (`hreflang="en"`,
+`hreflang="fi"`) with `x-default` on the English page for a visitor who reads neither; and
+`og:locale` names the language *and* the territory a share is matched against (`en_GB`,
+`fi_FI`, the flag the picker draws beside the label) with the other language beside it as
+`og:locale:alternate`. The whole set is built from `languages` in `src/i18n/ui.ts`, so a
+third language is announced by being added there and nowhere else.
+
+The title of a page is part of the language it is written in - the one line read away from
+the page, in a tab, a search result or a shared link - so it goes through the page's own
+dictionary like the rest of its copy: `/` is `Open source library systems, hosted and
+supported` / `Avoimen lähdekoodin kirjastojärjestelmät pilvipalveluna ja tuettuna`, and
+`/koha-hosting/` takes the name the rest of the site uses for the service,
+`Koha-pilvopalvelu`. `/blog/` and `/changelog/` are the two pages left out on purpose: their
+bodies are English only, and a Finnish title over English text would promise a translation
+the page does not have.
+
 The mobile menu is a panel of the sticky header, so it covers the top of the page it is
 open over and puts itself away unless the tap asks to stay: a tap beside the menu, or on
 one of its links, closes it, while a tap on the menu's own caption or padding leaves it
@@ -280,6 +309,21 @@ the mobile menu panel below it already used, so the two stay one surface when th
 The page scrolls underneath it, and the translucency it used to carry (`.glass-panel`, 80%)
 let the copy behind it read through the links - the cards in the page keep that fill, since
 nothing scrolls under them.
+
+Two things in the bar are for assistive technology rather than for the eye. A link that names
+the page the visitor is on carries `aria-current="page"`, and one that names a section of the
+page it is already on - `/#whyfoss`, `/koha/#cloud-hosting-service` - carries
+`aria-current="location"`: the bar marks nothing visually, every link the same grey until it
+is hovered, so a screen reader otherwise reads five destinations that all sound alike. The
+comparison drops the fragment, which is what marks an anchor on the page it points at from
+that page, and the marker is written by `currentMarker()` in `src/components/Navbar.astro` on
+the bar and on the mobile menu alike. The other is the first stop in the tab order of every
+page: a skip link (`BaseLayout.astro`, `.skip-link` in `src/styles/global.css`) that puts the
+visitor past the bar, which is sticky and otherwise walked again on every page. It is
+`position: fixed` so it can be drawn over the bar it crosses, it is moved by `transform` and
+without a transition so it costs no layout and no time, and the `main` it opens carries
+`tabindex="-1"` so the browser puts the focus itself there and the next Tab starts inside the
+page rather than back in the bar.
 
 ## Forms
 

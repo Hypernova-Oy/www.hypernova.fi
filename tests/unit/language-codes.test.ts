@@ -10,7 +10,8 @@
  * the document, where a code that is not a language tag costs a screen reader its voice. The first
  * two tests hold the codes and the one input name that is still read - the links the previous site
  * handed out, its search entries and the cookies of its returning visitors all carry `gb` - and the
- * last holds every code the picker offers to a flag rule and a file.
+ * last two hold every code the picker offers to a flag rule and a file, and every code to the
+ * crawlers that read the head: the `hreflang` of the page and the `og:locale` it is shared under.
  *
  * They run with Node's own test runner and type stripping, so no test framework is needed:
  *
@@ -131,4 +132,38 @@ test('the picker draws its marks from the codes it links to', () => {
     ['fi', 'fi-en', 'fi-fi'],
     `${PICKER} styles something other than the box and the two flags it can draw`,
   );
+});
+
+test('every language is announced to a crawler under the code it is served as', () => {
+  const layout = readFileSync(BASE_LAYOUT, 'utf8');
+
+  // The alternates, and the canonical each language version declares as its own, are built from
+  // the languages the site carries: a third language of src/i18n/ui.ts is announced by adding it
+  // there and nowhere else.
+  assert.match(
+    layout,
+    /Object\.keys\(languages\)\.map\(\(lang\) => \(\{ hreflang: lang, href: languageURL\(lang as Language\) \}\)/,
+    `${BASE_LAYOUT} no longer builds its hreflang alternates from the languages the site carries`,
+  );
+
+  assert.match(
+    layout,
+    /\{ hreflang: 'x-default', href: languageURL\(FALLBACK_LANG\) \}/,
+    `${BASE_LAYOUT} declares no x-default alternate: a crawler whose visitor reads neither of the ` +
+      'two languages is then left without a version of the page',
+  );
+
+  // `og:locale` is not a language tag but a language *and* a territory - `en_GB`, `fi_FI` - because
+  // that is the format a crawler matches a visitor against. Its language half is the code the page
+  // is served under, or the page claims a language it is not written in.
+  for (const lang of Object.keys(languages)) {
+    const locale = new RegExp(`\\b${lang}: '([a-z]{2})_[A-Z]{2}'`).exec(layout);
+
+    assert.ok(
+      locale,
+      `${BASE_LAYOUT} gives \`${lang}\` no og locale: a language has to be stated with a territory, ` +
+        'and a page that states neither is shared as the language of nothing',
+    );
+    assert.equal(locale[1], lang, `the og locale of \`${lang}\` names another language`);
+  }
 });

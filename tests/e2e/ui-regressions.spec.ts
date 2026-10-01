@@ -201,6 +201,67 @@ test.describe('head metadata', () => {
     await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', /Hypernova$/);
   });
 
+  test('the two language versions of a page point at each other', async ({ page }) => {
+    await page.goto('/koha-hosting/');
+
+    // The version this page is, the version of it in the other language, and the one a visitor
+    // whose language is neither of the two is served. A page in two languages that names only
+    // one canonical address is a page a crawler reads as English with a duplicate under `?l=fi`.
+    await expect(page.locator('link[rel="alternate"][hreflang="en"]')).toHaveAttribute(
+      'href',
+      'https://www.hypernova.fi/koha-hosting/',
+    );
+    await expect(page.locator('link[rel="alternate"][hreflang="fi"]')).toHaveAttribute(
+      'href',
+      'https://www.hypernova.fi/koha-hosting/?l=fi',
+    );
+    await expect(page.locator('link[rel="alternate"][hreflang="x-default"]')).toHaveAttribute(
+      'href',
+      'https://www.hypernova.fi/koha-hosting/',
+    );
+
+    // `og:locale` is a language *and* a territory, and the territory of English here is the one
+    // whose flag the picker draws beside it.
+    await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute('content', 'en_GB');
+    await expect(page.locator('meta[property="og:locale:alternate"]')).toHaveAttribute('content', 'fi_FI');
+  });
+
+  test('the Finnish page is an address of its own, in Finnish', async ({ page }) => {
+    await page.goto('/koha-hosting/?l=fi');
+
+    // Both languages used to canonicalise to the English address, which told a crawler that the
+    // Finnish page was a second copy of the English one - and an `hreflang` naming `?l=fi` would
+    // have named an address that denied being a page of its own. Each version declares itself.
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://www.hypernova.fi/koha-hosting/?l=fi',
+    );
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+      'content',
+      'https://www.hypernova.fi/koha-hosting/?l=fi',
+    );
+    await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute('content', 'fi_FI');
+    await expect(page.locator('meta[property="og:locale:alternate"]')).toHaveAttribute('content', 'en_GB');
+
+    // The title of the page is part of the language it is written in, and so is the heading the
+    // title names.
+    await expect(page).toHaveTitle('Koha-pilvipalvelu | Hypernova');
+    await expect(page.getByRole('heading', { level: 1, name: 'Koha-pilvipalvelu' })).toBeVisible();
+  });
+
+  test('the English page keeps the clean address, and its English title', async ({ page }) => {
+    // Requested with the code of the language rather than by cookie, because `?l=` is what a
+    // crawler and a shared link carry: `/koha-hosting/?l=en` and `/koha-hosting/` are the same
+    // page, so they answer with the same title and the one canonical address between them.
+    await page.goto('/koha-hosting/?l=en');
+
+    await expect(page).toHaveTitle('Koha Cloud Hosting Service | Hypernova');
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      'https://www.hypernova.fi/koha-hosting/',
+    );
+  });
+
   /**
    * SHA-256 of the icon served by https://www.hypernova.fi/ (the site it was migrated
    * from). The mark is a raster file, so the hash is what pins "same favicon as
@@ -416,6 +477,19 @@ test.describe('404 page', () => {
       await expect(page.locator('a[href^="/blog"]')).toHaveCount(0);
     }
   });
+
+  test("the demo pages of the theme are gone", async ({ page }) => {
+    // The theme this site was built from shipped a sign-in page, a pricing table for a product
+    // called "Zenix" and links between them. None of it was ever part of this site: nothing
+    // linked the two pages, neither was in the sitemap, and both answered 200 with a canonical
+    // URL of their own - so a crawler was free to index a pricing table that is not ours. The
+    // sign-in page linked `/signup/`, which was never a route at all, and landed a visitor who
+    // followed it on the not-found page.
+    for (const path of ['/login/', '/pricing/', '/signup/']) {
+      const response = await page.goto(path);
+      expect(response?.status(), `${path} is still a route of the site`).toBe(404);
+    }
+  });
 });
 
 test.describe('theme', () => {
@@ -622,6 +696,65 @@ test.describe('navigation', () => {
     await expect(page.locator('header a', { hasText: 'Services' }).first()).toHaveAttribute('href', '/services/');
     await expect(page.locator('header').getByRole('link', { name: 'Koha', exact: true }).first()).toHaveAttribute('href', '/koha/');
     await expect(page.locator('header a', { hasText: 'Contact' }).first()).toHaveAttribute('href', '/contact/');
+  });
+
+  test('the bar says which page the visitor is on', async ({ page, isMobile }) => {
+    // The bar marks no link visually, so the page the visitor is on is said in words a screen
+    // reader reads: `page` for a link that names the page itself, `location` for one that names a
+    // section of it. The mobile menu renders the same links, so the same markers are held on it.
+    const bar = isMobile ? '#mobile-menu' : 'header nav';
+
+    await page.goto('/services/');
+    await expect(page.locator(`${bar} a[href="/services/"]`)).toHaveAttribute('aria-current', 'page');
+
+    await page.goto('/koha/');
+    await expect(page.locator(`${bar} a[href="/koha/"]`)).toHaveAttribute('aria-current', 'page');
+    // `/koha/#cloud-hosting-service` is a heading inside the page above it, not another page.
+    await expect(page.locator(`${bar} a[href="/koha/#cloud-hosting-service"]`)).toHaveAttribute(
+      'aria-current',
+      'location',
+    );
+
+    await page.goto('/#whyfoss');
+    await expect(page.locator(`${bar} a[href="/#whyfoss"]`)).toHaveAttribute('aria-current', 'location');
+
+    // The pages the visitor is not on carry nothing, so the marker means one thing at most once.
+    await expect(page.locator(`${bar} a[href="/services/"]`)).not.toHaveAttribute('aria-current', /.*/);
+  });
+
+  test('the first tab stop skips the bar', async ({ page }) => {
+    await page.goto('/');
+
+    // The tab order starts at the top of the document, and the bar is what is there: without this
+    // link a keyboard visitor walks the logo, five links, the language picker, the search control
+    // and the theme toggle - again on every page - before reaching the page's own text.
+    await page.keyboard.press('Tab');
+
+    const skip = page.locator('.skip-link');
+    await expect(skip).toBeFocused();
+    await expect(skip).toBeVisible();
+    await expect(skip).toHaveAttribute('href', '#main-content');
+    await expect(skip).toHaveText('Skip to main content');
+
+    // It is drawn over the sticky bar rather than under it - which is why it is a fixed element
+    // and not an `sr-only` one - so the point that decides this is the point on top.
+    const box = (await skip.boundingBox())!;
+    const target = await page.evaluate(
+      ([x, y]) => document.elementFromPoint(x, y)?.className ?? '',
+      [box.x + box.width / 2, box.y + box.height / 2] as const,
+    );
+    expect(target, 'the navigation bar is drawn over the skip link').toContain('skip-link');
+
+    // And it puts the visitor into the page: the next tab stop is in the content, not back in the
+    // bar they just left.
+    await page.keyboard.press('Enter');
+    await expect(page).toHaveURL(/#main-content$/);
+    await page.keyboard.press('Tab');
+
+    expect(
+      await page.evaluate(() => Boolean(document.activeElement?.closest('header'))),
+      'the tab order led back into the navigation bar',
+    ).toBe(false);
   });
 
   test('desktop navigation divides its links with a hairline', async ({ page, isMobile }) => {
@@ -977,6 +1110,27 @@ test.describe('localization', () => {
 
     await page.goto('/services/');
     await expect(page.locator('html')).toHaveAttribute('lang', 'fi');
+  });
+
+  test('the title of a page is translated with it', async ({ page }) => {
+    // The title is the one line of a page that is read away from it - in a tab, in a search
+    // result, in a shared link - and it stayed English on the Finnish pages: the home page and
+    // /koha-hosting/ both passed a literal English title while the rest of the page was
+    // translated. `Koha` is a name and reads the same in both languages, so /koha/ is left alone.
+    await page.goto('/?l=fi');
+
+    await expect(page).toHaveTitle(
+      'Avoimen lähdekoodin kirjastojärjestelmät pilvipalveluna ja tuettuna | Hypernova',
+    );
+    await expect(page.locator('meta[property="og:title"]')).toHaveAttribute(
+      'content',
+      /^Avoimen lähdekoodin kirjastojärjestelmät pilvipalveluna ja tuettuna/,
+    );
+
+    // The Finnish name of the Koha hosting service is the one the rest of the site already used
+    // for it, on the navbar and on /koha/.
+    await page.goto('/koha-hosting/?l=fi');
+    await expect(page).toHaveTitle('Koha-pilvipalvelu | Hypernova');
   });
 
   test('English is the default without a language cookie', async ({ page }) => {
