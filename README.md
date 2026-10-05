@@ -101,8 +101,7 @@ through the REST API. Copy `.env.example` to `.env` and set:
 | --- | --- | --- |
 | `/` | SSR | Hero, "Why FOSS" features, closing CTA |
 | `/services/` | SSR | Service cards |
-| `/koha/` | SSR | Koha overview + quote form (POST) |
-| `/koha-hosting/` | SSR | Koha cloud hosting service detail |
+| `/koha/` | SSR | Koha overview, hosting service section + quote form (POST) |
 | `/toveri-access-control-device/` | SSR | Toveri access control device |
 | `/lainuri-checkout-machine/` | SSR | Lainuri self-service checkout machine |
 | `/contact/` | SSR | Company and billing details + contact form (POST) |
@@ -114,22 +113,25 @@ through the REST API. Copy `.env.example` to `.env` and set:
 | any unknown URL | SSR | `src/pages/404.astro`, answered with status 404 and translated |
 
 Legacy URLs are redirected in `astro.config.mjs`. The old standalone pages point at the section
-of `/koha/` that replaced them (`/koha-hosting-quote/` → `/koha/#request-a-quote`) or at the
-page that took their place (`/privacy-policy/` → `/privacy/`,
-`/lainuri-self-checkout-machine/` → `/lainuri-checkout-machine/`,
-`/fi/koha-yllapitopalvelu/` → `/koha-hosting/?l=fi`), and the Finnish URLs of the old site
-become the same page with the `?l=fi` language parameter (`/fi/lainuri-lainausautomaatti/` →
-`/lainuri-checkout-machine/?l=fi`).
+of `/koha/` that replaced them (`/koha-hosting-quote/` → `/koha/#request-a-quote`,
+`/fi/koha-yllapitopalvelu/` → `/koha/?l=fi#cloud-hosting-service`) or at the page that took
+their place (`/privacy-policy/` → `/privacy/`, `/lainuri-self-checkout-machine/` →
+`/lainuri-checkout-machine/`), and the Finnish URLs of the old site become the same page with
+the `?l=fi` language parameter (`/fi/lainuri-lainausautomaatti/` →
+`/lainuri-checkout-machine/?l=fi`). `/koha-hosting/` is in that list too: it was the address of
+the hosting page for as long as the service had one, and it redirects into the section that
+describes the service (`/koha/#cloud-hosting-service`).
 
-The two Koha pages are one service in two halves: `/koha/` says what Koha is and takes the quote
-form, and `/koha-hosting/` describes what we host and support - what the service includes, who
-runs it and for how long. `/koha/` used to render that page's component whole, the same sentence,
-the same three cards and the same quote button, which put one description of the service at two
-addresses a crawler could reach; it is a sentence and a link to the page now, and it keeps the
-`cloud-hosting-service` id so a link into that section still lands on a heading that names the
-service.
+The Koha hosting service is described on `/koha/` and nowhere else. The section with the
+`cloud-hosting-service` id - what the service includes, who runs it and for how long - is
+rendered by `KohaService.astro`, and the navbar link, the button under the screenshot and the
+`/koha-hosting/` and `/fi/koha-yllapitopalvelu/` URLs above all land on it. The service used to
+have a page of its own as well, which put one description of it at two addresses a crawler could
+reach; that page is gone, its address is a permanent redirect into the section, and its words are
+keywords of the `/koha/` entry in `/search-index.json`, so a query about hosting still finds the
+page that answers it.
 
-The Koha logo on `/koha/` and `/koha-hosting/` is a wide file (768x220) that carries no
+The Koha logo on `/koha/` is a wide file (768x220) that carries no
 width of its own, so it is capped below `md` (`w-56`) and left to its grid cell above it.
 Without the cap it filled whatever row it sat in, which drew it wider on a phone than the
 desktop layout ever does.
@@ -295,9 +297,9 @@ The title of a page is part of the language it is written in - the one line read
 the page, in a tab, a search result or a shared link - so it goes through the page's own
 dictionary like the rest of its copy: `/` is `Open source library systems, hosted and
 supported` / `Avoimen lähdekoodin kirjastojärjestelmät pilvipalveluna ja tuettuna`, and
-`/koha-hosting/` takes the name the rest of the site uses for the service,
-`Koha-pilvopalvelu`. `/blog/` and `/changelog/` are the two pages left out on purpose: their
-bodies are English only, and a Finnish title over English text would promise a translation
+`/toveri-access-control-device/` is `Toveri Access Control Device` /
+`Toveri-kulunvalvontalaite`. `/blog/` and `/changelog/` are the two pages left out on purpose:
+their bodies are English only, and a Finnish title over English text would promise a translation
 the page does not have.
 
 The mobile menu is a panel of the sticky header, so it covers the top of the page it is
@@ -324,14 +326,14 @@ nothing scrolls under them.
 
 Two things in the bar are for assistive technology rather than for the eye. A link that names
 the page the visitor is on carries `aria-current="page"`, and one that names a section of the
-page it is already on - `/#whyfoss` - carries `aria-current="location"`: the bar marks nothing
-visually, every link the same grey until it is hovered, so a screen reader otherwise reads five
-destinations that all sound alike. The comparison drops the fragment, which is what marks an
-anchor on the page it points at from that page, and the marker is written by `currentMarker()`
-in `src/components/Navbar.astro` on the bar and on the mobile menu alike. The other is the first
-stop in the tab order of every page: a skip link (`BaseLayout.astro`, `.skip-link` in
-`src/styles/global.css`) that puts the visitor past the bar, which is sticky and otherwise walked
-again on every page. It is
+page it is already on - `/#whyfoss`, `/koha/#cloud-hosting-service` - carries
+`aria-current="location"`: the bar marks nothing visually, every link the same grey until it
+is hovered, so a screen reader otherwise reads five destinations that all sound alike. The
+comparison drops the fragment, which is what marks an anchor on the page it points at from
+that page, and the marker is written by `currentMarker()` in `src/components/Navbar.astro` on
+the bar and on the mobile menu alike. The other is the first stop in the tab order of every
+page: a skip link (`BaseLayout.astro`, `.skip-link` in `src/styles/global.css`) that puts the
+visitor past the bar, which is sticky and otherwise walked again on every page. It is
 `position: fixed` so it can be drawn over the bar it crosses, it is moved by `transform` and
 without a transition so it costs no layout and no time, and the `main` it opens carries
 `tabindex="-1"` so the browser puts the focus itself there and the next Tab starts inside the
@@ -635,7 +637,7 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   `fetchpriority="high"`: the Koha logo on `/koha/` and the first frame of the product gallery on
   `/lainuri-checkout-machine/`. Both are what a phone paints first on those pages. `/` and the
   other pages prioritise nothing, because the element they paint first is text; that is also why
-  the staff-interface screenshot on `/koha-hosting/` is `lazy` - it used to be `eager` with
+  the staff-interface screenshot on `/koha/` is `lazy` - it used to be `eager` with
   `fetchpriority="high"`, which put a screenshot that sits under a heading ahead of the heading.
   The e2e case *only the picture the first paint waits for is fetched up front* records the count
   of eager images per page and which one leads.
@@ -806,7 +808,7 @@ checked at the end of a run.
 
 The two names of a deployment are not two sites. The certificate covers both, and every request
 that arrives under the other one is answered with a permanent redirect to `--domain`:
-`hypernova.fi/koha-hosting/?page=2` reaches `https://www.hypernova.fi/koha-hosting/?page=2`,
+`hypernova.fi/koha/?page=2` reaches `https://www.hypernova.fi/koha/?page=2`,
 path and query kept. The address the redirect names is the one the deployment declares
 (`HYPERNOVA_SITE_URL`, above): `https://` wherever a browser reaches this host over TLS - the
 certificate, or the proxy in front of `--behind-proxy` - and `http://` on a host that serves

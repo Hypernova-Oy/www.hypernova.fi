@@ -3,6 +3,7 @@ import Badge from '../components/Badge.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Button from '../components/Button.astro';
 import KohaScreenshot from '../components/KohaScreenshot.astro';
+import KohaServiceComponent from '../components/KohaService.astro';
 
 import { Image } from 'astro:assets';
 import kohaLogo from "../images/koha.webp";
@@ -35,9 +36,6 @@ const i18n = {
     'Customizable': 'Mukautuu tarpeisiinne',
     'Koha can be configured in hundreds of ways, which makes it suitable for any type of library. It also supports many open standards and integrates with countless other systems.': 'Koha on erittäin mukautuva järjestelmä. Se sisältää satoja asetuksia, joiden ansiosta Kohan voi konfiguroida palvelemaan minkä tyyppistä kirjastoa tahansa. Koha tukee useita avoimia standardeja, ja sen voi integroida lukemattomiin muihin järjestelmiin, mukaan lukien Finna, Finto ja Melinda. Kohaan voi tuoda lisätoiminnallisuuksia Koha-yhteisön kehittämillä laajennoksilla.',
     'Koha Cloud Hosting Service': 'Koha-pilvipalvelu',
-    'We host Koha on our own servers in Finland, keep it updated and monitor it around the clock. You keep full and unrestricted access to your own database.':
-      'Ylläpidämme Kohaa omilla palvelimillamme Suomessa, pidämme sen ajan tasalla ja valvomme palvelua jatkuvasti. Sinulla säilyy täysi ja rajoittamaton pääsy omaan tietokantaasi.',
-    'What the service includes': 'Mitä palveluun sisältyy',
     'Try Koha for free': 'Kokeile Kohaa ilmaiseksi',
     'Sustainable choice': 'Kestävä valinta',
     'Koha is a library system that has been in active development since 1999. Backed by thousands of libraries around the world, its community keeps Koha in step with modern standards and technologies. Koha has a responsive interface that works on desktops, tablets and phones, and it connects to other systems through a range of APIs.': 'Koha on pitkäikäinen kirjastojärjestelmä, joka on ollut aktiivisessa kehityksessä vuodesta 1999 alkaen. Kohan takana on maailmanlaajuisesti tuhansia kirjastoja, joiden muodostama yhteisö pitää huolen siitä, että Koha on tietoturvallinen ja tukee moderneja standardeja ja teknologioita. Kohassa on responsiivinen käyttöliittymä, joka soveltuu kaikentyyppisille laitteille, kuten tietokoneille, matkapuhelimille ja lainausautomaateille. Kohan voi yhdistää muihin järjestelmiin lukuisten rajapintojen avulla.',
@@ -304,8 +302,7 @@ const honeypot = honeypotField(formToken);
            forward - our hosting service, or a demo instance to try first. It still reads above
            the "Sustainable choice" copy as well; that paragraph is the one about the responsive
            interface, and the figure answers it by showing a desktop and a phone at once. The
-           component carries the two renditions, the view switch and the language pair, and the
-           hosting page shows the very same figure above its cards. -->
+           component carries the two renditions, the view switch and the language pair. -->
       <div class="mt-20">
         <KohaScreenshot />
       </div>
@@ -313,7 +310,7 @@ const honeypot = honeypotField(formToken);
            wants. `sm:` puts the two choices side by side as soon as they fit, and wrapping keeps
            a narrow desktop window from pushing them out of the section. -->
       <div class="flex flex-col sm:flex-row flex-wrap justify-center items-center gap-4">
-        <Button href="/koha-hosting/" variant="primary" size="lg" class="w-full sm:w-auto text-lg px-8 py-4 shadow-xl shadow-primary-500/20">
+        <Button href="#cloud-hosting-service" variant="primary" size="lg" class="w-full sm:w-auto text-lg px-8 py-4 shadow-xl shadow-primary-500/20">
           {t('Koha Cloud Hosting Service')}
         </Button>
         <!-- A demo instance on its own host, for libraries that want to see Koha before they
@@ -338,29 +335,11 @@ const honeypot = honeypotField(formToken);
 </section>
 
 <!--
-  The service is described in one place, on `/koha-hosting/`. This section used to render that
-  page's component whole - the same sentence, the same three cards and the same quote button -
-  which made one description of the service two addresses a crawler could reach. What is left
-  here is what a reader of this page needs to know the service exists, and the way to it.
-  The section keeps the `cloud-hosting-service` id the navbar link and the old
-  `/fi/koha-yllapitopalvelu/` URL used to land on, so a link into it still arrives somewhere
-  that names the service.
+  The hosting service is described here and nowhere else. The id the navbar link and the retired
+  `/koha-hosting/` and `/fi/koha-yllapitopalvelu/` URLs land on is on the section the component
+  below renders, so a link into it arrives at a heading that names the service.
 -->
-<section id="cloud-hosting-service" class="py-32 bg-zinc-50 dark:bg-night-soft border-y border-zinc-200 dark:border-night-line">
-  <div class="container mx-auto px-4 sm:px-6 lg:px-8">
-    <div class="text-center max-w-3xl mx-auto reveal-on-scroll">
-      <h2 class="text-4xl md:text-5xl font-heading font-extrabold text-zinc-900 dark:text-white mb-6">
-        {t('Koha Cloud Hosting Service')}
-      </h2>
-      <p class="text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-        {t('We host Koha on our own servers in Finland, keep it updated and monitor it around the clock. You keep full and unrestricted access to your own database.')}
-      </p>
-      <Button href="/koha-hosting/" variant="primary" size="lg" class="mt-10 w-full sm:w-auto text-lg px-8 py-4 shadow-xl shadow-primary-500/20">
-        {t('What the service includes')}
-      </Button>
-    </div>
-  </div>
-</section>
+<KohaServiceComponent />
 <section id="request-a-quote" class="py-32 bg-zinc-50 dark:bg-night-soft border-y border-zinc-200 dark:border-night-line relative overflow-hidden">
   <div class="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-zinc-200/50 via-transparent to-transparent dark:from-primary-900/10 dark:via-transparent dark:to-transparent"></div>
 

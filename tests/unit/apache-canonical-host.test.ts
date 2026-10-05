@@ -12,8 +12,8 @@
  * The virtual hosts are rendered by the shell itself, the way tests/unit/apache-caching.test.ts
  * does it, so the rules are read as Apache reads them. What the rules do at runtime was checked
  * against Apache 2.4.58 as well: with the redirect in place, a request for
- * /koha-hosting/?page=2 with `Host: example.com` answers `301` with
- * `Location: https://www.example.com/koha-hosting/?page=2`, the canonical name is served instead
+ * /koha/?page=2 with `Host: example.com` answers `301` with
+ * `Location: https://www.example.com/koha/?page=2`, the canonical name is served instead
  * of redirected, /.well-known/acme-challenge/ is left alone, and a host that serves plain HTTP
  * answers over http instead of sending anyone to a port nothing listens on.
  *
@@ -140,7 +140,7 @@ test('the redirect keeps the path and the query', () => {
   assert.ok(rule, `no redirect rule:\n${directives}`);
 
   // %{REQUEST_URI} is the path and the query together, so a visitor who follows a link to
-  // /koha-hosting/?page=2 lands on that page of the canonical name and not on its homepage.
+  // /koha/?page=2 lands on that page of the canonical name and not on its homepage.
   assert.ok(
     /^ {2}RewriteRule \^ https:\/\/www\.example\.com%\{REQUEST_URI\} \[R=301,L\]$/.test(rule),
     `the rule does not carry the request through:\n${rule}`,

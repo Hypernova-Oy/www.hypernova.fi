@@ -11,7 +11,6 @@ const staticEntries: SitemapEntry[] = [
   { path: '/' },
   { path: '/services/' },
   { path: '/koha/' },
-  { path: '/koha-hosting/' },
   { path: '/lainuri-checkout-machine/' },
   { path: '/toveri-access-control-device/' },
   { path: '/contact/' },

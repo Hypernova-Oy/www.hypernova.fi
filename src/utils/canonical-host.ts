@@ -45,7 +45,7 @@ export function canonicalRedirectTarget(requestUrl: URL, site: URL | undefined):
     return undefined;
   }
 
-  // `pathname` and `search` are what the server received, so /koha-hosting/?page=2 stays the
-  // page the visitor asked for, and a query string is carried over unchanged.
+  // `pathname` and `search` are what the server received, so /koha/?page=2 stays the page the
+  // visitor asked for, and a query string is carried over unchanged.
   return new URL(`${requestUrl.pathname}${requestUrl.search}`, site).href;
 }

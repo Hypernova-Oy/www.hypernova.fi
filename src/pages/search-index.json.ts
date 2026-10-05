@@ -50,22 +50,17 @@ const PAGES: PageEntry[] = [
     type: 'Page',
     title: { en: 'Koha library system', fi: 'Koha-kirjastojärjestelmä' },
     description: {
-      en: 'The Open Source library system for acquisitions, circulation and catalogue.',
-      fi: 'Avoimen lähdekoodin kirjastojärjestelmä hankintaan, lainaukseen ja luettelointiin.',
+      en: 'The Open Source library system for acquisitions, circulation and catalogue, hosted and monitored by us in Finland.',
+      fi: 'Avoimen lähdekoodin kirjastojärjestelmä hankintaan, lainaukseen ja luettelointiin, ylläpidettynä omilla palvelimillamme Suomessa.',
     },
+    /*
+     * The service the page describes has no entry of its own: `/koha-hosting/` is a redirect into
+     * this page's `cloud-hosting-service` section, and a second result for one page would put two
+     * rows in the palette for one destination. Its words are search terms here instead, so the
+     * query that used to find the old entry still lands on the page that answers it.
+     */
     keywords:
-      'koha kirjasto kirjastojärjestelmä library system lainaus circulation luettelointi catalogue marc hankinta acquisitions omatoimi',
-  },
-  {
-    slug: '/koha-hosting/',
-    type: 'Page',
-    title: { en: 'Koha cloud hosting', fi: 'Kohan pilvipalvelu' },
-    description: {
-      en: 'We host, update and monitor your Koha library system on our own servers in Finland.',
-      fi: 'Ylläpidämme, päivitämme ja valvomme Koha-kirjastojärjestelmääsi omilla palvelimillamme Suomessa.',
-    },
-    keywords:
-      'pilvipalvelu hosting cloud palvelin server ylläpito maintenance varmuuskopio backup päivitys update suomi finland tuki support sla',
+      'koha kirjasto kirjastojärjestelmä library system lainaus circulation luettelointi catalogue marc hankinta acquisitions omatoimi pilvipalvelu hosting cloud palvelin server ylläpito maintenance varmuuskopio backup päivitys update suomi finland tuki support sla',
   },
   {
     slug: '/lainuri-checkout-machine/',

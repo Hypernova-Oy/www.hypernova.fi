@@ -1078,7 +1078,7 @@ site_scheme() {
 
 # The block both virtual hosts put above their catch-all ProxyPass, so that the name which is
 # not the canonical one answers with a redirect to it - path and query intact, since a visitor
-# who follows a link to /koha-hosting/?page=2 has to land on that page and not on the homepage.
+# who follows a link to /koha/?page=2 has to land on that page and not on the homepage.
 canonical_host_directives() {
   # Only the dots need escaping: a hostname is letters, digits, dots and dashes, and the check
   # above has refused everything else. The optional port lets the same rule answer on a host
@@ -1467,7 +1467,7 @@ verify_deployment() {
   # checks below ask the two halves of it - Apache, which answers without a trip through Node,
   # and the app itself, which answers a request that never reaches this virtual host.
   local alias_path alias_expected alias_reply alias_code alias_location
-  alias_path="/koha-hosting/?probe=1"
+  alias_path="/koha/?probe=1"
   alias_expected="$(site_scheme)://$DOMAIN$alias_path"
 
   if [ "$WITH_APACHE" -eq 1 ]; then

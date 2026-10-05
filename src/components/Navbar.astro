@@ -41,13 +41,13 @@ function linkedPath(href: string) {
  * is the page under it - the styling of the bar marks nothing either, every link is the same
  * grey until it is hovered - so the page the visitor is on carries `aria-current="page"` and
  * a link into a section of it carries `aria-current="location"`. That pair is what ARIA draws
- * for the two cases: one of these links (`/#whyfoss`) does not leave its page at all, and
- * calling it the current *page* would announce the homepage twice, once for the page and once
- * for a heading inside it.
+ * for the two cases: two of these links (`/#whyfoss`, `/koha/#cloud-hosting-service`) do not
+ * leave their page at all, and calling them the current *page* would announce the same page
+ * twice on /koha/, once for the page and once for a heading inside it.
  *
- * The comparison drops the fragment, so a link is matched on the page it points at, which is
- * what marks `/#whyfoss` from `/`. This does not need the request language: `?l=` is not part
- * of a path.
+ * The comparison drops the fragment, so the links are matched on the page they point at, and
+ * the anchors of the two pages above are marked from `/` and from `/koha/` alike. This does
+ * not need the request language: `?l=` is not part of a path.
  */
 function currentMarker(href: string) {
   if (linkedPath(href) !== currentPath) return undefined;

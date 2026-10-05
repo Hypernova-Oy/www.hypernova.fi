@@ -75,14 +75,13 @@ export default defineConfig({
      */
   },
   // Legacy URLs from the previous site. The Finnish pages of the old site become the
-  // same page on this site with the `?l=fi` language parameter: the old Koha hosting
-  // service page is the page that describes that service now, and the old quote page is
-  // the quote form on `/koha/`.
+  // same page on this site with the `?l=fi` language parameter, and the old standalone
+  // quote/hosting pages point at the matching section of `/koha/`.
   redirects: {
     // Finnish legacy URLs.
     "/fi/": "/?l=fi",
     "/fi/koha/": "/koha/?l=fi",
-    "/fi/koha-yllapitopalvelu/": "/koha-hosting/?l=fi",
+    "/fi/koha-yllapitopalvelu/": "/koha/?l=fi#cloud-hosting-service",
     "/fi/koha-yllapito-tarjouspyynto/": "/koha/?l=fi#request-a-quote",
     "/fi/lainuri-lainausautomaatti/": "/lainuri-checkout-machine/?l=fi",
     "/fi/ota-yhteytta/": "/contact/?l=fi",
@@ -91,6 +90,9 @@ export default defineConfig({
     "/fi/yhteystiedot/": "/contact/?l=fi",
     // English legacy URLs.
     "/koha-hosting-quote/": "/koha/#request-a-quote",
+    // The Koha hosting service is described in the section of `/koha/` this address used to
+    // render as a page of its own - the section `/fi/koha-yllapitopalvelu/` above points at.
+    "/koha-hosting/": "/koha/#cloud-hosting-service",
     "/lainuri-self-checkout-machine/": "/lainuri-checkout-machine/",
     "/privacy-policy/": "/privacy/",
     // The sitemap of the previous site. Search Console holds its address, and a crawler

@@ -30,8 +30,8 @@ test('the path and the query are carried over', () => {
   // The scheme of the request is the one of the plain hop the Node process accepted; the address
   // it is sent to is the one the deployment declares, which is what the canonical links use.
   assert.equal(
-    canonicalRedirectTarget(new URL('http://hypernova.fi/koha-hosting/?page=2'), SITE),
-    'https://www.hypernova.fi/koha-hosting/?page=2',
+    canonicalRedirectTarget(new URL('http://hypernova.fi/koha/?page=2'), SITE),
+    'https://www.hypernova.fi/koha/?page=2',
   );
 
   // An encoded value is not touched on the way.
@@ -44,7 +44,7 @@ test('the path and the query are carried over', () => {
 test('a request that is already on the canonical name is left alone', () => {
   for (const url of [
     'https://www.hypernova.fi/',
-    'https://www.hypernova.fi/koha-hosting/?page=2',
+    'https://www.hypernova.fi/koha/?page=2',
     'http://www.hypernova.fi/contact/',
   ]) {
     assert.equal(
@@ -75,7 +75,7 @@ test('a host that is neither name is left alone', () => {
   // looks like the site: only the exact second name of the site is redirected, so a rewrite of
   // the first label cannot be bounced to a host nobody asked for.
   for (const url of [
-    'http://127.0.0.1:4321/koha-hosting/',
+    'http://127.0.0.1:4321/koha/',
     'http://localhost:4321/',
     'http://homepagenew.lxd/',
     'http://hypernova.fi.example.test/',
@@ -96,8 +96,8 @@ test('a site whose address is the bare name sends its www name there', () => {
   const site = new URL('https://hypernova.fi');
 
   assert.equal(
-    canonicalRedirectTarget(new URL('http://www.hypernova.fi/koha-hosting/'), site),
-    'https://hypernova.fi/koha-hosting/',
+    canonicalRedirectTarget(new URL('http://www.hypernova.fi/koha/'), site),
+    'https://hypernova.fi/koha/',
   );
   assert.equal(canonicalRedirectTarget(new URL('https://hypernova.fi/'), site), undefined);
 });
@@ -106,8 +106,8 @@ test('the name is matched without regard to case, and a port does not hide it', 
   // A Host header carries the port when the request does not come in on 80 or 443, and a
   // hostname is not case-sensitive.
   assert.equal(
-    canonicalRedirectTarget(new URL('http://HYPERNOVA.FI:8080/koha-hosting/'), SITE),
-    'https://www.hypernova.fi/koha-hosting/',
+    canonicalRedirectTarget(new URL('http://HYPERNOVA.FI:8080/koha/'), SITE),
+    'https://www.hypernova.fi/koha/',
   );
   assert.equal(canonicalRedirectTarget(new URL('http://Hypernova.Fi/'), SITE), 'https://www.hypernova.fi/');
 });

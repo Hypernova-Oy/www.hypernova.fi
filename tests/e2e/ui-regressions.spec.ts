@@ -26,7 +26,6 @@ test.describe('public pages', () => {
     { path: '/', heading: 'Free & Open Source Software.' },
     { path: '/services/', heading: 'Our Services' },
     { path: '/koha/', heading: 'Open source library system' },
-    { path: '/koha-hosting/', heading: 'Koha Cloud Hosting Service' },
     { path: '/toveri-access-control-device/', heading: 'Toveri Access Control Device' },
     { path: '/lainuri-checkout-machine/', heading: 'Lainuri Checkout Machine' },
     { path: '/contact/', heading: 'Contact us' },
@@ -48,15 +47,17 @@ test.describe('public pages', () => {
     });
   }
 
-  // The URLs the previous site served, and where each of them lands now. Astro answers
+  // The URLs the previous site served - plus `/koha-hosting/`, the address the hosting page had
+  // while the service lived on a page of its own - and where each of them lands now. Astro answers
   // every one of them with a permanent redirect (the `redirects` block in astro.config.mjs).
   const legacyRedirects: Array<{ from: string; to: string }> = [
     { from: '/lainuri-self-checkout-machine/', to: '/lainuri-checkout-machine/' },
     { from: '/privacy-policy/', to: '/privacy/' },
     { from: '/koha-hosting-quote/', to: '/koha/#request-a-quote' },
+    { from: '/koha-hosting/', to: '/koha/#cloud-hosting-service' },
     { from: '/fi/', to: '/?l=fi' },
     { from: '/fi/koha/', to: '/koha/?l=fi' },
-    { from: '/fi/koha-yllapitopalvelu/', to: '/koha-hosting/?l=fi' },
+    { from: '/fi/koha-yllapitopalvelu/', to: '/koha/?l=fi#cloud-hosting-service' },
     { from: '/fi/koha-yllapito-tarjouspyynto/', to: '/koha/?l=fi#request-a-quote' },
     { from: '/fi/lainuri-lainausautomaatti/', to: '/lainuri-checkout-machine/?l=fi' },
     { from: '/fi/ota-yhteytta/', to: '/contact/?l=fi' },
@@ -79,7 +80,9 @@ test.describe('public pages', () => {
     const sitemap = await page.goto('/sitemap.xml');
     expect(sitemap?.ok()).toBe(true);
     await expect(page.locator('body')).toContainText('https://www.hypernova.fi/');
-    await expect(page.locator('body')).toContainText('https://www.hypernova.fi/koha-hosting/');
+    await expect(page.locator('body')).toContainText('https://www.hypernova.fi/toveri-access-control-device/');
+    // The hosting service has no page of its own to advertise any more.
+    await expect(page.locator('body')).not.toContainText('/koha-hosting/');
     await expect(page.locator('body')).not.toContainText('lainuri-checkout-machine%20copy');
 
     const robots = await page.goto('/robots.txt');
@@ -97,8 +100,11 @@ test.describe('public pages', () => {
     expect(Array.isArray(body)).toBe(true);
 
     const slugs = body.map((entry: { slug: string }) => entry.slug);
-    expect(slugs).toContain('/koha-hosting/');
+    expect(slugs).toContain('/koha/');
     expect(slugs).toContain('/contact/');
+    // One page is one row: the section the retired hosting entry described is a section of `/koha/`,
+    // and a second result for it would send the palette to the same page twice.
+    expect(slugs).not.toContain('/koha-hosting/');
 
     // The palette renders these fields directly, so they always have to be there.
     for (const entry of body) {
@@ -120,12 +126,13 @@ test.describe('public pages', () => {
     const english = (await (await page.goto('/search-index.json'))!.json()) as Entry[];
     const finnish = (await (await page.goto('/search-index.json?l=fi'))!.json()) as Entry[];
 
-    expect(titleFor(english, '/koha-hosting/')?.title).toBe('Koha cloud hosting');
-    expect(titleFor(finnish, '/koha-hosting/')?.title).toBe('Kohan pilvipalvelu');
+    expect(titleFor(english, '/koha/')?.title).toBe('Koha library system');
+    expect(titleFor(finnish, '/koha/')?.title).toBe('Koha-kirjastojärjestelmä');
 
-    // Keywords keep both languages searchable whichever language is active.
-    expect(titleFor(finnish, '/koha-hosting/')?.keywords).toContain('hosting');
-    expect(titleFor(english, '/koha-hosting/')?.keywords).toContain('pilvipalvelu');
+    // Keywords keep both languages searchable whichever language is active: the hosting service is
+    // a section of this page, and the words the entry for it used to carry are here now.
+    expect(titleFor(finnish, '/koha/')?.keywords).toContain('hosting');
+    expect(titleFor(english, '/koha/')?.keywords).toContain('pilvipalvelu');
 
     // The text of the pages is rendered in the language of the request.
     expect(titleFor(english, '/koha/')?.content).toContain('in the world');
@@ -195,31 +202,31 @@ test.describe('head metadata', () => {
   });
 
   test('inner pages get their own canonical and preview URLs', async ({ page }) => {
-    await page.goto('/koha-hosting/');
+    await page.goto('/toveri-access-control-device/');
 
-    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://www.hypernova.fi/koha-hosting/');
-    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', 'https://www.hypernova.fi/koha-hosting/');
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', 'https://www.hypernova.fi/toveri-access-control-device/');
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', 'https://www.hypernova.fi/toveri-access-control-device/');
     await expect(page.locator('meta[property="og:type"]')).toHaveAttribute('content', 'website');
     await expect(page.locator('meta[property="og:title"]')).toHaveAttribute('content', /Hypernova$/);
   });
 
   test('the two language versions of a page point at each other', async ({ page }) => {
-    await page.goto('/koha-hosting/');
+    await page.goto('/toveri-access-control-device/');
 
     // The version this page is, the version of it in the other language, and the one a visitor
     // whose language is neither of the two is served. A page in two languages that names only
     // one canonical address is a page a crawler reads as English with a duplicate under `?l=fi`.
     await expect(page.locator('link[rel="alternate"][hreflang="en"]')).toHaveAttribute(
       'href',
-      'https://www.hypernova.fi/koha-hosting/',
+      'https://www.hypernova.fi/toveri-access-control-device/',
     );
     await expect(page.locator('link[rel="alternate"][hreflang="fi"]')).toHaveAttribute(
       'href',
-      'https://www.hypernova.fi/koha-hosting/?l=fi',
+      'https://www.hypernova.fi/toveri-access-control-device/?l=fi',
     );
     await expect(page.locator('link[rel="alternate"][hreflang="x-default"]')).toHaveAttribute(
       'href',
-      'https://www.hypernova.fi/koha-hosting/',
+      'https://www.hypernova.fi/toveri-access-control-device/',
     );
 
     // `og:locale` is a language *and* a territory, and the territory of English here is the one
@@ -229,38 +236,39 @@ test.describe('head metadata', () => {
   });
 
   test('the Finnish page is an address of its own, in Finnish', async ({ page }) => {
-    await page.goto('/koha-hosting/?l=fi');
+    await page.goto('/toveri-access-control-device/?l=fi');
 
     // Both languages used to canonicalise to the English address, which told a crawler that the
     // Finnish page was a second copy of the English one - and an `hreflang` naming `?l=fi` would
     // have named an address that denied being a page of its own. Each version declares itself.
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       'href',
-      'https://www.hypernova.fi/koha-hosting/?l=fi',
+      'https://www.hypernova.fi/toveri-access-control-device/?l=fi',
     );
     await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
       'content',
-      'https://www.hypernova.fi/koha-hosting/?l=fi',
+      'https://www.hypernova.fi/toveri-access-control-device/?l=fi',
     );
     await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute('content', 'fi_FI');
     await expect(page.locator('meta[property="og:locale:alternate"]')).toHaveAttribute('content', 'en_GB');
 
     // The title of the page is part of the language it is written in, and so is the heading the
     // title names.
-    await expect(page).toHaveTitle('Koha-pilvipalvelu | Hypernova');
-    await expect(page.getByRole('heading', { level: 1, name: 'Koha-pilvipalvelu' })).toBeVisible();
+    await expect(page).toHaveTitle('Toveri-kulunvalvontalaite | Hypernova');
+    await expect(page.getByRole('heading', { level: 1, name: 'Toveri-kulunvalvontalaite' })).toBeVisible();
   });
 
   test('the English page keeps the clean address, and its English title', async ({ page }) => {
     // Requested with the code of the language rather than by cookie, because `?l=` is what a
-    // crawler and a shared link carry: `/koha-hosting/?l=en` and `/koha-hosting/` are the same
-    // page, so they answer with the same title and the one canonical address between them.
-    await page.goto('/koha-hosting/?l=en');
+    // crawler and a shared link carry: `/toveri-access-control-device/?l=en` and
+    // `/toveri-access-control-device/` are the same page, so they answer with the same title and
+    // the one canonical address between them.
+    await page.goto('/toveri-access-control-device/?l=en');
 
-    await expect(page).toHaveTitle('Koha Cloud Hosting Service | Hypernova');
+    await expect(page).toHaveTitle('Toveri Access Control Device | Hypernova');
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
       'href',
-      'https://www.hypernova.fi/koha-hosting/',
+      'https://www.hypernova.fi/toveri-access-control-device/',
     );
   });
 
@@ -461,7 +469,6 @@ test.describe('404 page', () => {
       '/',
       '/services/',
       '/koha/',
-      '/koha-hosting/',
       '/toveri-access-control-device/',
       '/lainuri-checkout-machine/',
       '/contact/',
@@ -711,12 +718,11 @@ test.describe('navigation', () => {
 
     await page.goto('/koha/');
     await expect(page.locator(`${bar} a[href="/koha/"]`)).toHaveAttribute('aria-current', 'page');
-    // The service has a page of its own, so the link that names it marks that page rather than
-    // a heading on the page the visitor is on.
-    await expect(page.locator(`${bar} a[href="/koha-hosting/"]`)).not.toHaveAttribute('aria-current', /.*/);
-
-    await page.goto('/koha-hosting/');
-    await expect(page.locator(`${bar} a[href="/koha-hosting/"]`)).toHaveAttribute('aria-current', 'page');
+    // `/koha/#cloud-hosting-service` is a heading inside the page above it, not another page.
+    await expect(page.locator(`${bar} a[href="/koha/#cloud-hosting-service"]`)).toHaveAttribute(
+      'aria-current',
+      'location',
+    );
 
     await page.goto('/#whyfoss');
     await expect(page.locator(`${bar} a[href="/#whyfoss"]`)).toHaveAttribute('aria-current', 'location');
@@ -1047,22 +1053,24 @@ test.describe('navigation', () => {
     await page.goto('/');
     await page.keyboard.press('Control+k');
 
-    await page.locator('#search-input').fill('koha hosting');
+    // The service is a section of `/koha/` now, so the query is answered by the entry for that
+    // page: the words the retired entry carried are among its keywords.
+    await page.locator('#search-input').fill('koha library');
 
     // The row is picked by its link: with the snippet in place a text match would
     // also hit the rows whose body copy mentions the page.
-    const row = page.locator('#search-results [role="option"]:has(a[href="/koha-hosting/"])');
+    const row = page.locator('#search-results [role="option"]:has(a[href="/koha/"])');
     await expect(row).toHaveCount(1);
 
     // Each word is wrapped in the casing of the index entry, and the words around
     // the marks keep their place.
     const title = row.locator('.palette-title');
-    await expect(title).toContainText('Koha cloud hosting');
+    await expect(title).toContainText('Koha library system');
 
     const marks = title.locator('mark');
     await expect(marks).toHaveCount(2);
     await expect(marks.nth(0)).toHaveText(/^koha$/i);
-    await expect(marks.nth(1)).toHaveText(/^hosting$/i);
+    await expect(marks.nth(1)).toHaveText(/^library$/i);
 
     await expect(row.locator('.palette-description mark').first()).toBeVisible();
 
@@ -1117,9 +1125,9 @@ test.describe('localization', () => {
 
   test('the title of a page is translated with it', async ({ page }) => {
     // The title is the one line of a page that is read away from it - in a tab, in a search
-    // result, in a shared link - and it stayed English on the Finnish pages: the home page and
-    // /koha-hosting/ both passed a literal English title while the rest of the page was
-    // translated. `Koha` is a name and reads the same in both languages, so /koha/ is left alone.
+    // result, in a shared link - and it stayed English on the Finnish pages: the home page passed
+    // a literal English title while the rest of the page was translated. `Koha` is a name and
+    // reads the same in both languages, so /koha/ is left alone.
     await page.goto('/?l=fi');
 
     await expect(page).toHaveTitle(
@@ -1130,10 +1138,9 @@ test.describe('localization', () => {
       /^Avoimen lähdekoodin kirjastojärjestelmät pilvipalveluna ja tuettuna/,
     );
 
-    // The Finnish name of the Koha hosting service is the one the rest of the site already used
-    // for it, on the navbar and on /koha/.
-    await page.goto('/koha-hosting/?l=fi');
-    await expect(page).toHaveTitle('Koha-pilvipalvelu | Hypernova');
+    // An inner page carries a title of its own, put through its own dictionary.
+    await page.goto('/toveri-access-control-device/?l=fi');
+    await expect(page).toHaveTitle('Toveri-kulunvalvontalaite | Hypernova');
   });
 
   test('English is the default without a language cookie', async ({ page }) => {
@@ -1170,16 +1177,18 @@ test.describe('localization', () => {
     await expect(page.locator('html')).toHaveAttribute('lang', 'en');
   });
 
-  test('Finnish translations render on the hosting page', async ({ page }) => {
-    await page.goto('/koha-hosting/?l=fi');
+  test('the service section is translated with the page it carries', async ({ page }) => {
+    // The section's own dictionary - the three cards, their headings and the quote button - is
+    // read on the page that renders it, in the language that page is served in.
+    await page.goto('/koha/?l=fi');
     await expect(page.locator('html')).toHaveAttribute('lang', 'fi');
-    await expect(page.getByRole('heading', { name: 'Helppo ja luotettava' })).toBeVisible();
+    await expect(page.locator('#cloud-hosting-service').getByRole('heading', { name: 'Helppo ja luotettava' })).toBeVisible();
   });
 
   test('the two Koha calls to action follow the language', async ({ page }) => {
     // The row below the screenshot: our hosting service next to the demo instance a library
     // can try before it talks to us.
-    const hosting = page.locator('#kohaSection a[href="/koha-hosting/"]');
+    const hosting = page.locator('#kohaSection a[href="#cloud-hosting-service"]');
     const demo = page.locator('#kohaSection a[href="https://fi-demointra.koha.fi"]');
 
     await page.goto('/koha/');
@@ -1195,15 +1204,18 @@ test.describe('localization', () => {
     await expect(demo).toHaveText('Kokeile Kohaa ilmaiseksi');
   });
 
-  test('the hosting service is described on one page, not two', async ({ page }) => {
-    // Both pages used to render the same section, word for word: one description of the service
-    // at two addresses a crawler could reach. The page that says what Koha is points at the page
-    // that describes the service now, and the three cards are painted in one place.
+  test('the hosting service is described on one page, and its old address leads there', async ({ page }) => {
+    // The section used to be painted twice, word for word: once here and once on a page of its own,
+    // which put one description of the service at two addresses a crawler could reach. It is
+    // written once now, on the page that says what Koha is, and `/koha-hosting/` is a permanent
+    // redirect into it (the redirect table above) rather than a second copy.
     await page.goto('/koha/');
-    await expect(page.locator('#cloud-hosting-service')).toHaveCount(1);
-    await expect(page.locator('#cloud-hosting-service h3')).toHaveCount(0);
-    await expect(page.locator('#cloud-hosting-service a[href="/koha-hosting/"]')).toBeVisible();
+    const section = page.locator('#cloud-hosting-service');
+    await expect(section).toHaveCount(1);
+    await expect(section.locator('h3')).toHaveCount(3);
 
+    // A visitor (or a crawler) that follows the old address lands in that section, not on a page
+    // that has to say it somewhere else.
     await page.goto('/koha-hosting/');
     await expect(page.locator('#cloud-hosting-service')).toHaveCount(1);
     await expect(page.locator('#cloud-hosting-service h3')).toHaveCount(3);
@@ -1300,7 +1312,6 @@ test.describe('forms', () => {
       '/',
       '/services/',
       '/koha/',
-      '/koha-hosting/',
       '/toveri-access-control-device/',
       '/lainuri-checkout-machine/',
       '/contact/',
@@ -1894,7 +1905,7 @@ test.describe('layout regressions', () => {
       });
     };
 
-    for (const path of ['/koha/', '/koha-hosting/']) {
+    for (const path of ['/koha/']) {
       await page.setViewportSize({ width: 1280, height: 900 });
       await page.goto(path);
       const desktop = await logo();
@@ -2242,7 +2253,7 @@ test.describe('koha staff interface screenshot', () => {
   test('the screenshot sits above the two buttons that follow it', async ({ page }) => {
     await page.goto('/koha/');
     const figure = page.locator(figureSelector);
-    const buttons = page.locator('#kohaSection a[href="/koha-hosting/"]');
+    const buttons = page.locator('#kohaSection a[href="#cloud-hosting-service"]');
 
     await expect(figure).toBeVisible();
     await expect(buttons).toBeVisible();
@@ -2251,7 +2262,7 @@ test.describe('koha staff interface screenshot', () => {
     // Reading order: the cards, then the interface itself, then the two ways forward.
     const figureAboveButtons = await page.evaluate(() => {
       const shot = document.querySelector('[data-koha-screenshot-figure]');
-      const button = document.querySelector('#kohaSection a[href="/koha-hosting/"]');
+      const button = document.querySelector('#kohaSection a[href="#cloud-hosting-service"]');
       if (!shot || !button) return false;
       return Boolean(shot.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING);
     });
@@ -2285,43 +2296,6 @@ test.describe('koha staff interface screenshot', () => {
     await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).currentSrc)).toContain('koha_mobile');
   });
 
-  test('the hosting page shows the same screenshot above its cards', async ({ page, isMobile }) => {
-    await page.goto('/koha-hosting/');
-    const figure = page.locator(figureSelector);
-    await expect(figure).toHaveCount(1);
-    await expect(figure).toBeVisible();
-
-    // Reading order: the section introduces itself, then shows the interface, then the cards.
-    const figureComesFirst = await page.evaluate(() => {
-      const shot = document.querySelector('[data-koha-screenshot-figure]');
-      const card = document.querySelector('#cloud-hosting-service h3');
-      if (!shot || !card) return false;
-      return Boolean(shot.compareDocumentPosition(card) & Node.DOCUMENT_POSITION_FOLLOWING);
-    });
-    expect(figureComesFirst).toBe(true);
-
-    const image = await screenshotInView(page);
-    const view = isMobile ? 'mobile' : 'desktop';
-    await expect(figure).toHaveAttribute('data-koha-screenshot-view', view);
-    expect(await image.evaluate((el) => (el as HTMLImageElement).currentSrc)).toContain(`en_koha_${view}`);
-  });
-
-  test('the hosting page view buttons switch renditions in the visitor language', async ({ page }) => {
-    await page.goto('/koha-hosting/?l=fi');
-    const figure = page.locator(figureSelector);
-    const image = await screenshotInView(page);
-
-    // The figure speaks Finnish here too, buttons included.
-    await expect(page.locator(option('desktop'))).toContainText('Tietokonenäkymä');
-    await expect(page.locator(option('mobile'))).toContainText('Matkapuhelinnäkymä');
-
-    const initial = (await figure.getAttribute('data-koha-screenshot-view')) as 'desktop' | 'mobile';
-    const target = initial === 'desktop' ? 'mobile' : 'desktop';
-    await page.locator(option(target)).click();
-
-    await expect(figure).toHaveAttribute('data-koha-screenshot-view', target);
-    await expect.poll(() => image.evaluate((el) => (el as HTMLImageElement).currentSrc)).toContain(`fi_koha_${target}`);
-  });
 });
 
 /**
@@ -2337,7 +2311,6 @@ test.describe('what a page fetches', () => {
   const paths = [
     '/',
     '/koha/',
-    '/koha-hosting/',
     '/toveri-access-control-device/',
     '/lainuri-checkout-machine/',
   ];
@@ -2456,11 +2429,9 @@ test.describe('what a page fetches', () => {
       { path: '/koha/', eager: 2, leads: /koha/i },
       // The first frame of the product gallery: the machine itself, above the fold.
       { path: '/lainuri-checkout-machine/', eager: 2, leads: /lainuri/i },
-      // These two wait for layout. The screenshot and the product photo sit under a heading,
-      // and it is the copy above them that the page paints; the screenshot used to be `eager`
-      // with `fetchpriority="high"`, which pushed the file it does not need first in front of
-      // the text that it does.
-      { path: '/koha-hosting/', eager: 1 },
+      // This one waits for layout. The product photo sits under a heading, and it is the copy above
+      // it that the page paints; the screenshot used to be `eager` with `fetchpriority="high"`,
+      // which pushed the file it does not need first in front of the text that it does.
       { path: '/toveri-access-control-device/', eager: 1 },
     ];
 
