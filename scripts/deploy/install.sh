@@ -1018,7 +1018,7 @@ caching_directives() {
       Header set Cache-Control "public, max-age=31536000, immutable"
     </LocationMatch>
 
-    <LocationMatch "^/(favicon[^/]*\.(ico|png|svg)|og-image\.png|authors/[^/]+)$">
+    <LocationMatch "^/(favicon[^/]*\.(ico|png|svg)|og-image\.png)$">
       Header unset Cache-Control
       Header set Cache-Control "public, max-age=3600"
     </LocationMatch>

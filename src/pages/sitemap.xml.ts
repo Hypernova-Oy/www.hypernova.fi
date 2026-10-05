@@ -1,21 +1,22 @@
 import type { APIRoute } from 'astro';
-import { getCollection } from 'astro:content';
 import { SITE_URL } from '../config';
 
-type SitemapEntry = {
-  path: string;
-  lastmod?: Date;
-};
-
-const staticEntries: SitemapEntry[] = [
-  { path: '/' },
-  { path: '/services/' },
-  { path: '/koha/' },
-  { path: '/lainuri-checkout-machine/' },
-  { path: '/toveri-access-control-device/' },
-  { path: '/contact/' },
-  { path: '/privacy/' },
-  { path: '/terms/' },
+/*
+ * The addresses the site serves, in the order they are advertised.
+ *
+ * Nothing here carries a `<lastmod>`: no page has a date of its own, and the entries that did -
+ * the blog posts and the changelog - are retired (see `redirects` in astro.config.mjs). A date
+ * guessed from the build would be a date a crawler believes and the site cannot back up.
+ */
+const staticEntries: string[] = [
+  '/',
+  '/services/',
+  '/koha/',
+  '/lainuri-checkout-machine/',
+  '/toveri-access-control-device/',
+  '/contact/',
+  '/privacy/',
+  '/terms/',
 ];
 
 const escapeXml = (value: string) =>
@@ -26,32 +27,9 @@ const escapeXml = (value: string) =>
     .replace(/"/g, '&quot;')
     .replace(/'/g, '&apos;');
 
-const formatDate = (date: Date) => date.toISOString().split('T')[0];
-
-export const GET: APIRoute = async () => {
-  const posts = await getCollection('blog', ({ data }) => data.draft !== true);
-  const changelog = await getCollection('changelog', ({ data }) => data.draft !== true);
-
-  const entries: SitemapEntry[] = [
-    ...staticEntries,
-    // Only advertise the index pages once they actually have content.
-    ...(posts.length > 0 ? [{ path: '/blog/' }] : []),
-    ...posts.map((post) => ({
-      path: `/blog/${post.id}/`,
-      lastmod: post.data.updatedDate ?? post.data.pubDate,
-    })),
-    ...(changelog.length > 0 ? [{ path: '/changelog/' }] : []),
-  ];
-
-  const urls = entries
-    .map((entry) => {
-      const loc = new URL(entry.path, SITE_URL).href;
-      const lastmod = entry.lastmod ? `\n    <lastmod>${formatDate(entry.lastmod)}</lastmod>` : '';
-
-      return `  <url>
-    <loc>${escapeXml(loc)}</loc>${lastmod}
-  </url>`;
-    })
+export const GET: APIRoute = () => {
+  const urls = staticEntries
+    .map((path) => `  <url>\n    <loc>${escapeXml(new URL(path, SITE_URL).href)}</loc>\n  </url>`)
     .join('\n');
 
   return new Response(`<?xml version="1.0" encoding="UTF-8"?>

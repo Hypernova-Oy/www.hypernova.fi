@@ -1,7 +1,6 @@
 import type { APIRoute } from 'astro';
-import { getCollection } from 'astro:content';
 import { FALLBACK_LANG, isLanguage, type Language } from '../i18n/ui';
-import { loadPageText, markdownToPlainText } from '../utils/search-content';
+import { loadPageText } from '../utils/search-content';
 
 type LocalizedText = Record<Language, string>;
 
@@ -152,79 +151,16 @@ function selfOrigin(url: URL): string {
 export const GET: APIRoute = async ({ locals, url }) => {
   const lang: Language = isLanguage(locals.lang) ? locals.lang : FALLBACK_LANG;
 
-  const posts = await getCollection('blog', ({ data }) => data.draft !== true);
-  const changelog = await getCollection('changelog', ({ data }) => data.draft !== true);
-
   // Every page is read in the language of this request, so the text a visitor
   // can search is the text that visitor would read.
   const pageText = await loadPageText({
     origin: selfOrigin(url),
     lang,
     cache: import.meta.env.PROD,
-    slugs: [
-      ...PAGES.map((page) => page.slug),
-      ...(posts.length > 0 ? ['/blog/'] : []),
-      ...(changelog.length > 0 ? ['/changelog/'] : []),
-    ],
+    slugs: PAGES.map((page) => page.slug),
   });
 
-  const index = [
-    ...PAGES.map((page) => toIndexEntry(page, lang, pageText.get(page.slug) ?? '')),
-    // Only advertise the index pages once they actually have entries.
-    ...(posts.length > 0
-      ? [
-          toIndexEntry(
-            {
-              slug: '/blog/',
-              type: 'Blog',
-              title: { en: 'Blog', fi: 'Blogi' },
-              description: {
-                en: 'Articles about Free and Open Source software.',
-                fi: 'Artikkeleita vapaasta ja avoimesta lähdekoodista.',
-              },
-              keywords: 'blog blogi artikkelit articles kirjoitukset',
-            },
-            lang,
-            pageText.get('/blog/') ?? ''
-          ),
-        ]
-      : []),
-    ...posts.map((post) => ({
-      title: post.data.title,
-      description: post.data.description,
-      keywords: [post.data.title, post.data.description, ...post.data.tags].join(' '),
-      content: markdownToPlainText(post.body ?? ''),
-      slug: `/blog/${post.id}/`,
-      type: 'Blog Post',
-    })),
-    ...(changelog.length > 0
-      ? [
-          toIndexEntry(
-            {
-              slug: '/changelog/',
-              type: 'Changelog',
-              title: { en: 'Changelog', fi: 'Muutosloki' },
-              description: {
-                en: 'Product updates and release notes.',
-                fi: 'Palveluiden päivitykset ja julkaisutiedotteet.',
-              },
-              keywords: 'muutosloki changelog release notes päivitykset updates versio',
-            },
-            lang,
-            pageText.get('/changelog/') ?? ''
-          ),
-        ]
-      : []),
-    ...changelog.map((entry) => ({
-      title: `${entry.data.version}: ${entry.data.title}`,
-      description:
-        lang === 'fi' ? 'Palveluiden päivitys ja julkaisutiedote.' : 'Product update and release note.',
-      keywords: [entry.data.version, entry.data.title, entry.data.type].join(' '),
-      content: markdownToPlainText(entry.body ?? ''),
-      slug: '/changelog/',
-      type: 'Changelog',
-    })),
-  ];
+  const index = PAGES.map((page) => toIndexEntry(page, lang, pageText.get(page.slug) ?? ''));
 
   return new Response(JSON.stringify(index), {
     headers: {

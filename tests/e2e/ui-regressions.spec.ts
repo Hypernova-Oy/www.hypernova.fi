@@ -31,8 +31,6 @@ test.describe('public pages', () => {
     { path: '/contact/', heading: 'Contact us' },
     { path: '/privacy/', heading: 'Privacy Policy' },
     { path: '/terms/', heading: 'Terms of Service' },
-    { path: '/blog/', heading: 'Hypernova Blog' },
-    { path: '/changelog/', heading: 'Changelog' },
   ];
 
   for (const { path, heading } of pages) {
@@ -64,6 +62,12 @@ test.describe('public pages', () => {
     { from: '/fi/tietosuojaseloste/', to: '/privacy/?l=fi' },
     { from: '/fi/toveri-kulunvalvontalaite/', to: '/toveri-access-control-device/?l=fi' },
     { from: '/fi/yhteystiedot/', to: '/contact/?l=fi' },
+    // The blog and the changelog were routes of the theme with nothing published behind them
+    // (the README, "Routes"): both are retired and lead to the home page. `/blog/<slug>/` is not
+    // in this list on purpose - it answered 404 for every slug it ever had, so no article URL of
+    // this site was ever served with a 200.
+    { from: '/blog/', to: '/' },
+    { from: '/changelog/', to: '/' },
   ];
 
   for (const { from, to } of legacyRedirects) {
@@ -83,6 +87,9 @@ test.describe('public pages', () => {
     await expect(page.locator('body')).toContainText('https://www.hypernova.fi/toveri-access-control-device/');
     // The hosting service has no page of its own to advertise any more.
     await expect(page.locator('body')).not.toContainText('/koha-hosting/');
+    // Neither have the blog and the changelog, which carry nothing published.
+    await expect(page.locator('body')).not.toContainText('/blog/');
+    await expect(page.locator('body')).not.toContainText('/changelog/');
     await expect(page.locator('body')).not.toContainText('lainuri-checkout-machine%20copy');
 
     const robots = await page.goto('/robots.txt');
@@ -434,16 +441,6 @@ test.describe('head metadata', () => {
     await page.emulateMedia({ colorScheme: 'light' });
     await expect(page.locator('#favicon-raster')).toHaveAttribute('href', '/favicon.png');
   });
-
-  test('draft blog posts stay hidden from the rendered site', async ({ page }) => {
-    // The only blog entry is the `sample-post` draft, so there is no published
-    // article page to assert `og:type="article"` / `article:published_time` against.
-    const draft = await page.goto('/blog/sample-post/');
-    expect(draft?.status()).toBe(404);
-
-    const sitemap = await (await page.goto('/sitemap.xml'))!.text();
-    expect(sitemap).not.toContain('/blog/');
-  });
 });
 
 test.describe('404 page', () => {
@@ -464,7 +461,7 @@ test.describe('404 page', () => {
     await expect(page.getByRole('link', { name: 'Takaisin etusivulle' })).toHaveAttribute('href', '/');
   });
 
-  test('no page links to the blog, which has nothing published', async ({ page }) => {
+  test('no page links to the retired blog or changelog', async ({ page }) => {
     const paths = [
       '/',
       '/services/',
@@ -474,16 +471,16 @@ test.describe('404 page', () => {
       '/contact/',
       '/privacy/',
       '/terms/',
-      '/changelog/',
       '/no-such-page/',
     ];
 
     for (const path of paths) {
       await page.goto(path);
 
-      // `/blog/` is still a route, but with nothing published it is not advertised
-      // anywhere: the not-found page was the only page that linked it.
+      // Both addresses are redirects to the home page now, and no page advertises them:
+      // the not-found page was the last page that linked the blog.
       await expect(page.locator('a[href^="/blog"]')).toHaveCount(0);
+      await expect(page.locator('a[href^="/changelog"]')).toHaveCount(0);
     }
   });
 
@@ -1317,8 +1314,6 @@ test.describe('forms', () => {
       '/contact/',
       '/privacy/',
       '/terms/',
-      '/blog/',
-      '/changelog/',
     ];
 
     for (const path of paths) {

@@ -99,10 +99,9 @@ test('the hashed build files are cached for a year', () => {
 test('the files in public keep their names, so they get an hour and not a year', () => {
   const directives = rendered('caching_directives');
 
-  // The favicons (asked for on every document load), the generated social card, and the
-  // author pictures that are served from public/authors/.
+  // The favicons (asked for on every document load) and the generated social card.
   const stable =
-    '<LocationMatch "^/(favicon[^/]*\\.(ico|png|svg)|og-image\\.png|authors/[^/]+)$">';
+    '<LocationMatch "^/(favicon[^/]*\\.(ico|png|svg)|og-image\\.png)$">';
   assert.ok(directives.includes(stable), `the rule for the stable names is gone:\n${directives}`);
   assert.ok(directives.includes(STABLE_FILES), `the hour-long policy is gone:\n${directives}`);
 

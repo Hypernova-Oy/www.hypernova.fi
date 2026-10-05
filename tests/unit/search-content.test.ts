@@ -9,11 +9,7 @@ import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { test } from 'node:test';
 
-import {
-  htmlToPlainText,
-  loadPageText,
-  markdownToPlainText,
-} from '../../src/utils/search-content.ts';
+import { htmlToPlainText, loadPageText } from '../../src/utils/search-content.ts';
 
 const PAGE = `<!doctype html>
 <html>
@@ -68,38 +64,6 @@ test('a page without main content is still indexed', () => {
 
 test('an unknown character reference is dropped', () => {
   assert.equal(htmlToPlainText('<main>a &notanentity; b</main>'), 'a b');
-});
-
-test('markdown syntax leaves the words a reader would see', () => {
-  const text = markdownToPlainText(`# Heading with *emphasis*
-
-Paragraph with a [link to Koha](https://www.hypernova.fi/koha/) and \`koha\` inline code.
-
-- first list item
-- second list item
-
-![Lainuri checkout machine](/lainuri.png)
-
-\`\`\`bash
-npm run build
-\`\`\`
-
-> Quoted sentence.
-
-<Card title="x">Component text</Card>
-`);
-
-  assert.ok(text.includes('Heading with emphasis'));
-  assert.ok(text.includes('link to Koha'));
-  assert.ok(text.includes('koha inline code.'));
-  assert.ok(text.includes('first list item'));
-  assert.ok(text.includes('Lainuri checkout machine'));
-  assert.ok(text.includes('Quoted sentence.'));
-  assert.ok(text.includes('Component text'));
-
-  for (const noise of ['#', '*', ']', 'https://www.hypernova.fi', 'npm run build', '<Card']) {
-    assert.equal(text.includes(noise), false, `"${noise}" should not be indexed`);
-  }
 });
 
 /** A miniature site: pages are answered by path, `'drop'` closes the socket. */

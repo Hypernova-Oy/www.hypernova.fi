@@ -5,7 +5,6 @@ import { readFileSync } from 'node:fs';
 import { defineConfig, fontProviders } from 'astro/config';
 import tailwindcss from '@tailwindcss/vite';
 
-import mdx from '@astrojs/mdx';
 import node from '@astrojs/node';
 
 // The public address of this deployment, used for canonical links and the sitemap. A staging
@@ -98,6 +97,15 @@ export default defineConfig({
     // The sitemap of the previous site. Search Console holds its address, and a crawler
     // that still asks for it has to land on the sitemap of this site instead of the 404.
     "/page-sitemap.xml": "/sitemap.xml",
+    /*
+     * The theme this site was built from shipped a blog and a changelog, and both were live
+     * here as empty listings while everything in them was a draft: two pages that said nothing
+     * and answered `index, follow`. Both are retired, and their addresses lead to the home page.
+     * `/blog/<slug>/` needs no redirect of its own: every slug it ever had was a draft, which
+     * answered 404, so no article URL was ever served with a 200.
+     */
+    "/blog/": "/",
+    "/changelog/": "/",
   },
   vite: {
     /*
@@ -127,9 +135,8 @@ export default defineConfig({
    * without its highlighting and with a violation for every token (Astro warns about this at
    * build time). Prism writes the same information as classes, which the policy is content
    * with; giving those classes colours again is a Prism theme stylesheet, imported in
-   * src/styles/global.css, whenever a post needs one. No page has a code block today: the only
-   * entry in src/content/blog/ is a draft, which the blog index, the sitemap and the search
-   * index leave out.
+   * src/styles/global.css, if a page with a code block is ever written. No page carries one
+   * today, so nothing renders through this configuration yet.
    */
   markdown: {
     syntaxHighlight: 'prism',
@@ -246,7 +253,6 @@ export default defineConfig({
       },
     }
   },
-  integrations: [mdx()],
   server: {
     allowedHosts
   },

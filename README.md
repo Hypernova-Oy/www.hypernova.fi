@@ -8,7 +8,6 @@ and Toveri access control devices.
 
 - **Astro 6** server-rendered (`output: 'server'`) with the **`@astrojs/node`** standalone adapter
 - **Tailwind CSS 4** via `@tailwindcss/vite` plus `@tailwindcss/typography` for prose content
-- **MDX** content collections for the blog, changelog and authors
 - **English / Finnish** UI, resolved per request (query parameter → cookie → English)
 - **Playwright** end-to-end regression tests
 
@@ -105,8 +104,6 @@ through the REST API. Copy `.env.example` to `.env` and set:
 | `/toveri-access-control-device/` | SSR | Toveri access control device |
 | `/lainuri-checkout-machine/` | SSR | Lainuri self-service checkout machine |
 | `/contact/` | SSR | Company and billing details + contact form (POST) |
-| `/blog/`, `/blog/[slug]/` | SSR | MDX blog collection |
-| `/changelog/` | SSR | Changelog collection |
 | `/privacy/`, `/terms/` | SSR | Legal pages |
 | `/sitemap.xml`, `/robots.txt` | SSR | SEO data |
 | `/search-index.json` | SSR | Data for the command palette (see below) |
@@ -120,7 +117,10 @@ their place (`/privacy-policy/` → `/privacy/`, `/lainuri-self-checkout-machine
 the `?l=fi` language parameter (`/fi/lainuri-lainausautomaatti/` →
 `/lainuri-checkout-machine/?l=fi`). `/koha-hosting/` is in that list too: it was the address of
 the hosting page for as long as the service had one, and it redirects into the section that
-describes the service (`/koha/#cloud-hosting-service`).
+describes the service (`/koha/#cloud-hosting-service`). `/blog/` and `/changelog/` are in that
+list for a third reason: both were routes of the theme this site was built from, both were live
+here as empty listings while every entry in them was a draft, and both lead to the home page now
+that they are retired.
 
 The Koha hosting service is described on `/koha/` and nowhere else. The section with the
 `cloud-hosting-service` id - what the service includes, who runs it and for how long - is
@@ -186,9 +186,11 @@ navbar buttons call) on `astro:page-load`.
   `kirjasto`, `hosting`, `kulunvalvonta`), so a search matches in either language;
 - `content`, the text of the page itself in the visitor's language, so a page is found
   by anything written on it (`maailman ensimmäinen`, `since 1999`) and not only by its
-  title, description or keywords;
-- `/blog/` and `/changelog/` plus their entries, but only once they have published
-  (non-draft) content. Blog and changelog entries carry their own body text.
+  title, description or keywords.
+
+Every entry is one of the static pages: the two index pages of the theme the site was built
+from (`/blog/`, `/changelog/`) had nothing published behind them and are retired (see
+"Routes").
 
 `content` is not written twice anywhere: the server renders the page and
 `src/utils/search-content.ts` reads the `<main>` element of that answer back, in the
@@ -298,9 +300,8 @@ the page, in a tab, a search result or a shared link - so it goes through the pa
 dictionary like the rest of its copy: `/` is `Open source library systems, hosted and
 supported` / `Avoimen lähdekoodin kirjastojärjestelmät pilvipalveluna ja tuettuna`, and
 `/toveri-access-control-device/` is `Toveri Access Control Device` /
-`Toveri-kulunvalvontalaite`. `/blog/` and `/changelog/` are the two pages left out on purpose:
-their bodies are English only, and a Finnish title over English text would promise a translation
-the page does not have.
+`Toveri-kulunvalvontalaite`. Every page of the site is translated: the blog and the changelog,
+whose English-only bodies were the two exceptions, are retired (see "Routes").
 
 The mobile menu is a panel of the sticky header, so it covers the top of the page it is
 open over and puts itself away unless the tap asks to stay: a tap beside the menu, or on
@@ -444,33 +445,6 @@ The site does not publish e-mail addresses, not even in the legal pages: they po
 the contact form and the postal address instead. That keeps address harvesters from
 having anything to collect. If you ever need to print an address, add it as an image
 or through the contact form - do not put it back into the markup.
-
-## Content
-
-- Blog posts: `src/content/blog/`
-- Changelog entries: `src/content/changelog/`
-- Authors: `src/content/authors/`
-
-Blog posts and changelog entries support a `draft: true` flag. Drafts are excluded
-from the blog/changelog listings, the sitemap and the search index, and
-`/blog/<slug>/` returns 404 for them. `src/content/blog/sample-post.mdx` and
-`src/content/changelog/sample-entry.md` are drafts kept only so that both
-collections stay initialised while there is no published content - delete them
-once you add real entries.
-
-```mdx
----
-title: "Example post"
-description: "A short summary."
-pubDate: 2026-06-01
-author: farros
-tags: ["koha", "update"]
----
-
-<Callout type="info" title="Heads up">
-  MDX components can be used directly inside content.
-</Callout>
-```
 
 ## Performance notes
 
@@ -647,7 +621,7 @@ janky scrolling and laggy scroll-reveals. Keep these constraints in mind:
   rendered per request and must be revalidated - and wrong for the two groups of files that do
   not change: the content-hashed files under `/_astro/` (stylesheet, client JavaScript, fonts,
   optimized images) never change under one name, and the files in `public/` (favicons,
-  `og-image.png`, `authors/`) are asked for on every document load. Apache adds
+  `og-image.png`) are asked for on every document load. Apache adds
   `max-age=31536000, immutable` for the first group and `max-age=3600` for the second, replacing
   the adapter's header rather than sending a second `Cache-Control` (`Header unset` first: a
   response with two of them is one a cache may ignore). `/_image/` needs nothing, because it

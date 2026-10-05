@@ -79,31 +79,6 @@ export function htmlToPlainText(html: string): string {
   );
 }
 
-/**
- * The readable text of an author-written body (blog post, changelog entry).
- * Markdown syntax carries no information for a text search, so it is removed
- * and only the words the reader would see are kept.
- */
-export function markdownToPlainText(markdown: string): string {
-  return collapse(
-    decodeEntities(
-      markdown
-        // Fenced code blocks carry no prose and would only add noise.
-        .replace(/^[ \t]*(```|~~~)[\s\S]*?^[ \t]*\1[ \t]*$/gm, ' ')
-        .replace(/<!--[\s\S]*?-->/g, ' ')
-        .replace(/`([^`]*)`/g, '$1')
-        .replace(/!\[([^\]]*)\]\([^)]*\)/g, '$1')
-        .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
-        .replace(/^[ \t]{0,3}#{1,6}[ \t]+/gm, ' ')
-        .replace(/^[ \t]{0,3}>[ \t]?/gm, ' ')
-        .replace(/^[ \t]{0,3}([-*+]|\d{1,9}\.)[ \t]+/gm, ' ')
-        .replace(/[*_~]{1,3}/g, '')
-        // Raw HTML and MDX components inside a body.
-        .replace(/<\/?[a-z][^>]*>/gi, ' '),
-    ),
-  );
-}
-
 export type PageTextOptions = {
   /** Base URL of the running site, for example `http://127.0.0.1:4321`. */
   origin: string;
