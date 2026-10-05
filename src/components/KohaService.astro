@@ -6,9 +6,8 @@ import { useTranslations } from '../i18n/utils';
 
 interface Props {
   /**
-   * Show the Koha staff interface screenshot above the service cards. The Koha page shows it
-   * higher up, under its own wordmark, so it leaves this section alone there; the hosting page
-   * has no such place of its own and gets it here.
+   * Show the Koha staff interface screenshot above the service cards. The hosting page is the
+   * only page that renders this section, and it has no place of its own for the figure.
    */
   showScreenshot?: boolean;
 }
@@ -64,7 +63,7 @@ const t = useTranslations(i18n, Astro);
 			C480.005,334.256,433.141,381.12,375.537,381.12z"/></g></svg>`} />
           <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('Easy and reliable')}</h3>
           <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
-            <a href="#what-is-koha" class="link-inline">{t('Koha Library System')}</a> {t('runs in your web browser: nothing to install on staff workstations and no servers of your own to maintain. We take care of the infrastructure and monitor it in real time to ensure consistent user experience.')}
+            <a href={resolvePath('/koha/#what-is-koha')} class="link-inline">{t('Koha Library System')}</a> {t('runs in your web browser: nothing to install on staff workstations and no servers of your own to maintain. We take care of the infrastructure and monitor it in real time to ensure consistent user experience.')}
           </p>
         </div>
         <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0">

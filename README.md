@@ -39,6 +39,7 @@ npm start           # Run the built server (dist/server/entry.mjs)
 npm run test        # Unit tests + Playwright regression tests
 npm run test:unit   # Node's built-in test runner (form protection, fonts, caching, palette)
 npm run test:e2e    # Playwright regression tests
+npm run test:e2e:preview # The same suite against the build in this checkout (see below)
 npm run bench:scroll # Chromium scroll-smoothness benchmark (needs a running server)
 npm run index:refresh # Build, restart the site and verify the search index (see Deployment)
 npm run og:image    # Regenerate the social preview card (public/og-image.png)
@@ -53,9 +54,11 @@ npx playwright install chromium
 
 The Playwright config starts a dev server on `127.0.0.1:4321` unless something already answers
 there, and on a server that runs the site the deployed build answers on that same port. The
-suite then tests the deployment instead of the checkout, which hides every change under test:
-stop the service first (`sudo systemctl stop hypernova`) and let Playwright start the dev server
-from the working copy.
+suite then tests the deployment instead of the checkout, which hides every change under test.
+`npm run test:e2e:preview` is that suite against the working tree: it builds the checkout,
+starts it with `npm start` on `127.0.0.1:4399`, and refuses to reuse a server already on that
+port, so it cannot quietly test something else. The other way is to stop the service first
+(`sudo systemctl stop hypernova`) and let Playwright start the dev server from the working copy.
 
 ## Configuration
 
@@ -110,12 +113,21 @@ through the REST API. Copy `.env.example` to `.env` and set:
 | `/search-index.json` | SSR | Data for the command palette (see below) |
 | any unknown URL | SSR | `src/pages/404.astro`, answered with status 404 and translated |
 
-Legacy URLs are redirected in `astro.config.mjs`. The old standalone pages point at the
-section of `/koha/` that replaced them (`/koha-hosting-quote/` →
-`/koha/#request-a-quote`) or at the page that took their place (`/privacy-policy/` →
-`/privacy/`, `/lainuri-self-checkout-machine/` → `/lainuri-checkout-machine/`), and the
-Finnish URLs of the old site become the same page with the `?l=fi` language parameter
-(`/fi/lainuri-lainausautomaatti/` → `/lainuri-checkout-machine/?l=fi`).
+Legacy URLs are redirected in `astro.config.mjs`. The old standalone pages point at the section
+of `/koha/` that replaced them (`/koha-hosting-quote/` → `/koha/#request-a-quote`) or at the
+page that took their place (`/privacy-policy/` → `/privacy/`,
+`/lainuri-self-checkout-machine/` → `/lainuri-checkout-machine/`,
+`/fi/koha-yllapitopalvelu/` → `/koha-hosting/?l=fi`), and the Finnish URLs of the old site
+become the same page with the `?l=fi` language parameter (`/fi/lainuri-lainausautomaatti/` →
+`/lainuri-checkout-machine/?l=fi`).
+
+The two Koha pages are one service in two halves: `/koha/` says what Koha is and takes the quote
+form, and `/koha-hosting/` describes what we host and support - what the service includes, who
+runs it and for how long. `/koha/` used to render that page's component whole, the same sentence,
+the same three cards and the same quote button, which put one description of the service at two
+addresses a crawler could reach; it is a sentence and a link to the page now, and it keeps the
+`cloud-hosting-service` id so a link into that section still lands on a heading that names the
+service.
 
 The Koha logo on `/koha/` and `/koha-hosting/` is a wide file (768x220) that carries no
 width of its own, so it is capped below `md` (`w-56`) and left to its grid cell above it.
@@ -312,14 +324,14 @@ nothing scrolls under them.
 
 Two things in the bar are for assistive technology rather than for the eye. A link that names
 the page the visitor is on carries `aria-current="page"`, and one that names a section of the
-page it is already on - `/#whyfoss`, `/koha/#cloud-hosting-service` - carries
-`aria-current="location"`: the bar marks nothing visually, every link the same grey until it
-is hovered, so a screen reader otherwise reads five destinations that all sound alike. The
-comparison drops the fragment, which is what marks an anchor on the page it points at from
-that page, and the marker is written by `currentMarker()` in `src/components/Navbar.astro` on
-the bar and on the mobile menu alike. The other is the first stop in the tab order of every
-page: a skip link (`BaseLayout.astro`, `.skip-link` in `src/styles/global.css`) that puts the
-visitor past the bar, which is sticky and otherwise walked again on every page. It is
+page it is already on - `/#whyfoss` - carries `aria-current="location"`: the bar marks nothing
+visually, every link the same grey until it is hovered, so a screen reader otherwise reads five
+destinations that all sound alike. The comparison drops the fragment, which is what marks an
+anchor on the page it points at from that page, and the marker is written by `currentMarker()`
+in `src/components/Navbar.astro` on the bar and on the mobile menu alike. The other is the first
+stop in the tab order of every page: a skip link (`BaseLayout.astro`, `.skip-link` in
+`src/styles/global.css`) that puts the visitor past the bar, which is sticky and otherwise walked
+again on every page. It is
 `position: fixed` so it can be drawn over the bar it crosses, it is moved by `transform` and
 without a transition so it costs no layout and no time, and the `main` it opens carries
 `tabindex="-1"` so the browser puts the focus itself there and the next Tab starts inside the

@@ -75,13 +75,14 @@ export default defineConfig({
      */
   },
   // Legacy URLs from the previous site. The Finnish pages of the old site become the
-  // same page on this site with the `?l=fi` language parameter, and the old standalone
-  // quote/hosting pages point at the matching section of `/koha/`.
+  // same page on this site with the `?l=fi` language parameter: the old Koha hosting
+  // service page is the page that describes that service now, and the old quote page is
+  // the quote form on `/koha/`.
   redirects: {
     // Finnish legacy URLs.
     "/fi/": "/?l=fi",
     "/fi/koha/": "/koha/?l=fi",
-    "/fi/koha-yllapitopalvelu/": "/koha/?l=fi#cloud-hosting-service",
+    "/fi/koha-yllapitopalvelu/": "/koha-hosting/?l=fi",
     "/fi/koha-yllapito-tarjouspyynto/": "/koha/?l=fi#request-a-quote",
     "/fi/lainuri-lainausautomaatti/": "/lainuri-checkout-machine/?l=fi",
     "/fi/ota-yhteytta/": "/contact/?l=fi",

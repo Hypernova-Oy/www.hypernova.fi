@@ -22,7 +22,7 @@ export const NAV_LINKS = [
   { href: '/#whyfoss', label: 'Why FOSS' },
   { href: '/services/', label: 'Services' },
   { href: '/koha/', label: 'Koha' },
-  { href: '/koha/#cloud-hosting-service', label: 'Koha Cloud Hosting' },
+  { href: '/koha-hosting/', label: 'Koha Cloud Hosting' },
   { href: '/contact/', label: 'Contact' }
 ];
 

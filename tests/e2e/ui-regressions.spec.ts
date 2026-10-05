@@ -56,7 +56,7 @@ test.describe('public pages', () => {
     { from: '/koha-hosting-quote/', to: '/koha/#request-a-quote' },
     { from: '/fi/', to: '/?l=fi' },
     { from: '/fi/koha/', to: '/koha/?l=fi' },
-    { from: '/fi/koha-yllapitopalvelu/', to: '/koha/?l=fi#cloud-hosting-service' },
+    { from: '/fi/koha-yllapitopalvelu/', to: '/koha-hosting/?l=fi' },
     { from: '/fi/koha-yllapito-tarjouspyynto/', to: '/koha/?l=fi#request-a-quote' },
     { from: '/fi/lainuri-lainausautomaatti/', to: '/lainuri-checkout-machine/?l=fi' },
     { from: '/fi/ota-yhteytta/', to: '/contact/?l=fi' },
@@ -711,11 +711,12 @@ test.describe('navigation', () => {
 
     await page.goto('/koha/');
     await expect(page.locator(`${bar} a[href="/koha/"]`)).toHaveAttribute('aria-current', 'page');
-    // `/koha/#cloud-hosting-service` is a heading inside the page above it, not another page.
-    await expect(page.locator(`${bar} a[href="/koha/#cloud-hosting-service"]`)).toHaveAttribute(
-      'aria-current',
-      'location',
-    );
+    // The service has a page of its own, so the link that names it marks that page rather than
+    // a heading on the page the visitor is on.
+    await expect(page.locator(`${bar} a[href="/koha-hosting/"]`)).not.toHaveAttribute('aria-current', /.*/);
+
+    await page.goto('/koha-hosting/');
+    await expect(page.locator(`${bar} a[href="/koha-hosting/"]`)).toHaveAttribute('aria-current', 'page');
 
     await page.goto('/#whyfoss');
     await expect(page.locator(`${bar} a[href="/#whyfoss"]`)).toHaveAttribute('aria-current', 'location');
@@ -1178,7 +1179,7 @@ test.describe('localization', () => {
   test('the two Koha calls to action follow the language', async ({ page }) => {
     // The row below the screenshot: our hosting service next to the demo instance a library
     // can try before it talks to us.
-    const hosting = page.locator('#kohaSection a[href="#cloud-hosting-service"]');
+    const hosting = page.locator('#kohaSection a[href="/koha-hosting/"]');
     const demo = page.locator('#kohaSection a[href="https://fi-demointra.koha.fi"]');
 
     await page.goto('/koha/');
@@ -1192,6 +1193,20 @@ test.describe('localization', () => {
     await page.goto('/koha/?l=fi');
     await expect(hosting).toHaveText('Koha-pilvipalvelu');
     await expect(demo).toHaveText('Kokeile Kohaa ilmaiseksi');
+  });
+
+  test('the hosting service is described on one page, not two', async ({ page }) => {
+    // Both pages used to render the same section, word for word: one description of the service
+    // at two addresses a crawler could reach. The page that says what Koha is points at the page
+    // that describes the service now, and the three cards are painted in one place.
+    await page.goto('/koha/');
+    await expect(page.locator('#cloud-hosting-service')).toHaveCount(1);
+    await expect(page.locator('#cloud-hosting-service h3')).toHaveCount(0);
+    await expect(page.locator('#cloud-hosting-service a[href="/koha-hosting/"]')).toBeVisible();
+
+    await page.goto('/koha-hosting/');
+    await expect(page.locator('#cloud-hosting-service')).toHaveCount(1);
+    await expect(page.locator('#cloud-hosting-service h3')).toHaveCount(3);
   });
 
   test('the contact page sends Koha hosting questions to the quote form', async ({ page }) => {
@@ -2227,7 +2242,7 @@ test.describe('koha staff interface screenshot', () => {
   test('the screenshot sits above the two buttons that follow it', async ({ page }) => {
     await page.goto('/koha/');
     const figure = page.locator(figureSelector);
-    const buttons = page.locator('#kohaSection a[href="#cloud-hosting-service"]');
+    const buttons = page.locator('#kohaSection a[href="/koha-hosting/"]');
 
     await expect(figure).toBeVisible();
     await expect(buttons).toBeVisible();
@@ -2236,7 +2251,7 @@ test.describe('koha staff interface screenshot', () => {
     // Reading order: the cards, then the interface itself, then the two ways forward.
     const figureAboveButtons = await page.evaluate(() => {
       const shot = document.querySelector('[data-koha-screenshot-figure]');
-      const button = document.querySelector('#kohaSection a[href="#cloud-hosting-service"]');
+      const button = document.querySelector('#kohaSection a[href="/koha-hosting/"]');
       if (!shot || !button) return false;
       return Boolean(shot.compareDocumentPosition(button) & Node.DOCUMENT_POSITION_FOLLOWING);
     });
