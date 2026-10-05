@@ -1,6 +1,8 @@
 import { createHash } from 'node:crypto';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
+import { hasLeadingZeroDigits, PROOF_OF_WORK_DIGITS, proofDigestInput } from '../../src/utils/proof-of-work.ts';
+
 /** Matches THEME_KEY in the theme script in BaseLayout.astro and the Navbar toggle. */
 const THEME_KEY = 'hypernova-theme';
 
@@ -1302,7 +1304,7 @@ test.describe('forms', () => {
     }
   });
 
-  test('forms carry a signed token and an off-screen honeypot', async ({ page }) => {
+  test('forms carry a signed, bound token, a rotating trap and the fields the browser fills in', async ({ page }) => {
     for (const selector of ['#form form', '#request-a-quote form']) {
       await page.goto(selector === '#form form' ? '/contact/' : '/koha/');
       const form = page.locator(selector);
@@ -1311,10 +1313,26 @@ test.describe('forms', () => {
       await expect(token).toHaveCount(1);
       await expect(token).toHaveValue(/^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/);
 
-      const honeypot = form.locator('div[aria-hidden="true"] input[name="website"]');
+      // What the token tells the browser: which form it is for, the difficulty of the challenge
+      // the page has to solve, and the (hashed) client it is bound to.
+      const [payload] = (await token.inputValue()).split('.');
+      expect(JSON.parse(Buffer.from(payload, 'base64url').toString('utf8'))).toMatchObject({
+        f: selector === '#form form' ? 'contact' : 'koha',
+        d: PROOF_OF_WORK_DIGITS,
+      });
+
+      // The trap is the only field that is out of the tab order, and which name it has is
+      // decided by the token (see `honeypotField`), so a script cannot learn it from one page.
+      const honeypot = form.locator('div[aria-hidden="true"] input');
       await expect(honeypot).toHaveCount(1);
       await expect(honeypot).toHaveAttribute('tabindex', '-1');
       await expect(honeypot).toHaveAttribute('autocomplete', 'off');
+      await expect(honeypot).toHaveValue('');
+
+      // The two fields the script fills in: the answer to the challenge and the record of the
+      // fields that were focused. Both are empty until the page has run.
+      await expect(form.locator('input[name="form_pow"]')).toHaveCount(1);
+      await expect(form.locator('input[name="form_use"]')).toHaveCount(1);
     }
   });
 
@@ -1341,8 +1359,9 @@ test.describe('forms', () => {
 
     await form.locator('input[name="name"]').fill('Automated Submission');
     await form.locator('input[name="email"]').fill('bot@example.com');
-    // A script that fills every field it finds trips the honeypot.
-    await form.locator('input[name="website"]').fill('https://spam.example');
+    // A script that fills every field it finds trips the trap, whatever name the page load
+    // gave it.
+    await form.locator('div[aria-hidden="true"] input').fill('https://spam.example');
     await postForm(form);
 
     await expect(page.locator('#form').getByText('Thank you for submitting your request.')).toBeVisible();
@@ -1350,6 +1369,37 @@ test.describe('forms', () => {
     // src/utils/form-protection.ts and the unit tests in tests/unit/).
     await expect(page.locator('#form').getByText('Unfortunately an error occurred', { exact: false })).toBeHidden();
     await expect(page.locator('#form').getByText('Please enter your name.')).toBeHidden();
+  });
+
+  test('the browser finds the answer to the form challenge before anything is submitted', async ({ page }) => {
+    await page.goto('/contact/');
+    const form = page.locator('#form form');
+    const proof = form.locator('input[name="form_pow"]');
+
+    // The search is handed to an idle callback, so it may arrive a moment after the load; the
+    // difficulty it is looking for takes tens of thousands of hashes.
+    await expect(proof).toHaveValue(/^\d+$/, { timeout: 15_000 });
+
+    const token = await form.locator('input[name="form_token"]').inputValue();
+    const digest = createHash('sha256')
+      .update(proofDigestInput(token, await proof.inputValue()))
+      .digest('hex');
+
+    // Checked here the way the server checks it (src/utils/form-protection.ts, `checkFormProof`):
+    // a page that put a number nobody could verify into the field would fail this.
+    expect(hasLeadingZeroDigits(digest, PROOF_OF_WORK_DIGITS)).toBe(true);
+  });
+
+  test('without JavaScript the form says why it cannot be sent', async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
+
+    await page.goto('/contact/');
+    // The submission would be dropped on arrival, so the page has to say so before the visitor
+    // presses Submit rather than answer with a thank-you view and lose the message.
+    await expect(page.locator('#form noscript p')).toContainText('needs JavaScript');
+
+    await context.close();
   });
 
   test('contact form renders validation messages', async ({ page }) => {

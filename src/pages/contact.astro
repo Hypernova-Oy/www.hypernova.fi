@@ -2,6 +2,7 @@
 import Badge from '../components/Badge.astro';
 import BaseLayout from '../layouts/BaseLayout.astro';
 import Button from '../components/Button.astro';
+import FormProof from '../components/FormProof.astro';
 import FormValidation from '../components/FormValidation.astro';
 
 import { resolvePath } from '../utils/navigation';
@@ -10,11 +11,12 @@ import { useTranslations } from '../i18n/utils';
 import {
   checkFormToken,
   cleanValues,
-  clientId,
+  clientFingerprint,
   createFormToken,
-  detectSpam,
-  isRateLimited,
+  honeypotField,
+  markFormTokenUsed,
   safeClientAddress,
+  screenSubmission,
   MAX_MESSAGE_LENGTH,
 } from '../utils/form-protection';
 
@@ -50,6 +52,10 @@ const i18n = {
       'Valitettavasti lomakkeen lähetys epäonnistui. Yritä myöhemmin uudelleen tai ota yhteyttä postitse (osoitteemme on yllä) ja liitä mukaan seuraava virheviesti.',
     'Too many submissions from this connection. Please try again later or contact us by post (our address is above).':
       'Tältä yhteydeltä on tullut liian monta lähetystä. Yritä myöhemmin uudelleen tai ota yhteyttä postitse (osoitteemme on yllä).',
+    'This form needs JavaScript to be sent. Without it, please contact us by post (our address is above).':
+      'Tämän lomakkeen lähettäminen edellyttää JavaScriptiä. Ilman sitä ota yhteyttä postitse (osoitteemme on yllä).',
+    'Your browser could not complete the security check of this form. Please reload the page and try again, or contact us by post (our address is above).':
+      'Selaimesi ei voinut suorittaa lomakkeen tietoturvatarkistusta. Lataa sivu uudelleen ja yritä uudestaan tai ota yhteyttä postitse (osoitteemme on yllä).',
   }
 };
 const t = useTranslations(i18n, Astro);
@@ -64,14 +70,17 @@ const formData = {
     name: "",
     organization: "",
     email: "",
-    website: "",
     content: "",
 };
+
+// What the token is issued to: the submitting browser and the network it posts from, so a
+// token fetched here is worth nothing to anything else (see src/utils/form-protection.ts).
+const client = clientFingerprint(Astro.request, safeClientAddress(() => Astro.clientAddress));
 
 // A signed, timestamped token for this page load. It is re-used when the form is
 // rendered again after a validation error, so fixing a typo quickly is not
 // mistaken for an automated submission.
-let formToken = createFormToken(formId);
+let formToken = createFormToken(formId, { client });
 
 if (Astro.request.method === "POST") {
   try {
@@ -91,7 +100,6 @@ if (Astro.request.method === "POST") {
 
     const name = fields.name;
     const email = fields.email;
-    const bot_test = fields.website;
 
     if (typeof name !== "string" || name.length < 1) {
       errors.name += t("Please enter your name. ");
@@ -101,26 +109,33 @@ if (Astro.request.method === "POST") {
     }
     const hasErrors = Object.values(errors).some(msg => msg)
 
-    const tokenReason = checkFormToken(raw.form_token, formId);
+    const tokenReason = checkFormToken(raw.form_token, formId, { client });
     if (tokenReason === null || tokenReason === "too-fast") {
       formToken = raw.form_token as string;
     }
 
     // Only submissions that pass validation are judged, so a visitor fixing a
     // mistake still gets the field messages.
-    const spamReason = hasErrors
-      ? null
-      : detectSpam({ formId, request: Astro.request, host: Astro.url.host, raw, fields });
+    const screening = hasErrors
+      ? undefined
+      : screenSubmission({
+          formId,
+          request: Astro.request,
+          host: Astro.url.host,
+          client,
+          raw,
+          socketAddress: safeClientAddress(() => Astro.clientAddress),
+        });
 
     if (hasErrors) {
       // Validation errors are rendered back to the visitor, nothing to log.
-    } else if ((typeof bot_test === "string" && bot_test.length > 0) || spamReason) {
+    } else if (screening?.verdict === "drop") {
       // Bot signals are answered exactly like a real submission so scripts learn
       // nothing, but Redmine is never contacted. The reason is safe to log: it
       // carries no visitor data.
-      console.warn("Contact form submission dropped:", spamReason ?? "honeypot");
+      console.warn("Contact form submission dropped:", screening.reason);
       formSent = true;
-    } else if (isRateLimited(clientId(Astro.request, safeClientAddress(() => Astro.clientAddress)))) {
+    } else if (screening?.verdict === "rate-limited") {
       // The visitor is told, unlike with a bot signal: a real person may have hit
       // the limit by accident and should not lose their message silently.
       rateLimited = true;
@@ -150,7 +165,10 @@ if (Astro.request.method === "POST") {
       const redmineData = await redmineResponse.json();
       formSent = true;
       if (redmineResponse.status === 201) {
-        // Issue created in Redmine.
+        // Issue created in Redmine. Only now is the token spent: a submission that failed here
+        // was never delivered, so the visitor has to be able to send it again rather than find
+        // it refused as a replay.
+        markFormTokenUsed(raw.form_token);
       } else {
         if ('errors' in redmineData) {
           errors.form = String(redmineResponse.status) + " " + JSON.stringify(redmineData.errors);
@@ -165,6 +183,11 @@ if (Astro.request.method === "POST") {
     console.error('Contact form submission failed', error);
   }
 }
+
+// The trap field this page load renders. Which name it has is decided by the token, so a form
+// that is rendered again with the visitor's own token keeps the field a script may have filled
+// in, and a fresh token gets a different one (see `honeypotField`).
+const honeypot = honeypotField(formToken);
 ---
 
 <BaseLayout title={t('Contact')} description={t('Contact us')}>
@@ -313,11 +336,19 @@ if (Astro.request.method === "POST") {
             <label class="p-3 mt-5 col-span-1">{t('Organization')}</label><input type="text" name="organization" maxlength="120" class="form-field mt-5 p-3 col-span-1" value={formData.organization} /><div class="md:col-span-2"></div>
             {errors.organization && <p class="col-span-1 md:col-span-4 text-red-800">{errors.organization}</p>}
             <label class="p-3 mt-5 col-span-1">{t('E-mail')}</label><input type="email" name="email" maxlength="254" class="form-field mt-5 p-3 col-span-1" value={formData.email} required data-error-message={t('Please enter an email address. ')} /><div class="md:col-span-2"></div>
-            <!-- Bot traps: hidden from people and screen readers, but not from scripts. -->
+            <!-- Bot trap: hidden from people and screen readers, but not from scripts. The name
+                 and the label change with every page load (see `honeypotField`), so a script
+                 that learned to leave one field name alone fills the field this one renders.
+                 The value is never rendered back: nobody types in this field, so there is
+                 nothing of a visitor's to keep. -->
             <div aria-hidden="true" class="absolute left-[-9999px] top-auto h-px w-px overflow-hidden">
-              <label>Website<input type="text" name="website" value={formData.website} tabindex="-1" autocomplete="off" /></label>
+              <label>{honeypot.label}<input type="text" name={honeypot.name} value="" tabindex="-1" autocomplete="off" /></label>
             </div>
             <input type="hidden" name="form_token" value={formToken} />
+            <FormProof
+              noscript={t('This form needs JavaScript to be sent. Without it, please contact us by post (our address is above).')}
+              failure={t('Your browser could not complete the security check of this form. Please reload the page and try again, or contact us by post (our address is above).')}
+            />
             {errors.email && <p class="col-span-1 md:col-span-4 text-red-800">{errors.email}</p>}
             <p id="contact-error-email" class="col-span-1 md:col-span-4 text-red-800" data-error-for="email" hidden></p>
           </div>

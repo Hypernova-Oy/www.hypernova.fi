@@ -334,21 +334,56 @@ heading and links there, instead of letting a visitor fill in the wrong form.
 
 ### Bot protection
 
-All of it lives in `src/utils/form-protection.ts` and is deliberately built from
-Node's own crypto module - no captcha and no third-party service, so nothing about a
-visitor leaves our server:
+All of it lives in `src/utils/form-protection.ts` and `src/utils/proof-of-work.ts`, and is
+deliberately built from Node's own crypto module and the browser's - no captcha and no
+third-party service, so nothing about a visitor leaves our server:
 
-- **Honeypot** - a `website` field that sits off-screen (`aria-hidden`, `tabindex="-1"`,
+- **Rotating trap** - one extra field sits off-screen (`aria-hidden`, `tabindex="-1"`,
   `autocomplete="off"`), invisible to people and screen readers but filled by naive
-  scripts.
+  scripts. Which name it has is decided by the token and changes with every page load -
+  `website`, `homepage`, `url`, `fax`, `company_website` - so "leave the field called website
+  alone", the first line of most form spam, only ensures that the script fills the field this
+  page load actually rendered. The hidden `form_use` field reports which fields were
+  focused: a person cannot focus an off-screen field, so a script that walks the form and
+  focuses every input it finds is caught even when it read the names off the page.
 - **Signed token** - every rendered form embeds a HMAC-signed timestamp
-  (`FORM_TOKEN_SECRET`). Submissions with a missing, forged, foreign, too fast
-  (< 3 s after the page was rendered) or stale (> 2 h) token are dropped. A form that
-  is re-rendered after a validation error keeps the visitor's token, so fixing a typo
-  is never punished.
-- **Rate limit** - 5 accepted submissions per client per 15 minutes, counted in memory
-  (the standalone Node server is a single process). The client address is the last
-  `X-Forwarded-For` hop our Apache proxy appended, or the socket address. That last hop
+  (`FORM_TOKEN_SECRET`). Submissions with a missing, forged, foreign, too fast or stale (> 2 h)
+  token are dropped. The payload carries a random nonce and a hash of the client it was issued
+  to - the browser's user agent plus the `/24` or `/64` its address sits in - so a token is
+  refused from any other client (`client-mismatch`) and spent by the submission it carried
+  (`replayed-token`): one fetched page is worth exactly one post. The address is hashed and
+  only its network is used, so a phone that moves between addresses of one operator is not
+  punished; a visitor whose browser *and* network both change mid-form has to reload (the user
+  agent alone would have been too easy to share, and the address alone too easy to lose).
+  A form that is re-rendered after a validation error keeps the visitor's token, so fixing a
+  typo is never punished, and the token is only spent once Redmine has accepted the issue it
+  carried - a submission that fails there can still be sent again.
+- **Per-token filling time** - a token is too young until its own floor has passed: three
+  seconds plus up to two more, derived from its signature (`minimumFillTimeMs`). The floor is
+  stable for one token, different for the next page load, and unreadable for a script - it has
+  the signature but not the key that produced it - so a wait that was measured once is not
+  enough for the page load after it.
+- **Proof of work** - the page has to name a number whose SHA-256 digest over the token,
+  `sha256(token + ':' + solution)`, starts with four zero hex digits
+  (`src/utils/proof-of-work.ts`): sixteen bits, so 65 536 hashes on average. The submission
+  carries the answer in `form_pow`; the server checks it with a single hash, and a submission
+  without one (`no-proof`) or with a wrong one (`bad-proof`) never reaches Redmine. The
+  difficulty is read out of the signed token by the browser and verified by the server against
+  its own constant, so a payload can never ask for less work than it was given. The search is
+  handed to `requestIdleCallback` and costs the visitor's device about 0.7 s of hashing
+  (measured in Chromium) while they read the page - and a submission that still beats it is
+  held back, finished and sent again, never dropped.
+- **Rate limit** - 5 judged submissions per client address and 20 per network (`/24` or `/64`)
+  per 15 minutes, counted in memory (the standalone Node server is a single process). Every
+  judged submission is charged, including the ones the checks have just condemned, so a script
+  that *guesses* at the proof instead of solving it pays for the guesses out of the same budget
+  as a visitor's messages - free wrong answers would turn a sixteen-bit challenge into a matter
+  of patience. A submission that is not judged, because field validation failed and the visitor
+  has a typo to fix, is not charged. Two counters, because they answer two questions: the address
+  counter is one host hammering us, and the network counter is the same script moving to the next
+  address inside the range its provider handed it - a residential IPv6 line gets a whole `/64`,
+  so with only the address counted the quota resets with every attempt. The client address is the
+  last `X-Forwarded-For` hop our Apache proxy appended, or the socket address. That last hop
   is used on purpose: behind a local proxy the socket address is always `127.0.0.1`, so
   the proxy has to append the real client address (mod_proxy does this by default). On a
   host behind `--behind-proxy` it is the edge proxy in front of Apache that saw the
@@ -369,11 +404,25 @@ visitor leaves our server:
 Bot signals are answered with the same thank-you view as a real submission, so scripts
 cannot learn that they were detected, and Redmine is never contacted. Only a
 rate-limited visitor sees an explanation, because a real person should not lose their
-message silently. Log lines contain the rejection reason only - never visitor data.
+message silently - and that view is not a detection either: it reports a count of the
+visitor's own submissions, which a person could keep anyway. Log lines contain the
+rejection reason only - never visitor data.
+
+One deliberate exception to "nothing here needs JavaScript": the two forms do now, because a
+challenge cannot be answered without it. A submission that arrives without an answer is treated
+as a bot signal, so both forms carry a `<noscript>` note where the button is - read by exactly
+the visitor who would otherwise lose a message to a thank-you view - and a browser that is here
+but fails halfway through the search is told as well. Everything else on the site still works
+without JavaScript (`src/components/FormValidation.astro` and the rest of the markup stay
+progressive enhancement).
 
 Because the token encodes when the page was rendered, `/contact/` and `/koha/` are
 served `Cache-Control: private, no-store` (see `src/middleware.ts`) so no shared cache
-can hand out a stale page whose submissions would be dropped as replays.
+can hand out a stale page whose submissions would be dropped as replays. For the same reason a
+page that is still open when a new build starts is dropped: its token predates the challenge,
+so it arrives as `no-proof`. That window is what the 2 h token lifetime and the page's own
+note about reloading are for; it is the same trade-off as an open form across a restart, and
+the reason `FORM_TOKEN_SECRET` in `.env` is worth setting.
 
 ### No published e-mail addresses
 

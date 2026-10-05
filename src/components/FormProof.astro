@@ -1,0 +1,170 @@
+---
+/**
+ * The two fields a browser has to fill in before either form can be sent, and the script that
+ * fills them.
+ *
+ * Both are hidden and hold nothing a person would type:
+ *
+ * - `form_pow` names the answer to the challenge this page load was given
+ *   (see src/utils/proof-of-work.ts). The search takes a fraction of a second of hashing -
+ *   measured at about 0.7 s in Chromium, which is why it is handed to `requestIdleCallback`
+ *   instead of being run at the top of the page load: it uses the device's spare time while the
+ *   visitor reads, and it is finished long before a name and an address have been typed. A
+ *   submission that still beats it is held back and sent again, never dropped.
+ * - `form_use` lists the names of the fields that were focused. A person cannot focus the
+ *   off-screen trap, but a script that walks the form and focuses every field it finds - the
+ *   cheapest way to look like a person - puts the trap's name in that list and gives itself
+ *   away. The trap's name is decided by the server (it changes with every page load), so the
+ *   list says nothing to the page and nothing to the script reading it.
+ *
+ * Unlike the rest of the page this is not progressive enhancement: the server treats a
+ * submission without a proof as a bot signal, so a browser that cannot run this script cannot
+ * send the form. The `<noscript>` block says so where a visitor without JavaScript is about to
+ * press Submit, and a browser that is here but fails halfway through the search is told as
+ * well - never sent to the thank-you view with its message dropped.
+ */
+interface Props {
+  /** Shown when JavaScript is off, in the language of the page. */
+  noscript: string;
+  /** Shown when the browser is here but could not complete the challenge. */
+  failure: string;
+}
+
+const { noscript, failure } = Astro.props;
+---
+
+<input type="hidden" name="form_pow" value="" />
+<input type="hidden" name="form_use" value="" />
+<p
+  data-form-proof-error
+  role="alert"
+  hidden
+  class="col-span-1 md:col-span-4 mt-2 text-left text-lg text-red-800 dark:text-red-400"
+>{failure}</p>
+<noscript>
+  <p class="col-span-1 md:col-span-4 mt-2 text-left text-lg text-zinc-600 dark:text-zinc-400">
+    {noscript}
+  </p>
+</noscript>
+
+<script>
+  import { solveProof, tokenDifficulty } from '../utils/proof-of-work.ts';
+
+  /** One search per form and token: a second page-load event must not start a second one. */
+  const searches = new WeakMap<HTMLFormElement, { token: string; work: Promise<string | null> }>();
+
+  const field = (form: HTMLFormElement, name: string) =>
+    form.querySelector<HTMLInputElement>(`input[name="${name}"]`);
+
+  function showFailure(form: HTMLFormElement) {
+    form.dataset.proofState = 'failed';
+    form.querySelector<HTMLElement>('[data-form-proof-error]')?.removeAttribute('hidden');
+  }
+
+  /**
+   * Starts (or re-uses) the search for the answer to this page load's challenge and returns it,
+   * so a visitor who submits while it is still running can be held back until it is done.
+   *
+   * The difficulty is read out of the token, which the server signed: raising it there changes
+   * the tokens, and this script follows without holding a copy of the number itself.
+   */
+  function startSearch(form: HTMLFormElement): Promise<string | null> | null {
+    const token = field(form, 'form_token')?.value ?? '';
+    const proof = field(form, 'form_pow');
+    if (token.length === 0 || !proof) return null;
+
+    const running = searches.get(form);
+    if (running?.token === token) return running.work;
+
+    const digits = tokenDifficulty(token);
+    // A search that throws - no WebCrypto, a digest the browser refuses - is a failed search,
+    // never an unhandled rejection that leaves the form waiting for an answer forever.
+    const work = solveProof(token, digits === null ? {} : { digits }).catch(() => null);
+    searches.set(form, { token, work });
+
+    work.then((answer) => {
+      if (answer === null) {
+        showFailure(form);
+        return;
+      }
+      if (searches.get(form)?.token !== token) return;
+      proof.value = answer;
+    });
+
+    return work;
+  }
+
+  function bindForm(form: HTMLFormElement) {
+    if (form.dataset.proofBound === 'true') return;
+    form.dataset.proofBound = 'true';
+
+    // What the visitor's browser focused, gathered as they go and written into the form at
+    // submit time. The trap's name is in here if a script focused it - which a person cannot.
+    const names = new Set<string>();
+
+    form.addEventListener('focusin', (event) => {
+      const target = event.target;
+      if (target instanceof HTMLInputElement || target instanceof HTMLTextAreaElement) {
+        if (target.name.length > 0) names.add(target.name);
+      }
+    });
+
+    form.addEventListener('submit', (event) => {
+      const proof = field(form, 'form_pow');
+      const used = field(form, 'form_use');
+      if (used) used.value = [...names].join(',');
+
+      if (form.dataset.proofState === 'failed') {
+        // The message would be dropped on arrival, so say so here instead, where it can still
+        // be acted on: a reload is usually all it takes.
+        event.preventDefault();
+        showFailure(form);
+        return;
+      }
+
+      if (proof && proof.value.length > 0) return;
+
+      // A visitor who was faster than the search. Hold the submission, finish the work and send
+      // it again: the second submit runs through every listener once more - the field validation
+      // included - and finds the answer in place, so it leaves this time.
+      const work = startSearch(form);
+      if (!work) return;
+
+      event.preventDefault();
+      work.then((answer) => {
+        if (answer === null || !proof || !proof.isConnected) {
+          showFailure(form);
+          return;
+        }
+        proof.value = answer;
+        form.requestSubmit();
+      });
+    });
+  }
+
+  function setupFormProof() {
+    document.querySelectorAll<HTMLFormElement>('form[data-validate]').forEach((form) => {
+      bindForm(form);
+
+      // The search costs the visitor's device a fraction of a second of hashing, so the browser
+      // is asked to schedule it: an idle callback keeps it away from the first paint, from the
+      // fonts and from everything the visitor is doing, and the timeout keeps it from being
+      // postponed to the end of the page load if there is never an idle moment.
+      if (typeof window.requestIdleCallback === 'function') {
+        window.requestIdleCallback(() => startSearch(form), { timeout: 2_000 });
+      } else {
+        window.setTimeout(() => startSearch(form), 0);
+      }
+    });
+  }
+
+  // Bound once per form, and again after every client-side navigation, where the form is a new
+  // element that has to be bound and answered from scratch. `bindForm` and `startSearch` both
+  // recognise a form they have already seen, so the two entry points cannot double the work.
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupFormProof, { once: true });
+  } else {
+    setupFormProof();
+  }
+  document.addEventListener('astro:page-load', setupFormProof);
+</script>

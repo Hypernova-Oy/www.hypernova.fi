@@ -7,16 +7,18 @@ import KohaServiceComponent from '../components/KohaService.astro';
 
 import { Image } from 'astro:assets';
 import kohaLogo from "../images/koha.webp";
+import FormProof from '../components/FormProof.astro';
 import FormValidation from '../components/FormValidation.astro';
 import { useTranslations } from '../i18n/utils';
 import {
   checkFormToken,
   cleanValues,
-  clientId,
+  clientFingerprint,
   createFormToken,
-  detectSpam,
-  isRateLimited,
+  honeypotField,
+  markFormTokenUsed,
   safeClientAddress,
+  screenSubmission,
   MAX_MESSAGE_LENGTH,
   MAX_SHORT_FIELD_LENGTH,
 } from '../utils/form-protection';
@@ -75,7 +77,11 @@ const i18n = {
     'Submit': 'Lähetä tarjouspyyntö',
     'Please enter your name. ': 'Syötä nimesi. ',
     'Please enter an email address. ': 'Syötä sähköpostiosoitteesi. ',
-    'Please enter your organization. ': 'Syötä organisaatiosi. '
+    'Please enter your organization. ': 'Syötä organisaatiosi. ',
+    'This form needs JavaScript to be sent. Without it, please contact us by post (our address is on the contact page).':
+      'Tämän lomakkeen lähettäminen edellyttää JavaScriptiä. Ilman sitä ota yhteyttä postitse (osoitteemme on yhteystiedot-sivulla).',
+    'Your browser could not complete the security check of this form. Please reload the page and try again, or contact us by post (our address is on the contact page).':
+      'Selaimesi ei voinut suorittaa lomakkeen tietoturvatarkistusta. Lataa sivu uudelleen ja yritä uudestaan tai ota yhteyttä postitse (osoitteemme on yhteystiedot-sivulla).'
   }
 };
 const t = useTranslations(i18n, Astro);
@@ -89,7 +95,6 @@ const formData = {
     name: "",
     organization: "",
     email: "",
-    website: "",
     records: "",
     items: "",
     circulation: "",
@@ -100,10 +105,14 @@ const formData = {
     additional_services: ""
 };
 
+// What the token is issued to: the submitting browser and the network it posts from, so a
+// token fetched here is worth nothing to anything else (see src/utils/form-protection.ts).
+const client = clientFingerprint(Astro.request, safeClientAddress(() => Astro.clientAddress));
+
 // A signed, timestamped token for this page load. It is re-used when the form is
 // rendered again after a validation error, so fixing a typo quickly is not
 // mistaken for an automated submission.
-let formToken = createFormToken(formId);
+let formToken = createFormToken(formId, { client });
 
 if (Astro.request.method === "POST") {
   try {
@@ -124,7 +133,6 @@ if (Astro.request.method === "POST") {
     const name = fields.name;
     const organization = fields.organization;
     const email = fields.email;
-    const bot_test = fields.website;
 
     if (typeof name !== "string" || name.length < 1) {
       errors.name += t("Please enter your name. ");
@@ -137,26 +145,33 @@ if (Astro.request.method === "POST") {
     }
     const hasErrors = Object.values(errors).some(msg => msg)
 
-    const tokenReason = checkFormToken(raw.form_token, formId);
+    const tokenReason = checkFormToken(raw.form_token, formId, { client });
     if (tokenReason === null || tokenReason === "too-fast") {
       formToken = raw.form_token as string;
     }
 
     // Only submissions that pass validation are judged, so a visitor fixing a
     // mistake still gets the field messages.
-    const spamReason = hasErrors
-      ? null
-      : detectSpam({ formId, request: Astro.request, host: Astro.url.host, raw, fields });
+    const screening = hasErrors
+      ? undefined
+      : screenSubmission({
+          formId,
+          request: Astro.request,
+          host: Astro.url.host,
+          client,
+          raw,
+          socketAddress: safeClientAddress(() => Astro.clientAddress),
+        });
 
     if (hasErrors) {
       // Validation errors are rendered back to the visitor, nothing to log.
-    } else if ((typeof bot_test === "string" && bot_test.length > 0) || spamReason) {
+    } else if (screening?.verdict === "drop") {
       // Bot signals are answered exactly like a real submission so scripts learn
       // nothing, but Redmine is never contacted. The reason is safe to log: it
       // carries no visitor data.
-      console.warn("Koha quote form submission dropped:", spamReason ?? "honeypot");
+      console.warn("Koha quote form submission dropped:", screening.reason);
       formSent = true;
-    } else if (isRateLimited(clientId(Astro.request, safeClientAddress(() => Astro.clientAddress)))) {
+    } else if (screening?.verdict === "rate-limited") {
       // The visitor is told, unlike with a bot signal: a real person may have hit
       // the limit by accident and should not lose their message silently.
       rateLimited = true;
@@ -187,7 +202,10 @@ if (Astro.request.method === "POST") {
       const redmineData = await redmineResponse.json();
       formSent = true;
       if (redmineResponse.status === 201) {
-        // Issue created in Redmine.
+        // Issue created in Redmine. Only now is the token spent: a submission that failed here
+        // was never delivered, so the visitor has to be able to send it again rather than find
+        // it refused as a replay.
+        markFormTokenUsed(raw.form_token);
       } else {
         if ('errors' in redmineData) {
           errors.form = String(redmineResponse.status) + " " + JSON.stringify(redmineData.errors);
@@ -202,6 +220,11 @@ if (Astro.request.method === "POST") {
     console.error('Koha quote form submission failed', error);
   }
 }
+
+// The trap field this page load renders. Which name it has is decided by the token, so a form
+// that is rendered again with the visitor's own token keeps the field a script may have filled
+// in, and a fresh token gets a different one (see `honeypotField`).
+const honeypot = honeypotField(formToken);
 
 ---
 
@@ -366,11 +389,19 @@ if (Astro.request.method === "POST") {
             {errors.organization && <p class="col-span-1 md:col-span-4 text-red-800">{errors.organization}</p>}
             <p id="koha-error-organization" class="col-span-1 md:col-span-4 text-red-800" data-error-for="organization" hidden></p>
             <label class="p-3 mt-5 col-span-1">{t('E-mail')}</label><input type="email" name="email" maxlength="254" class="form-field mt-5 p-3 col-span-1" value={formData.email} required data-error-message={t('Please enter an email address. ')} /><div class="md:col-span-2"></div>
-            <!-- Bot traps: hidden from people and screen readers, but not from scripts. -->
+            <!-- Bot trap: hidden from people and screen readers, but not from scripts. The name
+                 and the label change with every page load (see `honeypotField`), so a script
+                 that learned to leave one field name alone fills the field this one renders.
+                 The value is never rendered back: nobody types in this field, so there is
+                 nothing of a visitor's to keep. -->
             <div aria-hidden="true" class="absolute left-[-9999px] top-auto h-px w-px overflow-hidden">
-              <label>Website<input type="text" name="website" value={formData.website} tabindex="-1" autocomplete="off" /></label>
+              <label>{honeypot.label}<input type="text" name={honeypot.name} value="" tabindex="-1" autocomplete="off" /></label>
             </div>
             <input type="hidden" name="form_token" value={formToken} />
+            <FormProof
+              noscript={t('This form needs JavaScript to be sent. Without it, please contact us by post (our address is on the contact page).')}
+              failure={t('Your browser could not complete the security check of this form. Please reload the page and try again, or contact us by post (our address is on the contact page).')}
+            />
             {errors.email && <p class="col-span-1 md:col-span-4 text-red-800">{errors.email}</p>}
             <p id="koha-error-email" class="col-span-1 md:col-span-4 text-red-800" data-error-for="email" hidden></p>
           </div>
