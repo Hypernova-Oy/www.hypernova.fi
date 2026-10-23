@@ -78,9 +78,18 @@ WITH_AUTO_UPDATE="${HYPERNOVA_AUTO_UPDATE:-0}"  # a cron job that follows the br
 AUTO_UPDATE_EVERY="${HYPERNOVA_AUTO_UPDATE_EVERY:-5}"  # minutes between those runs
 IF_CHANGED="${HYPERNOVA_IF_CHANGED:-0}"  # stop right away when the branch has not moved
 DRY_RUN="${HYPERNOVA_DRY_RUN:-0}"
+# Set by the hand-over below (resume_with_pulled_script): this run is the one the pulled script
+# started, so it deploys what the pull brought instead of asking whether there is anything to do.
+REDEPLOY="${HYPERNOVA_REDEPLOY:-0}"
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 CHECKOUT_DIR="$(dirname -- "$(dirname -- "$SCRIPT_DIR")")"
+
+# The hash of this file as it was when the run started. The automatic deploy runs the copy that
+# is deployed, and a pull replaces that exact path while this shell is still reading it - so a
+# comparison made later, of the file on disk with itself, would always answer "the same script"
+# and the hand-over below would never happen. Taken here, before anything can overwrite it.
+SELF_HASH="$(sha256sum "${BASH_SOURCE[0]}" 2>/dev/null | cut -d' ' -f1 || true)"
 
 # Node.js version package.json asks for (engines.node, ">=22.12.0").
 REQUIRED_NODE="$(sed -n 's/.*"node" *: *">=\([0-9][0-9.]*\)".*/\1/p' "$CHECKOUT_DIR/package.json" 2>/dev/null | head -1)"
@@ -252,6 +261,8 @@ Usage: sudo bash scripts/deploy/install.sh [options]
                         How often that job runs (default: 5; 1-59)
       --no-auto-update  Remove the job an earlier run installed
       --if-changed      What that job passes: stop right away when --branch has not moved
+      --redeploy        Internal: the branch was just deployed by the run that handed over to
+                        this script (see resume_with_pulled_script); deploy it again
       --dry-run         Print every change instead of making it
   -h, --help            Show this help
 
@@ -278,7 +289,7 @@ USAGE
 RERUN_ARGS=()
 for argument in "$@"; do
   case "$argument" in
-    --dry-run | --if-changed) continue ;;
+    --dry-run | --if-changed | --redeploy) continue ;;
   esac
   RERUN_ARGS+=("$argument")
 done
@@ -304,6 +315,7 @@ while [ $# -gt 0 ]; do
     --auto-update-every) AUTO_UPDATE_EVERY="${2:?--auto-update-every needs a value}"; shift 2 ;;
     --no-auto-update) WITH_AUTO_UPDATE=0; shift ;;
     --if-changed) IF_CHANGED=1; shift ;;
+    --redeploy) REDEPLOY=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) usage >&2; fail "Unknown option: $1" ;;
@@ -321,6 +333,21 @@ fi
 # file. The file says which revision answers in that directory, which is what a --if-changed
 # run compares the branch against when the directory is no checkout (deployed_revision).
 DEPLOYED_REVISION_FILE="$APP_DIR/.deployed-revision"
+
+# The revision the last run tried, and when: a deploy that fails puts the revision that was
+# answering back, and a job that runs every few minutes would try it again and again - see
+# deploy_attempt_is_recent, and the eighteen days this site spent rebuilding every five minutes.
+DEPLOY_ATTEMPT_FILE="$APP_DIR/.deploy-attempt"
+ATTEMPT_COOLDOWN="${HYPERNOVA_ATTEMPT_COOLDOWN:-30}"   # minutes before the same revision is
+                                                      # tried again after a failed attempt
+case "$ATTEMPT_COOLDOWN" in '' | *[!0-9]*) ATTEMPT_COOLDOWN=30 ;; esac
+
+# Carried across the hand-over to a pulled script (resume_with_pulled_script): the revision a
+# failed deploy falls back to is the one that was answering before the first of the two runs,
+# not the one the pull made HEAD.
+if [ -n "${HYPERNOVA_PREVIOUS_REVISION:-}" ]; then
+  PREVIOUS_REVISION="$HYPERNOVA_PREVIOUS_REVISION"
+fi
 
 # The automatic deploy watches a branch, so --auto-update needs the git flow: without
 # --repo/--branch it follows the branch of the checkout it was started from, and the remote
@@ -547,6 +574,60 @@ sync_code() {
   # The build writes dist/ and .astro/ as this account.
   run chown -R "$APP_USER":"$APP_USER" "$APP_DIR"
   protect_app_dir
+
+  # The code in place may carry another copy of this script than the one that is running.
+  resume_with_pulled_script
+}
+
+# --- hand over to the script the pull brought ---------------------------------------------
+# Every check that decides whether a revision may stay is in this file, and this file belongs to
+# the revision that is *answering*, not to the one that was just pulled. That is a trap: a commit
+# that changes what a page answers - a route retired, a redirect added - and the check that asks
+# about that page in the same commit could never be deployed. The old check failed the new page,
+# auto_update_rollback restored the old revision, which brought the old check back, and the job
+# repeated it every few minutes: five minutes apart, from 5 October to 23 October 2026, on
+# www.hypernova.fi, while the site quietly stayed four commits behind.
+#
+# So once the code is in place, the rest of the run is handed over to the script that was just
+# pulled: it carries the checks belonging to the revision it came with, and it is the one that
+# has to be right about it. The hand-over happens once (HYPERNOVA_REDEPLOYED), because the file
+# it starts is the file it compares against, and it starts at the point this run reached: the
+# pull is done, so the guard would answer "nothing to deploy" (--redeploy says otherwise), and
+# the revision to fall back to travels in HYPERNOVA_PREVIOUS_REVISION, because the trap that
+# uses it belongs to this process and does not survive the exec.
+resume_with_pulled_script() {
+  local pulled="$APP_DIR/scripts/deploy/install.sh" pulled_hash=""
+
+  [ "$DRY_RUN" -eq 0 ] || return 0
+  [ "${HYPERNOVA_REDEPLOYED:-0}" -eq 0 ] || return 0
+  # Without a hash of the file this run started from (a script read from stdin, say) there is
+  # nothing to compare, and continuing with this one is the safe answer.
+  [ -n "$SELF_HASH" ] || return 0
+  [ -f "$pulled" ] || return 0
+
+  pulled_hash="$(sha256sum < "$pulled" | cut -d' ' -f1)"
+  if [ "$pulled_hash" = "$SELF_HASH" ]; then
+    return 0
+  fi
+
+  # Only a script that knows this hand-over can take it: an older one would be started with a
+  # promise it cannot keep - a pull that already happened and a revision to fall back to - and
+  # would answer "nothing to deploy" to a branch that was just deployed. So the state travels in
+  # HYPERNOVA_REDEPLOY (this run deploys what the pull brought), HYPERNOVA_IF_CHANGED (a run of
+  # the job, which is what arms the rollback) and HYPERNOVA_PREVIOUS_REVISION - and a pulled
+  # script that names none of them is left alone, which is the rollback to an older revision and
+  # the deploy of a checkout into a directory that holds one.
+  if ! grep -q 'HYPERNOVA_REDEPLOY' "$pulled" 2>/dev/null; then
+    info "the script now in place is older than this one and does not know about a hand-over;"
+    info "continuing with this one"
+    return 0
+  fi
+
+  info "the code now in place carries another scripts/deploy/install.sh than the one running"
+  info "this deploy: continuing with the one that came with it, whose checks belong to it"
+  HYPERNOVA_REDEPLOYED=1 HYPERNOVA_REDEPLOY=1 HYPERNOVA_IF_CHANGED=1 \
+  HYPERNOVA_PREVIOUS_REVISION="$PREVIOUS_REVISION" \
+    exec bash "$pulled" "${RERUN_ARGS[@]}"
 }
 
 sync_code_from_checkout() {
@@ -628,6 +709,40 @@ remote_revision() {
   printf '%s\n' "${out%%[[:space:]]*}"
 }
 
+# Whether the revision about to be deployed was tried recently and did not stay. The deploy a run
+# makes can fail, and a failed one puts back the revision that was answering - this file with it -
+# so the job is the only thing that notices, and it runs every few minutes. Without a memory of
+# its own it rebuilds and restarts the site every five minutes for as long as nobody reads the
+# journal: that is what 5 October to 23 October 2026 was on this site, and by the end of it the
+# live revision was four commits behind. `.deploy-attempt` holds the last revision tried and the
+# time it was tried; the same revision is not tried again within $ATTEMPT_COOLDOWN minutes, and
+# the wait says so, with the sha, in the journal. A new revision goes at once - it is a different
+# answer to whatever the last one got wrong, and waiting would only keep a fix off the site.
+deploy_attempt_is_recent() {
+  local revision="$1" attempted="" epoch="" age
+
+  [ -f "$DEPLOY_ATTEMPT_FILE" ] || return 1
+  read -r attempted epoch < "$DEPLOY_ATTEMPT_FILE" || true
+  [ "$attempted" = "$revision" ] || return 1
+  case "$epoch" in '' | *[!0-9]*) return 1 ;; esac
+
+  age=$(( ( $(date +%s) - epoch ) / 60 ))
+  [ "$age" -lt "$ATTEMPT_COOLDOWN" ] || return 1
+
+  warn "the revision ${revision:0:12} was tried ${age} minutes ago and did not stay; not trying"
+  warn "it again for another $(( ATTEMPT_COOLDOWN - age )) minutes. A new revision is deployed at"
+  warn "once; this is the job keeping itself from rebuilding the site in a loop."
+  return 0
+}
+
+record_deploy_attempt() {
+  [ "$DRY_RUN" -eq 0 ] || return 0
+
+  printf '%s %s\n' "$1" "$(date +%s)" > "$DEPLOY_ATTEMPT_FILE"
+  chown "$APP_USER":"$APP_USER" "$DEPLOY_ATTEMPT_FILE" 2>/dev/null || true
+  chmod 600 "$DEPLOY_ATTEMPT_FILE" 2>/dev/null || true
+}
+
 sync_code_from_git() {
   local repo="$REPO" branch="$BRANCH"
 
@@ -677,7 +792,7 @@ sync_code_from_git() {
   # the first line to the last, so a tree copied into --dir by --source had no guard at all and
   # every run of the job rebuilt, restarted and reloaded the site - every five minutes, for as
   # long as that went unnoticed. A run that cannot answer the question says so instead.
-  if [ "$IF_CHANGED" -eq 1 ]; then
+  if [ "$IF_CHANGED" -eq 1 ] && [ "$REDEPLOY" -eq 0 ]; then
     if [ "$DRY_RUN" -eq 1 ]; then
       printf '  + stop here unless origin/%s holds a revision other than the one in %s\n' \
         "$branch" "$APP_DIR"
@@ -708,6 +823,14 @@ sync_code_from_git() {
       else
         info "origin/$branch moved to ${remote:0:12}, deployed was ${deployed:0:12}"
       fi
+
+      # About to change the site, so say so first: a deploy that fails leaves this file back at
+      # the revision that was answering, and the next run has to know that this revision was
+      # already tried (deploy_attempt_is_recent).
+      if deploy_attempt_is_recent "$remote"; then
+        exit 0
+      fi
+      record_deploy_attempt "$remote"
     fi
   fi
 
@@ -715,8 +838,12 @@ sync_code_from_git() {
     if [ "$IF_CHANGED" -eq 1 ] && [ "$DRY_RUN" -eq 0 ]; then
       # What is live now, for auto_update_rollback. From here on this run has changed the
       # code on disk, so every later failure has to undo that: the trap is set for an
-      # automated run only, where no one is watching it happen.
-      PREVIOUS_REVISION="$(app_run 'git rev-parse HEAD')"
+      # automated run only, where no one is watching it happen. A run that a pulled script
+      # started keeps the revision the first run recorded - HEAD is already the revision this
+      # run is trying, and falling back to it would mean falling back to what failed.
+      if [ -z "$PREVIOUS_REVISION" ]; then
+        PREVIOUS_REVISION="$(app_run 'git rev-parse HEAD')"
+      fi
       trap 'auto_update_rollback' ERR
     fi
     info "updating $APP_DIR from origin/$branch"
@@ -1653,8 +1780,20 @@ verify_deployment() {
   # canonical links name, so that is where a link under the second name has to land. The two
   # checks below ask the two halves of it - Apache, which answers without a trip through Node,
   # and the app itself, which answers a request that never reaches this virtual host.
+  #
+  # The path has no route on the site and never will. It used to be a page's address, first
+  # `/koha-hosting/` and then `/koha/`, and a page can be retired: a redirect written for it
+  # (`redirects` in astro.config.mjs) is answered before the request reaches this middleware, so
+  # the alias check then got the retirement's redirect instead of the one it asks about and
+  # failed a revision that was perfectly good. That is not just a false alarm - it was a deploy
+  # that could not land at all: the check belongs to the revision that is *answering*, so the
+  # commit that retired the page and the commit that fixed the check were the same commit, the
+  # old check failed the new page, and auto_update_rollback put the old revision - check
+  # included - back, every five minutes, from 5 October to 23 October 2026 on this site.
+  # A path the app answers with nothing cannot be captured that way, and it still exercises
+  # exactly what this check is for: the host, the path and the query that come back.
   local alias_path alias_expected alias_reply alias_code alias_location
-  alias_path="/koha/?probe=1"
+  alias_path="/__deploy-check/?probe=1"
   alias_expected="$(site_scheme)://$DOMAIN$alias_path"
 
   if [ "$WITH_APACHE" -eq 1 ]; then
