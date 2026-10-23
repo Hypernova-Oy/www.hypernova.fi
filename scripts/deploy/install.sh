@@ -59,6 +59,12 @@ SERVICE="${HYPERNOVA_SERVICE:-hypernova}"         # systemd unit, e.g. `systemct
 APP_USER="${HYPERNOVA_USER:-hypernova}"           # service account
 APP_HOME="${HYPERNOVA_HOME:-/opt/hypernova}"      # its home directory (npm cache)
 APP_DIR="${HYPERNOVA_DIR:-/opt/hypernova/app}"    # where the checkout lives
+# The build is made beside dist/ and moved into place at the restart, so the process that is
+# answering keeps its own chunks while the new build is being written (build_app,
+# activate_build). .deployed-revision is what a --if-changed run compares the branch against
+# when --dir is no checkout (deployed_revision).
+BUILD_DIR_NEXT="dist.next"
+BUILD_DIR_PREVIOUS="dist.previous"
 BRANCH="${HYPERNOVA_BRANCH:-}"                    # default: the branch of this checkout
 REPO="${HYPERNOVA_REPO:-}"                        # default: origin of this checkout
 SOURCE="${HYPERNOVA_SOURCE:-}"                    # deploy a working tree with rsync instead
@@ -87,6 +93,18 @@ REDMINE_NOT_CONFIGURED=0
 # be undone (see auto_update_rollback). That function runs at most once per run.
 PREVIOUS_REVISION=""
 ROLLBACK_DONE=0
+
+# 1 once build_app has written a complete build into $BUILD_DIR_NEXT. The restart in
+# install_unit, and the swap that goes with it, are the only steps that care: they are what
+# turns a build into the build that is answering.
+BUILD_RAN=0
+
+# 1 once this run has written a file Apache reads. A reload is for that, and for nothing else.
+APACHE_CHANGED=0
+
+# The revision origin/$branch held when --if-changed asked, kept so that the end of the run can
+# record what it deployed in $DEPLOYED_REVISION_FILE.
+REMOTE_REVISION=""
 
 # What the git flow settled on, so that the cron job below can name the remote and the branch
 # itself instead of hoping the deployed checkout still answers those questions.
@@ -298,6 +316,11 @@ done
 if [ "$WITH_PROXY" -eq 1 ]; then
   WITH_TLS=0
 fi
+
+# Read after the parser above: --dir may have moved it since the defaults at the top of the
+# file. The file says which revision answers in that directory, which is what a --if-changed
+# run compares the branch against when the directory is no checkout (deployed_revision).
+DEPLOYED_REVISION_FILE="$APP_DIR/.deployed-revision"
 
 # The automatic deploy watches a branch, so --auto-update needs the git flow: without
 # --repo/--branch it follows the branch of the checkout it was started from, and the remote
@@ -548,6 +571,63 @@ sync_code_from_checkout() {
     "$source"/ "$APP_DIR"/
 }
 
+# The revision that is live in --dir. A checkout knows it (HEAD); a tree that was copied there
+# with --source does not, so every deploy records what it built in $DEPLOYED_REVISION_FILE and
+# that file is the answer. Neither being there means the question cannot be answered, and the
+# empty answer says so - --if-changed warns about it rather than deploying everything quietly.
+deployed_revision() {
+  local revision=""
+
+  if [ -d "$APP_DIR/.git" ]; then
+    revision="$(app_run 'git rev-parse HEAD' 2>/dev/null || true)"
+  fi
+  if [ -z "$revision" ] && [ -f "$DEPLOYED_REVISION_FILE" ]; then
+    revision="$(head -n 1 "$DEPLOYED_REVISION_FILE" 2>/dev/null || true)"
+  fi
+
+  printf '%s' "$revision"
+}
+
+# Writes down the revision that answers after this run. Only a run that got through the checks
+# reaches this: a revision that failed them is not the one deployed, and the job has to try the
+# next one rather than settle on this one.
+record_deployed_revision() {
+  local revision="${1:-}"
+
+  [ -n "$revision" ] || return 0
+  if [ "$DRY_RUN" -eq 1 ]; then
+    printf '  + write %s (%s)\n' "$DEPLOYED_REVISION_FILE" "${revision:0:12}"
+    return 0
+  fi
+
+  printf '%s\n' "$revision" > "$DEPLOYED_REVISION_FILE"
+  chown "$APP_USER":"$APP_USER" "$DEPLOYED_REVISION_FILE" 2>/dev/null || true
+  chmod 600 "$DEPLOYED_REVISION_FILE" 2>/dev/null || true
+}
+
+# The revision origin/$branch holds. With a checkout in --dir the remote is fetched and the ref
+# read out of it, so the answer is the one a pull would land on; without one the remote is asked
+# directly, which needs nothing but git and the address. That second form is what lets
+# --if-changed work on a tree that was copied there with --source.
+#
+# Returns 2 when the remote has no such branch, and anything else when the remote could not be
+# asked at all (permissions, network). The caller tells those two apart in its message, because
+# only the first is a mistake in the arguments.
+remote_revision() {
+  local repo="$1" branch="$2" out status=0
+
+  if [ -d "$APP_DIR/.git" ]; then
+    app_run 'git fetch --prune origin' >/dev/null 2>&1 || return 1
+    app_run "git rev-parse origin/$branch"
+    return
+  fi
+
+  out="$(git ls-remote --exit-code --heads "$repo" "$branch" 2>/dev/null)" || status=$?
+  [ "$status" -eq 0 ] || return "$status"
+
+  printf '%s\n' "${out%%[[:space:]]*}"
+}
+
 sync_code_from_git() {
   local repo="$REPO" branch="$BRANCH"
 
@@ -590,28 +670,44 @@ sync_code_from_git() {
   # --if-changed is how the cron job starts: ask the remote whether the branch moved, and stop
   # without touching anything when it did not. A quiet run every few minutes, and work only
   # when there is something to deploy.
-  if [ "$IF_CHANGED" -eq 1 ] && [ -d "$APP_DIR/.git" ]; then
+  #
+  # The comparison needs no checkout in --dir: what is live there comes from HEAD or from the
+  # revision the last deploy recorded, and what the branch holds is asked of the remote either
+  # way (deployed_revision, remote_revision). This used to be a `[ -d "$APP_DIR/.git" ]` from
+  # the first line to the last, so a tree copied into --dir by --source had no guard at all and
+  # every run of the job rebuilt, restarted and reloaded the site - every five minutes, for as
+  # long as that went unnoticed. A run that cannot answer the question says so instead.
+  if [ "$IF_CHANGED" -eq 1 ]; then
     if [ "$DRY_RUN" -eq 1 ]; then
       printf '  + stop here unless origin/%s holds a revision other than the one in %s\n' \
         "$branch" "$APP_DIR"
     else
-      local deployed remote
+      local deployed remote status=0
+
       # A remote that cannot be reached is not "nothing to deploy": say so, change nothing,
       # and let the next run of the job try again.
-      if ! app_run 'git fetch --prune origin'; then
-        warn "Could not reach $fetch_from for $branch; $APP_DIR was left as it is."
+      remote="$(remote_revision "$repo" "$branch")" || status=$?
+      if [ "$status" -ne 0 ]; then
+        if [ "$status" -eq 2 ]; then
+          warn "$fetch_from has no branch $branch any more; $APP_DIR was left as it is."
+        else
+          warn "Could not reach $fetch_from for $branch; $APP_DIR was left as it is."
+        fi
         exit 1
       fi
-      deployed="$(app_run 'git rev-parse HEAD')"
-      if ! remote="$(app_run "git rev-parse origin/$branch")"; then
-        warn "$fetch_from has no branch $branch any more; $APP_DIR was left as it is."
-        exit 1
-      fi
-      if [ "$deployed" = "$remote" ]; then
+      REMOTE_REVISION="$remote"
+
+      deployed="$(deployed_revision)"
+      if [ -z "$deployed" ]; then
+        warn "$APP_DIR holds neither a checkout nor $DEPLOYED_REVISION_FILE, so --if-changed"
+        warn "cannot tell whether this run has anything to do. Deploying $branch once, and"
+        warn "recording the revision it builds, which makes the later runs quiet again."
+      elif [ "$deployed" = "$remote" ]; then
         info "origin/$branch is still at ${remote:0:12}; nothing to deploy."
         exit 0
+      else
+        info "origin/$branch moved to ${remote:0:12}, deployed was ${deployed:0:12}"
       fi
-      info "origin/$branch moved to ${remote:0:12}, deployed was ${deployed:0:12}"
     fi
   fi
 
@@ -695,17 +791,67 @@ ensure_env_file() {
 }
 
 # --- 6/11 build -------------------------------------------------------------------------
+# The build is not written over dist/. The process that answers the domain right now reads its
+# own bundle out of dist/, and @astrojs/node imports a route's chunk the first time that route
+# is asked for - so a build that emptied and rewrote dist/ answered 500 "ERR_MODULE_NOT_FOUND"
+# for every page the running process had not touched yet, for as long as the build took (a few
+# seconds every deploy, and every five minutes on a host whose --if-changed guard was not
+# doing anything). The build therefore lands in dist.next/ and activate_build() moves it into
+# place immediately before the restart, when there is nothing left to lose.
 build_app() {
   info "[6/11] Dependencies and production build"
 
-  app_run 'npm ci --no-audit --no-fund'
-  app_run 'npm run build'
+  # `npm ci` deletes and reinstalls node_modules, which is the other half of the live tree: the
+  # process answering the domain holds the packages it has already imported, and a route that is
+  # asked for the first time resolves what its chunk imports at that moment. The dependencies
+  # only have to be reinstalled when package-lock.json changed, so the lockfile's hash is kept
+  # beside the recorded revision and compared here - a deploy that changes the site but not its
+  # dependencies leaves node_modules alone, and with it the last path by which a build used to
+  # reach into the tree that is answering.
+  local lockfile="$APP_DIR/package-lock.json"
+  local lockfile_stamp="$APP_DIR/.deployed-lockfile"
+  local lockfile_now="" lockfile_then=""
 
-  if [ "$DRY_RUN" -eq 0 ] && [ ! -f "$APP_DIR/dist/server/entry.mjs" ]; then
-    fail "The build wrote no $APP_DIR/dist/server/entry.mjs."
+  if [ -f "$lockfile" ]; then
+    lockfile_now="$(sha256sum "$lockfile" | cut -d' ' -f1)"
   fi
+  if [ -f "$lockfile_stamp" ]; then
+    lockfile_then="$(head -n 1 "$lockfile_stamp" 2>/dev/null || true)"
+  fi
+
+  if [ -d "$APP_DIR/node_modules" ] && [ -n "$lockfile_now" ] && [ "$lockfile_now" = "$lockfile_then" ]; then
+    info "node_modules is left as it is: package-lock.json did not change"
+  else
+    app_run 'npm ci --no-audit --no-fund'
+    if [ "$DRY_RUN" -eq 0 ] && [ -n "$lockfile_now" ]; then
+      printf '%s\n' "$lockfile_now" > "$lockfile_stamp"
+      chown "$APP_USER":"$APP_USER" "$lockfile_stamp" 2>/dev/null || true
+      chmod 600 "$lockfile_stamp" 2>/dev/null || true
+    fi
+  fi
+
+  app_run "npm run build -- --outDir $BUILD_DIR_NEXT"
+
+  if [ "$DRY_RUN" -eq 0 ] && [ ! -f "$APP_DIR/$BUILD_DIR_NEXT/server/entry.mjs" ]; then
+    fail "The build wrote no $APP_DIR/$BUILD_DIR_NEXT/server/entry.mjs."
+  fi
+  BUILD_RAN=1
   protect_app_dir
-  info "bundle built into $APP_DIR/dist"
+  info "bundle built into $APP_DIR/$BUILD_DIR_NEXT"
+}
+
+# Puts the build into place as dist/: the old one is kept as dist.previous/ for a moment (it is
+# what to look at when a new build turns out to be wrong), and the rename is all that is left
+# between a finished build and the restart that starts answering with it. Called from
+# install_unit, so a run that fails before it leaves the live build answering untouched.
+activate_build() {
+  [ "$BUILD_RAN" -eq 1 ] || return 0
+
+  run rm -rf "$APP_DIR/$BUILD_DIR_PREVIOUS"
+  if [ -d "$APP_DIR/dist" ]; then
+    run mv "$APP_DIR/dist" "$APP_DIR/$BUILD_DIR_PREVIOUS"
+  fi
+  run mv "$APP_DIR/$BUILD_DIR_NEXT" "$APP_DIR/dist"
 }
 
 # --- 7/11 systemd unit ------------------------------------------------------------------
@@ -716,6 +862,11 @@ Description=Hypernova website (Astro SSR)
 Documentation=https://github.com/Hypernova-Oy/www.hypernova.fi
 After=network-online.target
 Wants=network-online.target
+# Restart=always below is only as good as systemd's willingness to keep trying. The default
+# start limit - 5 starts in 10 seconds - turns a crash loop into a unit that stays failed until
+# someone runs reset-failed, and the domain answers 503 for as long as that lasts. 0 removes
+# the limit, which is what a unit that is the only thing serving the site wants.
+StartLimitIntervalSec=0
 
 [Service]
 Type=simple
@@ -778,16 +929,36 @@ install_unit() {
       || fail "systemd-analyze rejected the generated unit; nothing was installed."
   fi
 
+  local unit_changed=0
   if write_config 644 root:root "$unit" < "$temporary"; then
     run systemctl daemon-reload
+    unit_changed=1
   else
     info "$unit is already up to date"
   fi
   rm -f "$temporary"
 
   run systemctl enable "$SERVICE"
-  # Starts the service on a first run and picks up the new build on every later one.
-  run systemctl restart "$SERVICE"
+
+  # The restart is what starts answering with the build this run made, so it is tied to the
+  # build rather than to the fact that a unit file was looked at. A run that changed nothing -
+  # a re-run of the same revision, the unit already in place - leaves the site alone instead of
+  # bouncing it; `systemctl is-active` keeps a unit that is down from staying down because of
+  # that, since no build is going to be swapped in for it.
+  local restart=0
+  if [ "$BUILD_RAN" -eq 1 ] || [ "$unit_changed" -eq 1 ]; then
+    restart=1
+  fi
+  if [ "$DRY_RUN" -eq 0 ] && ! systemctl is-active --quiet "$SERVICE"; then
+    restart=1
+  fi
+
+  if [ "$restart" -eq 1 ]; then
+    activate_build
+    run systemctl restart "$SERVICE"
+  else
+    info "$SERVICE is left running: neither the unit nor the build changed in this run"
+  fi
 }
 
 # --- 8/11 Apache ------------------------------------------------------------------------
@@ -988,6 +1159,7 @@ repair_tls_vhost_protocols() {
   fi
 
   if write_config 644 root:root "$file" < <(tls_vhost_with_protocols < "$file"); then
+    APACHE_CHANGED=1
     info "the :443 host certbot wrote carries the deploy's protocol list now"
   else
     info "the :443 host certbot wrote carries the deploy's protocol list already"
@@ -1220,6 +1392,7 @@ configure_apache() {
     # later copies into the `:443` host; this server-wide copy is what reaches the `:443` host
     # of a deployment that already has a certificate (see render_compression_conf).
     if write_config 644 root:root "/etc/apache2/conf-available/$SERVICE-compression.conf" < <(render_compression_conf); then
+      APACHE_CHANGED=1
       info "enabling the server-wide copy of the compression block"
     else
       info "/etc/apache2/conf-available/$SERVICE-compression.conf is already up to date"
@@ -1230,6 +1403,7 @@ configure_apache() {
     # file goes away again when it is the reason for that. The vhost keeps its own copy.
     if [ "$DRY_RUN" -eq 0 ] && ! apache2ctl configtest; then
       warn "Apache rejected $SERVICE-compression.conf; the vhost is left to compress on its own."
+      APACHE_CHANGED=1
       run a2disconf -q "$SERVICE-compression"
     fi
   else
@@ -1259,6 +1433,7 @@ configure_apache() {
     run a2enmod -q http2
 
     if write_config 644 root:root "/etc/apache2/conf-available/$SERVICE-protocols.conf" < <(render_protocols_conf); then
+      APACHE_CHANGED=1
       info "enabling the server-wide protocol list"
     else
       info "/etc/apache2/conf-available/$SERVICE-protocols.conf is already up to date"
@@ -1270,6 +1445,7 @@ configure_apache() {
     # the protocol for the hosts that read it.
     if [ "$DRY_RUN" -eq 0 ] && ! apache2ctl configtest; then
       warn "Apache rejected $SERVICE-protocols.conf; the protocol is left to the module's own file."
+      APACHE_CHANGED=1
       run a2disconf -q "$SERVICE-protocols"
     fi
 
@@ -1279,6 +1455,7 @@ configure_apache() {
   fi
 
   if write_config 644 root:root "/etc/apache2/sites-available/$SERVICE.conf" < <(render_vhost); then
+    APACHE_CHANGED=1
     info "enabling the new site"
   else
     info "/etc/apache2/sites-available/$SERVICE.conf is already up to date"
@@ -1286,6 +1463,7 @@ configure_apache() {
   run a2ensite -q "$SERVICE"
 
   if [ -e /etc/apache2/sites-enabled/000-default.conf ]; then
+    APACHE_CHANGED=1
     info "disabling the Apache default site, so this vhost owns port 80"
     run a2dissite -q 000-default
   fi
@@ -1297,7 +1475,16 @@ configure_apache() {
   fi
 
   run systemctl enable --now apache2
-  run systemctl reload apache2
+
+  # The reload is graceful - the old workers finish what they were answering - but it is still
+  # a new set of workers for nothing when no file above changed, which is what a re-run of the
+  # same revision is. a2enmod/a2enconf/a2ensite only matter when something was written here,
+  # because that is the only case where they have anything to enable that Apache has not read.
+  if [ "$APACHE_CHANGED" -eq 1 ]; then
+    run systemctl reload apache2
+  else
+    info "Apache is left as it is: none of its files changed in this run"
+  fi
 }
 
 # --- 9/11 TLS ---------------------------------------------------------------------------
@@ -1583,7 +1770,9 @@ auto_update_rollback() {
   app_run 'git clean -fd'
 
   if app_run 'npm ci --no-audit --no-fund' \
-    && app_run 'npm run build' \
+    && app_run "npm run build -- --outDir $BUILD_DIR_NEXT" \
+    && BUILD_RAN=1 \
+    && activate_build \
     && systemctl restart "$SERVICE" \
     && wait_for_http "http://127.0.0.1:$PORT/" 60; then
     protect_app_dir
@@ -1693,6 +1882,20 @@ verify_deployment
 # is no reason to put the one before it back.
 trap - ERR
 PREVIOUS_REVISION=""
+
+# What is answering now, for the next --if-changed run of the job: HEAD of the checkout that
+# was pulled or copied into place, or - in a tree that has no checkout of its own - the
+# revision the remote held when this run asked. Only this line of the run writes it, so a
+# revision that failed a check above is never recorded as deployed.
+deployed_now=""
+if [ -d "$APP_DIR/.git" ]; then
+  deployed_now="$(app_run 'git rev-parse HEAD' 2>/dev/null || true)"
+elif [ -n "$REMOTE_REVISION" ]; then
+  deployed_now="$REMOTE_REVISION"
+elif [ -d "$CHECKOUT_DIR/.git" ]; then
+  deployed_now="$(git -C "$CHECKOUT_DIR" rev-parse HEAD 2>/dev/null || true)"
+fi
+record_deployed_revision "$deployed_now"
 # Last, so that a first install which does not come up does not leave a job that keeps trying.
 install_auto_update
 

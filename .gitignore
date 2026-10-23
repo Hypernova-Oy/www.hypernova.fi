@@ -1,5 +1,8 @@
 # build output
 dist/
+# the build waiting for its restart, and the one that answered before it
+dist.next/
+dist.previous/
 # generated types
 .astro/
 
@@ -21,6 +24,11 @@ test-results/
 # environment variables
 .env
 .env.production
+
+# the revision the last deploy recorded, which --if-changed compares the branch against
+.deployed-revision
+# the package-lock.json hash those dependencies were installed from
+.deployed-lockfile
 
 # macOS-specific files
 .DS_Store
