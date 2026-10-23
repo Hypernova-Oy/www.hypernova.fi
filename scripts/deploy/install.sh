@@ -91,8 +91,22 @@ CHECKOUT_DIR="$(dirname -- "$(dirname -- "$SCRIPT_DIR")")"
 # and the hand-over below would never happen. Taken here, before anything can overwrite it.
 SELF_HASH="$(sha256sum "${BASH_SOURCE[0]}" 2>/dev/null | cut -d' ' -f1 || true)"
 
-# Node.js version package.json asks for (engines.node, ">=22.12.0").
-REQUIRED_NODE="$(sed -n 's/.*"node" *: *">=\([0-9][0-9.]*\)".*/\1/p' "$CHECKOUT_DIR/package.json" 2>/dev/null | head -1)"
+# Node.js version package.json asks for (engines.node, ">=22.12.0"), read from the checkout this
+# script came from or - when it was fetched outside one, which is how a host whose own deploy is
+# stuck gets repaired - from the tree it is deploying into.
+#
+# The `|| true` is not decoration. With `pipefail`, a `sed` that cannot open its file makes the
+# assignment return 2, and `set -e` then ends the run before it has printed a line: fetching this
+# script to /root and running it there used to do exactly that, silently, because /package.json
+# does not exist.
+REQUIRED_NODE=""
+for node_manifest in "$CHECKOUT_DIR/package.json" "$APP_DIR/package.json"; do
+  [ -f "$node_manifest" ] || continue
+  REQUIRED_NODE="$(sed -n 's/.*"node" *: *">=\([0-9][0-9.]*\)".*/\1/p' "$node_manifest" 2>/dev/null | head -1 || true)"
+  if [ -n "$REQUIRED_NODE" ]; then
+    break
+  fi
+done
 REQUIRED_NODE="${REQUIRED_NODE:-22.12.0}"
 
 # Set while running, reported at the end.
@@ -386,8 +400,14 @@ CRON_NAME="${SERVICE//[!a-zA-Z0-9_-]/-}-auto-update"
 CRON_LOG_TAG="$SERVICE-auto-update"
 
 # --- sanity, before anything is changed ------------------------------------------------
-[ -f "$CHECKOUT_DIR/package.json" ] \
-  || fail "No package.json in $CHECKOUT_DIR - run this script from the repository checkout."
+# A run is normally started from the checkout it deploys (scripts/deploy/install.sh), and then
+# the package.json beside it is the one the build will read. A copy fetched somewhere else - how
+# a host whose own deploy is stuck gets repaired by hand - has no such file, and then the tree it
+# deploys into is what has to carry it.
+if [ ! -f "$CHECKOUT_DIR/package.json" ] && [ ! -f "$APP_DIR/package.json" ]; then
+  fail "No package.json in $CHECKOUT_DIR or $APP_DIR: run this script from a checkout, or point
+   --dir at a deployment that holds one."
+fi
 
 if [ "$(id -u)" -ne 0 ] && [ "$DRY_RUN" -eq 0 ]; then
   fail "This script installs packages and services, so it has to run as root: sudo bash $0"
@@ -632,6 +652,16 @@ resume_with_pulled_script() {
 
 sync_code_from_checkout() {
   local source="${SOURCE:-$CHECKOUT_DIR}"
+
+  # A script fetched somewhere that is not a checkout - an operator repairing a stuck deploy from
+  # /root, which is how this file is run by hand - has no source tree to copy, and the default
+  # would be whatever directory it was fetched into: `/` would mean copying the host's root
+  # filesystem over the deployment. Refuse rather than guess; --repo/--branch is what such a run
+  # is for.
+  if [ "$(readlink -f "$source")" = "/" ]; then
+    fail "This script is not inside a checkout, so there is no tree to copy from. Deploy with
+   --repo/--branch instead: that is what the automatic deploy uses and what repairs a host."
+  fi
 
   if [ "$(readlink -f "$source")" = "$(readlink -f "$APP_DIR")" ]; then
     info "$APP_DIR already holds this checkout; rebuilding it"
