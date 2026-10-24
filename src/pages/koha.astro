@@ -27,6 +27,11 @@ export const prerender = false;
 
 const i18n = {
   fi: {
+    'Koha hosting and support in Finland': 'Kohan pilvipalvelu ja tuki Suomessa',
+    // The sentence a search engine shows under the title, not the label the page carries.
+    'Koha, the open source library system: hosted, updated, backed up and supported in Finland. Request a quote, or try Koha for free first.': 'Koha, avoimen lähdekoodin kirjastojärjestelmä: pilvipalveluna, päivitettynä, varmuuskopioituna ja tuettuna Suomessa. Pyydä tarjous tai kokeile Kohaa ensin ilmaiseksi.',
+    'Hosting and support of the Koha library system': 'Kohan kirjastojärjestelmän pilvipalvelu ja tuki',
+    'Koha installed, hosted, updated, backed up and supported in Finland.': 'Koha asennettuna, ylläpidettynä, päivitettynä ja varmuuskopioituna Suomessa.',
     'Koha Library System': 'Koha-kirjastojärjestelmä',
     'Open source library system': 'Avoimen koodin kirjastojärjestelmä',
     'Koha is the first Free and Open Source library system in the world, and it has been the pioneer of secure and sustainable catalog and patron management since 1999. Discover the': 'Koha on maailman ensimmäinen vapaan ja avoimen lähdekoodin kirjastojärjestelmä. Se on toiminut edelläkävijänä kirjaston kestävässä ja turvallisessa aineisto- ja asiakastietokannan hallinnoimisessa jo vuodesta 1999 alkaen. Tutustu tarkemmin',
@@ -226,11 +231,43 @@ if (Astro.request.method === "POST") {
 // in, and a fresh token gets a different one (see `honeypotField`).
 const honeypot = honeypotField(formToken);
 
+/*
+ * What this page sells, as structured data: the service, who provides it and where it is served.
+ * A search engine reads it beside the page's own words, and `provider` names the `Organization`
+ * the layout publishes, so the two nodes describe one company rather than two.
+ */
+const siteURL = Astro.site?.href ?? 'https://www.hypernova.fi/';
+const kohaURL = new URL('/koha/', siteURL).href;
+const serviceJsonLd = [
+  {
+    '@type': 'Service',
+    '@id': `${kohaURL}#service`,
+    name: t('Koha hosting and support in Finland'),
+    serviceType: t('Hosting and support of the Koha library system'),
+    description: t('Koha installed, hosted, updated, backed up and supported in Finland.'),
+    url: kohaURL,
+    provider: { '@type': 'Organization', name: 'Hypernova Oy', url: siteURL },
+    areaServed: { '@type': 'Country', name: 'Finland' },
+  },
+];
+
 ---
 
-<BaseLayout title="Koha" description={t('Koha Library System')}>
+<BaseLayout
+  title={t('Koha hosting and support in Finland')}
+  description={t('Koha, the open source library system: hosted, updated, backed up and supported in Finland. Request a quote, or try Koha for free first.')}
+  breadcrumb={t('Koha Library System')}
+  jsonLd={serviceJsonLd}
+>
   <div id="what-is-koha" class="bg-zinc-50 dark:bg-night-soft border-b border-zinc-200 dark:border-night-line py-16 md:py-16 transition-colors">
     <div class="container mx-auto px-4 sm:px-6 lg:px-8 max-w-4xl text-center">
+      <!--
+        Until now the page's only title was the Koha logo, which no crawler reads as a heading,
+        and the three cards under it started at `h3`. This is the page's subject as a heading, in
+        the words the page is about. `sr-only` leaves the design exactly as it is - the logo is
+        the visible title - and the cards below are `h2`, so the document runs h1, h2, h2, h2.
+      -->
+      <h1 class="sr-only">{t('Koha hosting and support in Finland')}</h1>
       <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-3 gap-8 max-w-6xl mx-auto mt-10">
         <div></div>
         <!--
@@ -252,7 +289,7 @@ const honeypot = honeypotField(formToken);
       <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 lg:grid-rows-1 gap-6 max-w-7xl mx-auto">
         <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0 reveal-delay-2">
           <div class="w-12 h-12 bg-blue-100 dark:bg-blue-900 text-accent-600 dark:text-zinc-400 rounded-2xl flex items-center justify-center mb-6" set:html={`        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"></path><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"></path></svg>`} />
-          <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('Open source library system')}</h3>
+          <h2 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('Open source library system')}</h2>
           <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
             {t('Koha is the first Free and Open Source library system in the world, and it has been the pioneer of secure and sustainable catalog and patron management since 1999. Discover the')} <a href="/#whyfoss" class="link-inline">{t('benefits of free and open source software')}</a>.
           </p>
@@ -269,7 +306,7 @@ const honeypot = honeypotField(formToken);
 </svg>
 `} />
           <div class="absolute inset-0 bg-gradient-to-br from-primary-500/10 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
-          <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('For libraries of any size')}</h3>
+          <h2 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('For libraries of any size')}</h2>
           <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
             {t('Koha is a full-featured, scalable library management system, developed by libraries of all types and sizes, by volunteers and by support companies worldwide.')} <sup><a href="https://koha-community.org" class="link-inline" target="_blank">[1]</a></sup>
           </p>
@@ -291,7 +328,7 @@ const honeypot = honeypotField(formToken);
 	</g>
 </g>
           </svg>`} />
-          <h3 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('Customizable')}</h3>
+          <h2 class="text-3xl font-heading font-bold text-zinc-900 dark:text-white mb-4 z-10">{t('Customizable')}</h2>
           <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
             {t('Koha can be configured in hundreds of ways, which makes it suitable for any type of library. It also supports many open standards and integrates with countless other systems.')}
           </p>

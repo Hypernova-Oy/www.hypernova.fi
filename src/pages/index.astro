@@ -8,6 +8,8 @@ import { useTranslations } from '../i18n/utils';
 const i18n = {
   fi: {
       'Open source library systems, hosted and supported': 'Avoimen lähdekoodin kirjastojärjestelmät pilvipalveluna ja tuettuna',
+      // The sentence a search engine shows under the title, not the label the page carries.
+      'Koha hosting and support for Finnish libraries: we host, back up and update open source library systems, and build Lainuri and Toveri.': 'Kohan pilvipalvelu ja tuki suomalaisille kirjastoille: ylläpidämme, varmuuskopioimme ja päivitämme avoimen lähdekoodin kirjastojärjestelmiä ja rakennamme Lainuria ja Toveria.',
       'Ready to move to open source?': 'Valmiina siirtymään avoimeen lähdekoodiin?',
       'Get in touch to explore how open-source software can support your organization.': 'Kartoitetaan organisaatiosi siirtymä vapaaseen ja avoimeen lähdekoodiin.',
       'Contact us': 'Ota yhteyttä',
@@ -17,7 +19,10 @@ const i18n = {
 const t = useTranslations(i18n, Astro);
 ---
 
-<BaseLayout title={t('Open source library systems, hosted and supported')}>
+<BaseLayout
+  title={t('Open source library systems, hosted and supported')}
+  description={t('Koha hosting and support for Finnish libraries: we host, back up and update open source library systems, and build Lainuri and Toveri.')}
+>
   <Hero />
   <Features />
   

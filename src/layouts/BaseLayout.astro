@@ -5,7 +5,7 @@ import '../styles/global.css';
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
 import CommandPalette from '../components/CommandPalette.astro';
-import { SITE_TITLE, SITE_DESCRIPTION, SITE_DESCRIPTION_I18N, SITE_URL } from '../config';
+import { SITE_TITLE, SITE_DESCRIPTION, SITE_DESCRIPTION_I18N, SITE_URL, SOCIAL_LINKS } from '../config';
 import { resolvePath } from '../utils/navigation';
 import { FALLBACK_LANG, languages, resolveLanguage, type Language, type i18n } from '../i18n/ui';
 import { useTranslations } from '../i18n/utils';
@@ -20,6 +20,16 @@ interface Props {
   title: string;
   description?: string;
   image?: string;
+  /**
+   * The name of this page in the trail Home › … › this page, for the `BreadcrumbList` below.
+   * A page that gives none is not given a breadcrumb: a trail of one step says nothing.
+   */
+  breadcrumb?: string;
+  /**
+   * Structured data beyond the site and the company, for a page that describes something of its
+   * own (the Koha service, say). Objects are added to the `@graph` as they are given.
+   */
+  jsonLd?: Record<string, unknown>[];
 }
 
 /**
@@ -43,6 +53,8 @@ const {
   title,
   description = t(SITE_DESCRIPTION),
   image = DEFAULT_IMAGE,
+  breadcrumb,
+  jsonLd,
 } = Astro.props;
 
 const siteURL = SITE_URL.endsWith('/') ? SITE_URL : `${SITE_URL}/`;
@@ -102,17 +114,70 @@ const fullTitle = `${title} | ${SITE_TITLE}`;
 const robotsContent = 'index, follow';
 /*
  * Every page is the same kind of thing - a page of the site, in one of two languages - so the
- * structured data describes the site, and `og:type` says `website` below. The `BlogPosting`
- * shape that was the other branch here (headline, dates, author) went with the blog this
- * checkout no longer has (see `redirects` in astro.config.mjs): no page carries a publication
- * date of its own to describe.
+ * structured data describes the site, its company and, where a page gives one, the trail to it,
+ * and `og:type` says `website` below. The `BlogPosting` shape that was the other branch here
+ * (headline, dates, author) went with the blog this checkout no longer has (see `redirects` in
+ * astro.config.mjs): no page carries a publication date of its own to describe.
+ *
+ * `Organization` is what a search engine needs to answer "who is this" for the company name:
+ * the legal name and the business ID as they are printed on the contact page, the postal address
+ * as it is printed there, and the public repository as the one profile this company keeps. The
+ * nodes are linked by `@id` (the site publishes the company, the company publishes the site) so
+ * the graph stays one object rather than three unrelated ones. `logo` is the social card: it is
+ * the only brand image the site serves at a size a search engine will use.
  */
-const structuredData = {
-  '@context': 'https://schema.org',
+const organization = {
+  '@type': 'Organization',
+  '@id': `${siteURL}#organization`,
+  name: SITE_TITLE,
+  legalName: 'Hypernova Oy',
+  url: siteURL,
+  logo: {
+    '@type': 'ImageObject',
+    url: new URL(DEFAULT_IMAGE, siteURL).href,
+    width: DEFAULT_IMAGE_WIDTH,
+    height: DEFAULT_IMAGE_HEIGHT,
+  },
+  vatID: 'FI29256763',
+  address: {
+    '@type': 'PostalAddress',
+    postOfficeBoxNumber: '16',
+    postalCode: '80101',
+    addressLocality: 'Joensuu',
+    addressCountry: 'FI',
+  },
+  sameAs: [SOCIAL_LINKS.github],
+};
+
+const website = {
   '@type': 'WebSite',
+  '@id': `${siteURL}#website`,
   name: SITE_TITLE,
   description,
   url: siteURL,
+  inLanguage: documentLang,
+  publisher: { '@id': `${siteURL}#organization` },
+};
+
+/*
+ * Home › this page, for the pages that name themselves in `breadcrumb`. A trail of one step is
+ * the home page, which is why the root page gives none and gets none.
+ */
+const breadcrumbs =
+  breadcrumb && canonicalPath !== '/'
+    ? {
+        '@type': 'BreadcrumbList',
+        '@id': `${canonicalURL}#breadcrumb`,
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: SITE_TITLE, item: siteURL },
+          { '@type': 'ListItem', position: 2, name: breadcrumb, item: canonicalURL },
+        ],
+      }
+    : undefined;
+
+const structuredData = {
+  '@context': 'https://schema.org',
+  '@graph': [organization, website, ...(breadcrumbs ? [breadcrumbs] : []), ...(jsonLd ?? [])],
 };
 
 ---
@@ -235,6 +300,15 @@ const structuredData = {
     {otherLanguages.map((lang) => (
       <meta property="og:locale:alternate" content={ogLocale[lang]} />
     ))}
+    <!--
+      The same card for the services that read Twitter's own tags rather than Open Graph's. They
+      are four tags against a crawler that would otherwise show a bare link, and they cost the
+      document nothing it does not already have above.
+    -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={imageURL} />
 
     <script type="application/ld+json" set:html={JSON.stringify(structuredData)} />
     

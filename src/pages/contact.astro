@@ -24,6 +24,9 @@ export const prerender = false;
 
 const i18n = {
   fi: {
+    'Contact us and ask for a Koha hosting quote': 'Ota yhteyttä ja pyydä tarjous Kohan pilvipalvelusta',
+    // The sentence a search engine shows under the title, not the label the page carries.
+    'Contact Hypernova Oy: ask about Koha hosting, the Lainuri checkout machine or Toveri access control. Postal address, billing details and a contact form.': 'Ota yhteyttä Hypernova Oy:hyn: kysy Kohan pilvipalvelusta, Lainuri-lainausautomaatista tai Toveri-kulunvalvonnasta. Postiosoite, laskutustiedot ja yhteydenottolomake.',
     'Contact': 'Yhteystiedot',
     'Contact us': 'Ota yhteyttä',
     'Are you contacting us about Koha hosting? Please use the': 'Oletko yhteydessä Kohan pilvipalvelusta? Käytä sen sijaan',
@@ -190,10 +193,21 @@ if (Astro.request.method === "POST") {
 const honeypot = honeypotField(formToken);
 ---
 
-<BaseLayout title={t('Contact')} description={t('Contact us')}>
+<BaseLayout
+  title={t('Contact us and ask for a Koha hosting quote')}
+  description={t('Contact Hypernova Oy: ask about Koha hosting, the Lainuri checkout machine or Toveri access control. Postal address, billing details and a contact form.')}
+  breadcrumb={t('Contact us')}
+>
 <section id="contact-info" class="py-16 bg-zinc-50 dark:bg-night-soft">
   <div class="container mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
     <div class="max-w-8xl mx-auto mb-16 reveal-on-scroll">
+      <!--
+        The page's title, as a heading. The panel below is drawn without one - it is the wordmark
+        and two definition lists - so without this the document had no `h1` at all, and the only
+        headings were the panel titles below it. `sr-only` keeps the design, which is the wordmark
+        over the details, and the panel titles stay `h2`, so the document runs h1, h2, h2.
+      -->
+      <h1 class="sr-only">{t('Contact us and ask for a Koha hosting quote')}</h1>
       <div class="grid grid-cols-1 lg:grid-rows-1 gap-6 max-w-7xl mx-auto">
         <div class="glass-panel rounded-3xl p-8 flex flex-col hover-glow reveal-on-scroll min-h-[320px] lg:min-h-0">
           <!-- w-full, not mx-auto: this panel is a column flex container, so an auto inline
@@ -201,7 +215,10 @@ const honeypot = honeypotField(formToken);
                half empty above 768px. -->
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 lg:grid-rows-1 gap-6 w-full">
             <div class="col-span-1">
-              <h3 class="text-3xl brand-font font-bold text-zinc-900 dark:text-white mb-6 z-10">hypernova</h3>
+              <!-- The wordmark, not a heading: it names the company the panel belongs to, and a
+                   document whose only `h1` is further down does not want a brand mark above it
+                   taking a heading level of its own. -->
+              <p class="text-3xl brand-font font-bold text-zinc-900 dark:text-white mb-6 z-10">hypernova</p>
               <!--
                 Label above value, one row per detail. The old block put the VAT ID at body
                 size, then the sentence "Our postal address is", then the address in a larger
@@ -234,7 +251,7 @@ const honeypot = honeypotField(formToken);
               </dl>
             </div>
             <div class="col-span-1 md:border-l md:border-zinc-200 md:pl-8 dark:md:border-night-line">
-              <h4 class="text-2xl text-zinc-900 dark:text-white mb-6 z-10">{t('Billing information')}</h4>
+              <h2 class="text-2xl text-zinc-900 dark:text-white mb-6 z-10">{t('Billing information')}</h2>
               <!-- Codes stay verbatim: they are copied into an invoicing system, so nothing
                    here is spaced out or wrapped for looks. font-mono keeps the columns of
                    digits aligned and marks them as data rather than prose. -->

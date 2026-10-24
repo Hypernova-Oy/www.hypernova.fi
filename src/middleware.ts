@@ -44,15 +44,41 @@ export const onRequest = defineMiddleware(async (context, next) => {
   locals.lang = lang;
 
   const isPrefetch = request.headers.get('Sec-Purpose') === 'prefetch';
-  if (!isPrefetch && stored !== lang) {
+  /*
+   * The cookie records a choice, and only a choice: `?l=fi` asked for a language, and a cookie
+   * that already holds one (including `gb`, the name the previous site used) is rewritten to the
+   * name this site carries. A visitor who asked for nothing is served the fallback and is given
+   * no cookie for it - a `Set-Cookie` on every response is what kept these pages out of every
+   * shared cache, and a crawler that carries no cookie met one on every request it made.
+   */
+  const choseALanguage = requested !== null || stored !== undefined;
+  if (!isPrefetch && choseALanguage && stored !== lang) {
     cookies.set(LANGUAGE_COOKIE, lang, { path: '/' });
   }
 
   const response = await next();
 
-  if (request.method === 'GET' && UNCACHEABLE_PAGES.has(url.pathname)) {
+  if (request.method === 'GET') {
     try {
-      response.headers.set('Cache-Control', 'private, no-store');
+      if (UNCACHEABLE_PAGES.has(url.pathname)) {
+        response.headers.set('Cache-Control', 'private, no-store');
+      } else if (!response.headers.has('Cache-Control')) {
+        /*
+         * A page is the same document for every visitor except for the language the cookie
+         * holds, so it can be cached for a moment - and it has to say that it varies by cookie,
+         * or a shared cache would hand the Finnish page to a visitor who chose English. A
+         * minute in the browser, five in a shared cache: long enough to take the repeat of a
+         * navigation off the server, short enough that a deploy is not served from a cache.
+         */
+        response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
+
+        const vary = response.headers.get('Vary');
+        if (!vary) {
+          response.headers.set('Vary', 'Cookie');
+        } else if (!/\bcookie\b/i.test(vary)) {
+          response.headers.set('Vary', `${vary}, Cookie`);
+        }
+      }
     } catch {
       // A response whose headers cannot be changed is already uncacheable.
     }
