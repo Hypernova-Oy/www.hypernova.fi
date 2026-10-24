@@ -62,13 +62,16 @@ export const onRequest = defineMiddleware(async (context, next) => {
     try {
       if (UNCACHEABLE_PAGES.has(url.pathname)) {
         response.headers.set('Cache-Control', 'private, no-store');
-      } else if (!response.headers.has('Cache-Control')) {
+      } else if (response.status >= 200 && response.status < 300 && !response.headers.has('Cache-Control')) {
         /*
          * A page is the same document for every visitor except for the language the cookie
          * holds, so it can be cached for a moment - and it has to say that it varies by cookie,
          * or a shared cache would hand the Finnish page to a visitor who chose English. A
          * minute in the browser, five in a shared cache: long enough to take the repeat of a
          * navigation off the server, short enough that a deploy is not served from a cache.
+         *
+         * Only a successful answer: a 404 or a 500 that a cache keeps for five minutes is a
+         * page that stays broken after it was fixed.
          */
         response.headers.set('Cache-Control', 'public, max-age=60, s-maxage=300');
 
