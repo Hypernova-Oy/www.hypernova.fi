@@ -352,6 +352,11 @@ DEPLOYED_REVISION_FILE="$APP_DIR/.deployed-revision"
 # answering back, and a job that runs every few minutes would try it again and again - see
 # deploy_attempt_is_recent, and the eighteen days this site spent rebuilding every five minutes.
 DEPLOY_ATTEMPT_FILE="$APP_DIR/.deploy-attempt"
+
+# Where the guard that the unit starts the server through is installed. It is deliberately
+# outside the checkout: a deploy that fails after the unit was written rolls the checkout back to
+# a revision that does not carry the file, and the unit keeps starting the server through it.
+ENV_GUARD="${HYPERNOVA_ENV_GUARD:-/usr/local/sbin/$SERVICE-env-guard}"
 ATTEMPT_COOLDOWN="${HYPERNOVA_ATTEMPT_COOLDOWN:-30}"   # minutes before the same revision is
                                                       # tried again after a failed attempt
 case "$ATTEMPT_COOLDOWN" in '' | *[!0-9]*) ATTEMPT_COOLDOWN=30 ;; esac
@@ -1040,8 +1045,16 @@ Environment=HOST=$HOST
 # PORT is not only the listening port: /search-index.json reads the pages of the site back
 # from http://127.0.0.1:\$PORT, so it has to stay in step with ProxyPass below.
 Environment=PORT=$PORT
-ExecStart=$NODE_BIN ./dist/server/entry.mjs
+# The .env carries FORM_TOKEN_SECRET and the Redmine settings; the deploy writes it and never
+# removes it. A deployment that has lost it cannot answer its own forms, so it does not start
+# answering at all: the guard the deploy installs checks the file and then execs the server, and
+# its exit 78 (EX_CONFIG) is turned into "do not restart" below - a start attempt every two
+# seconds for a file nothing is going to restore would bury the one message that says so.
+ExecStart=$ENV_GUARD --run $NODE_BIN ./dist/server/entry.mjs
+Environment=HYPERNOVA_ENV_FILE_PATH=$APP_DIR/.env
+Environment=HYPERNOVA_SERVICE=$SERVICE
 Restart=always
+RestartPreventExitStatus=78
 RestartSec=2
 TimeoutStopSec=20
 SyslogIdentifier=$SERVICE
@@ -1074,10 +1087,60 @@ WantedBy=multi-user.target
 UNIT
 }
 
+# The check that runs while the site is up.
+#
+# The unit above refuses to start without `.env`; nothing notices the file going away from under a
+# running process, which is the case this exists for. It is deliberately a unit of its own rather
+# than something inside the server: a process cannot stop itself on the disappearance of a file it
+# was started with and still say so afterwards. It runs as root because stopping a unit is a job
+# for the manager, and it does nothing else that needs privileges.
+render_env_watch_unit() {
+  cat <<UNIT
+[Unit]
+Description=Watch $APP_DIR/.env for $SERVICE
+Documentation=https://github.com/Hypernova-Oy/www.hypernova.fi
+After=$SERVICE.service
+
+[Service]
+Type=oneshot
+SyslogIdentifier=$SERVICE-env-watch
+ExecStart=$ENV_GUARD --watch
+Environment=HYPERNOVA_ENV_FILE_PATH=$APP_DIR/.env
+Environment=HYPERNOVA_SERVICE=$SERVICE
+UNIT
+}
+
+# A minute between checks: long enough that a deploy never sees two runs at once, short enough
+# that a lost file is noticed before a person looks at the site and wonders.
+render_env_watch_timer() {
+  cat <<TIMER
+[Unit]
+Description=Check $APP_DIR/.env once a minute
+
+[Timer]
+OnBootSec=1min
+OnUnitActiveSec=1min
+AccuracySec=10s
+Unit=$SERVICE-env-watch.service
+
+[Install]
+WantedBy=timers.target
+TIMER
+}
+
 install_unit() {
   info "[7/11] systemd unit $SERVICE.service"
 
   local unit="/etc/systemd/system/$SERVICE.service" temporary
+  # The unit starts the server through this file, so a deployment that has lost it would not
+  # start at all. The checkout carries it; this says so before the unit points at it. It is
+  # copied out of the checkout for a reason (see ENV_GUARD): the rollback of a failed deploy
+  # removes it from the tree, and the unit that is already installed survives that.
+  [ -f "$APP_DIR/scripts/deploy/check-env.sh" ] \
+    || fail "$APP_DIR/scripts/deploy/check-env.sh is missing: the checkout carries it."
+  if write_config 755 root:root "$ENV_GUARD" < "$APP_DIR/scripts/deploy/check-env.sh"; then
+    info "installed $ENV_GUARD"
+  fi
   temporary="$(mktemp --suffix=.service)"
   render_unit > "$temporary"
 
@@ -1096,6 +1159,22 @@ install_unit() {
   rm -f "$temporary"
 
   run systemctl enable "$SERVICE"
+
+  # The watcher and its timer are written beside the unit they watch, and installed before the
+  # restart below: from then on a .env that goes missing is noticed within a minute.
+  local watcher_changed=0
+  if write_config 644 root:root "/etc/systemd/system/$SERVICE-env-watch.service" < <(render_env_watch_unit); then
+    watcher_changed=1
+  fi
+  if write_config 644 root:root "/etc/systemd/system/$SERVICE-env-watch.timer" < <(render_env_watch_timer); then
+    watcher_changed=1
+  fi
+  if [ "$watcher_changed" -eq 1 ]; then
+    run systemctl daemon-reload
+  else
+    info "$SERVICE-env-watch.service and its timer are already up to date"
+  fi
+  run systemctl enable --now "$SERVICE-env-watch.timer"
 
   # The restart is what starts answering with the build this run made, so it is tied to the
   # build rather than to the fact that a unit file was looked at. A run that changed nothing -
