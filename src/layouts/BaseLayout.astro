@@ -337,6 +337,14 @@ const structuredData = {
       hash it was allowed by then covered bytes the document never contained.
     -->
     <script is:inline data-astro-rerun set:html={themeInit} />
+    <!--
+      Page views, counted by our own Matomo instance without cookies. The loader is the module
+      under /_astro/ (src/scripts/analytics.ts); the tracker file it loads is the one other
+      origin `script-src` allows in astro.config.mjs, and nothing is stored on the device.
+    -->
+    <script>
+      import '../scripts/analytics';
+    </script>
   </head>
   <body class="flex flex-col min-h-screen bg-zinc-50 text-zinc-900 transition-colors duration-300 dark:bg-night dark:text-zinc-100">
     <!--

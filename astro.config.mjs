@@ -200,10 +200,13 @@ export default defineConfig({
         "form-action 'self'",
         // The dotted background of the hero and the call to action is an inline SVG in a
         // data: URL (Tailwind's bg-[url(...)] class); the rest of the pictures are files.
-        "img-src 'self' data:",
+        // Matomo's image beacon is the fallback for a request that cannot be sent; every
+        // other picture is ours.
+        "img-src 'self' data: https://analytics.hypernova.fi",
         "font-src 'self'",
-        // The command palette fetches /search-index.json; nothing calls out to another origin.
-        "connect-src 'self'",
+        // The command palette fetches /search-index.json, and the page view the Matomo tracker
+        // sends goes to our own analytics host (src/scripts/analytics.ts).
+        "connect-src 'self' https://analytics.hypernova.fi",
         /*
          * Trusted Types, the browser-side half of DOM-XSS defence: with the directive in
          * force, a string assigned to a sink that parses HTML (`innerHTML`,
@@ -239,7 +242,10 @@ export default defineConfig({
          * hashes the inline scripts of a rendered page against these hashes and is what checks
          * a deployment against the list as it stands.
          */
-        resources: ["'self'"],
+        // matomo.js is the one script from another origin: our own Matomo, loaded by the
+        // bundled loader (src/scripts/analytics.ts) rather than by an inline snippet, so it
+        // needs no hash of its own.
+        resources: ["'self'", "https://analytics.hypernova.fi"],
         hashes: [themeInitHash],
       },
       styleDirective: {

@@ -9,6 +9,11 @@ export const SITE_DESCRIPTION_I18N = {
 export const SITE_URL = 'https://www.hypernova.fi';
 export const REPOSITORY_URL = 'https://github.com/Hypernova-Oy/zenix';
 
+// Our own Matomo instance, used to count page views without cookies (src/scripts/analytics.ts).
+// The site id is the one Matomo gives this site: Administration -> Websites.
+export const MATOMO_URL = 'https://analytics.hypernova.fi/';
+export const MATOMO_SITE_ID = '1';
+
 // Brand Settings
 export const BRAND_NAME = 'hypernova';
 
