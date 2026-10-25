@@ -43,7 +43,8 @@ const i18n = {
     'Koha Cloud Hosting Service': 'Koha-pilvipalvelu',
     'Try Koha for free': 'Kokeile Kohaa ilmaiseksi',
     'Sustainable choice': 'Kestävä valinta',
-    'Koha is a library system that has been in active development since 1999. Backed by thousands of libraries around the world, its community keeps Koha in step with modern standards and technologies. Koha has a responsive interface that works on desktops, tablets and phones, and it connects to other systems through a range of APIs.': 'Koha on pitkäikäinen kirjastojärjestelmä, joka on ollut aktiivisessa kehityksessä vuodesta 1999 alkaen. Kohan takana on maailmanlaajuisesti tuhansia kirjastoja, joiden muodostama yhteisö pitää huolen siitä, että Koha on tietoturvallinen ja tukee moderneja standardeja ja teknologioita. Kohassa on responsiivinen käyttöliittymä, joka soveltuu kaikentyyppisille laitteille, kuten tietokoneille, matkapuhelimille ja lainausautomaateille. Kohan voi yhdistää muihin järjestelmiin lukuisten rajapintojen avulla.',
+    'Koha is a library system that has been in active development since 1999. Backed by thousands of libraries around the world': 'Koha on pitkäikäinen kirjastojärjestelmä, joka on ollut aktiivisessa kehityksessä vuodesta 1999 alkaen. Kohan takana on maailmanlaajuisesti tuhansia kirjastoja',
+    ', its community keeps Koha in step with modern standards and technologies. Koha has a responsive interface that works on desktops, tablets and phones, and it connects to other systems through a range of APIs.': ', joiden muodostama yhteisö pitää huolen siitä, että Koha on tietoturvallinen ja tukee moderneja standardeja ja teknologioita. Kohassa on responsiivinen käyttöliittymä, joka soveltuu kaikentyyppisille laitteille, kuten tietokoneille, matkapuhelimille ja lainausautomaateille. Kohan voi yhdistää muihin järjestelmiin lukuisten rajapintojen avulla.',
     'One of main strengths of Koha is that no single vendor has exclusive control over the software’s continued development. Koha is distributed under the GPLv3, which lets people copy, modify, and redistribute it under the license’s terms. Unlike proprietary systems, no vendor can decide that the development of Koha is over and push a library to acquire a new system. Anyone can take a copy of Koha at any time and continue its development. Koha lives as long as its community keeps it going. And there is no sign of that slowing down. That is why we at Hypernova often say Koha will probably be the last library system your library will ever need.': 
     'Yksi Kohan suurimmista vahvuuksista on se, ettei kukaan "omista" sen lähdekoodia. GPLv3-lisenssi antaa jokaiselle oikeuden kopioida ja muokata sitä. Mikään taho ei voi yksistään päättää, että Kohan kehitys päättyy. Tämä on mahdollista siten että kenellä tahansa on mahdollisuus ottaa Kohasta kopio ja jatkaa sen kehitystä. Koha elää niin kauan kuin yhteisö tukee kehitystä, eikä hiipumisen merkkejä ole näkyvissä - päinvastoin, Kohan yhteisö on varsin aktiivinen ja kasvaa jatkuvasti. Tästä syystä meillä Hypernovalla on tapana sanoa, että Koha tulee todennäköisesti olemaan viimeinen kirjastojärjestelmä, jonka kirjastosi tarvitsee.',
     'Request': 'Pyydä',
@@ -361,12 +362,15 @@ const serviceJsonLd = [
           {t('Sustainable choice')}
         </h2>
           <p class="text-left text-xl text-zinc-600 dark:text-zinc-400 font-sans">
-          {t('Koha is a library system that has been in active development since 1999. Backed by thousands of libraries around the world, its community keeps Koha in step with modern standards and technologies. Koha has a responsive interface that works on desktops, tablets and phones, and it connects to other systems through a range of APIs.')} <sup><a href="https://hea.koha-community.org/" class="link-inline" target="_blank" rel="noopener noreferrer">[2]</a></sup>
+          {t('Koha is a library system that has been in active development since 1999. Backed by thousands of libraries around the world')}<sup><a href="https://hea.koha-community.org/" class="link-inline" target="_blank" rel="noopener noreferrer">[2]</a></sup>{t(', its community keeps Koha in step with modern standards and technologies. Koha has a responsive interface that works on desktops, tablets and phones, and it connects to other systems through a range of APIs.')}
         </p>
-        <!-- The number of libraries is a figure from the community's own usage statistics, and
-             the marker above is where the reader can check it: Hea counts the libraries that
-             agreed to share what their systems hold. The line is the domain alone, like the [1]
-             above it, so it reads the same on the Finnish page. -->
+        <!-- The paragraph above is two keys rather than one because the number of libraries is a
+             figure from the community's own usage statistics, and the marker belongs on that
+             phrase instead of at the end of the paragraph. Both languages are split at the same
+             point - after "around the world" and "tuhansia kirjastoja" - so the sentence still
+             reads as one. Hea counts the libraries that agreed to share what their systems hold;
+             the footnote below is the domain alone, like the [1] above it, so it reads the same
+             on the Finnish page. -->
         <p class="mt-2 text-left text-sm text-zinc-500 dark:text-zinc-400 font-sans">
           <sup>[2]</sup> <a href="https://hea.koha-community.org/" class="link-inline" target="_blank" rel="noopener noreferrer">hea.koha-community.org</a>
         </p>
