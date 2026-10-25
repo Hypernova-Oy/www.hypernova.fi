@@ -21,6 +21,8 @@ const i18n = {
     'Choose the material and colour from our partner catalogue, and we will engrave your logo onto the case': 'Valitse materiaali ja väri yhteistyökumppanimme valikoimasta, niin kaiverramme logosi laitteen koteloon',
     'Lainuri can stand on a table or be mounted with a standard VESA 100 bracket on a wall, pillar or almost anywhere. It needs a wireless internet connection and a power socket': 'Lainuri voidaan asettaa pöydälle tai kiinnittää standardilla VESA 100 -kiinnikkeellä seinään, pilariin tai lähes mihin tahansa. Lainuri tarvitsee langattoman internet-yhteyden ja virtapistorasian',
     'Lainuri is licensed under the TAPR Open Hardware License and GPLv3. Our clients have the full right to modify Lainuri software or hardware, as long as the new or modified documents are shared publicly. The complete device is the property of our client. Note that the device contains components whose patents or copyrights remain with their original manufacturers': 'Lainuri on soveltuvin osin TAPR OHL- ja GPLv3-lisensoitu. Asiakkaalla on täysi oikeus muokata Lainurin ohjelmistoa tai laitteistoa, sillä edellytyksellä että muokatut dokumentit, piirustukset, kaaviot ja ohjelmakoodi jaetaan vapaasti saataville. Koottu ja asennettu laite on kokonaisuudessaan tilaajan omaisuutta ilman patentti- tai tekijänoikeusvaateita toimittajalta. Laite sisältää valmiita komponentteja, joiden tekijänoikeudet säilyvät niiden alkuperäisillä omistajilla',
+    'Lainuri is a free and open source project: its design files, the installer and the assembly guides are published in our': 'Lainuri on vapaa ja avoimen lähdekoodin projekti: suunnittelutiedostot, asennusohjelma ja kokoonpano-ohjeet on julkaistu',
+    'GitHub repository': 'GitHub-varastossamme',
     'Contact us': 'Ota yhteyttä'
   }
 };
@@ -81,6 +83,9 @@ const t = useTranslations(i18n, Astro);
                     </p>
                     <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
                         {t('Lainuri is licensed under the TAPR Open Hardware License and GPLv3. Our clients have the full right to modify Lainuri software or hardware, as long as the new or modified documents are shared publicly. The complete device is the property of our client. Note that the device contains components whose patents or copyrights remain with their original manufacturers')}.
+                    </p>
+                    <p class="text-zinc-600 dark:text-zinc-400 text-lg leading-relaxed mb-8 flex-grow z-10">
+                        {t('Lainuri is a free and open source project: its design files, the installer and the assembly guides are published in our')} <a href="https://github.com/Hypernova-Oy/lainuri" class="link-inline" target="_blank" rel="noopener noreferrer">{t('GitHub repository')}</a>.
                     </p>
                     <Button href="/contact/#form" variant="primary" size="lg" class="w-full mt-12 sm:w-auto text-lg px-8 py-4 shadow-xl shadow-primary-500/20">
                         {t('Contact us')}

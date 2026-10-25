@@ -434,13 +434,13 @@ const serviceJsonLd = [
             <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Contact information')}</Badge> 
             </div>
-            <label class="p-3 mt-5 col-span-1">{t('Name')}</label><input type="text" name="name" maxlength="120" class="form-field mt-5 p-3 col-span-1" value={formData.name} required data-error-message={t('Please enter your name. ')} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1" for="koha-name">{t('Name')}</label><input id="koha-name" type="text" name="name" maxlength="120" autocomplete="name" aria-describedby="koha-error-name" class="form-field mt-5 p-3 col-span-1" value={formData.name} required data-error-message={t('Please enter your name. ')} /><div class="md:col-span-2"></div>
             {errors.name && <p class="col-span-1 md:col-span-4 text-red-800">{errors.name}</p>}
-            <p id="koha-error-name" class="col-span-1 md:col-span-4 text-red-800" data-error-for="name" hidden></p>
-            <label class="p-3 mt-5 col-span-1">{t('Organization')}</label><input type="text" name="organization" maxlength="120" class="form-field mt-5 p-3 col-span-1" value={formData.organization} required data-error-message={t('Please enter your organization. ')} /><div class="md:col-span-2"></div>
+            <p id="koha-error-name" class="col-span-1 md:col-span-4 text-red-800" data-error-for="name" role="alert" hidden></p>
+            <label class="p-3 mt-5 col-span-1" for="koha-organization">{t('Organization')}</label><input id="koha-organization" type="text" name="organization" maxlength="120" autocomplete="organization" aria-describedby="koha-error-organization" class="form-field mt-5 p-3 col-span-1" value={formData.organization} required data-error-message={t('Please enter your organization. ')} /><div class="md:col-span-2"></div>
             {errors.organization && <p class="col-span-1 md:col-span-4 text-red-800">{errors.organization}</p>}
-            <p id="koha-error-organization" class="col-span-1 md:col-span-4 text-red-800" data-error-for="organization" hidden></p>
-            <label class="p-3 mt-5 col-span-1">{t('E-mail')}</label><input type="email" name="email" maxlength="254" class="form-field mt-5 p-3 col-span-1" value={formData.email} required data-error-message={t('Please enter an email address. ')} /><div class="md:col-span-2"></div>
+            <p id="koha-error-organization" class="col-span-1 md:col-span-4 text-red-800" data-error-for="organization" role="alert" hidden></p>
+            <label class="p-3 mt-5 col-span-1" for="koha-email">{t('E-mail')}</label><input id="koha-email" type="email" name="email" maxlength="254" autocomplete="email" aria-describedby="koha-error-email" class="form-field mt-5 p-3 col-span-1" value={formData.email} required data-error-message={t('Please enter an email address. ')} /><div class="md:col-span-2"></div>
             <!-- Bot trap: hidden from people and screen readers, but not from scripts. The name
                  and the label change with every page load (see `honeypotField`), so a script
                  that learned to leave one field name alone fills the field this one renders.
@@ -455,24 +455,24 @@ const serviceJsonLd = [
               failure={t('Your browser could not complete the security check of this form. Please reload the page and try again, or contact us by post (our address is on the contact page).')}
             />
             {errors.email && <p class="col-span-1 md:col-span-4 text-red-800">{errors.email}</p>}
-            <p id="koha-error-email" class="col-span-1 md:col-span-4 text-red-800" data-error-for="email" hidden></p>
+            <p id="koha-error-email" class="col-span-1 md:col-span-4 text-red-800" data-error-for="email" role="alert" hidden></p>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-4 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
             <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Catalog and user details')}</Badge> 
             </div>
             <h3 class="col-span-1 md:col-span-4">{t('Please enter the number of')}</h3>
-            <label class="p-3 mt-5 col-span-1">{t('Records')}</label><input type="text" name="records" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.records} /><div class="md:col-span-2"></div>
-            <label class="p-3 mt-5 col-span-1">{t('Items')}</label><input type="text" name="items" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.items} /><div class="md:col-span-2"></div>
-            <label class="p-3 mt-5 col-span-1">{t('Annual circulation')}</label><input type="text" name="circulation" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.circulation} /><div class="md:col-span-2"></div>
-            <label class="p-3 mt-5 col-span-1">{t('Patrons')}</label><input type="text" name="patrons" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.patrons} /><div class="md:col-span-2"></div>
-            <label class="p-3 mt-5 col-span-1">{t('Librarians')}</label><input type="text" name="librarians" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1"  value={formData.librarians} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1" for="koha-records">{t('Records')}</label><input id="koha-records" type="text" name="records" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.records} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1" for="koha-items">{t('Items')}</label><input id="koha-items" type="text" name="items" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.items} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1" for="koha-circulation">{t('Annual circulation')}</label><input id="koha-circulation" type="text" name="circulation" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.circulation} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1" for="koha-patrons">{t('Patrons')}</label><input id="koha-patrons" type="text" name="patrons" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.patrons} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1" for="koha-librarians">{t('Librarians')}</label><input id="koha-librarians" type="text" name="librarians" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1"  value={formData.librarians} /><div class="md:col-span-2"></div>
           </div>
           <div class="grid grid-cols-1 md:grid-cols-4 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
             <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Current system')}</Badge> 
             </div>
-            <label class="p-3 mt-5 col-span-1">{t('Current library system')}</label><input type="text" name="current_ils" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.records} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1" for="koha-current-ils">{t('Current library system')}</label><input id="koha-current-ils" type="text" name="current_ils" maxlength={MAX_SHORT_FIELD_LENGTH} class="form-field mt-5 p-3 col-span-1" value={formData.records} /><div class="md:col-span-2"></div>
         </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
             <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
@@ -481,7 +481,7 @@ const serviceJsonLd = [
             <p class="col-span-2 mb-3">{t('Describe your library and its daily work. Do not worry about being too formal. Tell us what kind of material your library manages, what types of patrons you serve, what circulation rules you use, what your library building is like and how it affects your shelving locations, and so on.')}</p>
             <p class="col-span-2 mb-3">{t('The more detail you give us, the better we can tailor the Koha configuration for your library.')}</p>
             <p class="col-span-2 mb-3">{t('You can also skip this step.')}</p>
-            <textarea name="about_my_library" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="form-field p-3 sm:col-span-1 col-span-2">{formData.about_my_library}</textarea>
+            <label class="sr-only" for="koha-about-my-library">{t('Your library')}</label><textarea id="koha-about-my-library" name="about_my_library" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="form-field p-3 sm:col-span-1 col-span-2">{formData.about_my_library}</textarea>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
             <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
@@ -491,7 +491,7 @@ const serviceJsonLd = [
             <p class="col-span-2 mb-3">{t('It is perfectly normal not to need any additional services or integrations, so it is fine to leave this field empty. Koha can for example send notifications without O356/Gmail integration as well.')}</p>
             <p class="col-span-2 mb-3">{t('We ask because integrations take a little more work to set up and sometimes require software development.')}</p>
 
-            <textarea name="additional_services" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="form-field p-3 sm:col-span-1 col-span-2">{formData.additional_services}</textarea>
+            <label class="sr-only" for="koha-additional-services">{t('Additional services and integrations')}</label><textarea id="koha-additional-services" name="additional_services" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="form-field p-3 sm:col-span-1 col-span-2">{formData.additional_services}</textarea>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
             <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>

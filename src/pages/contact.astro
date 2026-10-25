@@ -347,12 +347,12 @@ const honeypot = honeypotField(formToken);
             <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('Contact information')}</Badge> 
             </div>
-            <label class="p-3 mt-5 col-span-1">{t('Name')}</label><input type="text" name="name" maxlength="120" class="form-field mt-5 p-3 col-span-1" value={formData.name} required data-error-message={t('Please enter your name. ')} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1" for="contact-name">{t('Name')}</label><input id="contact-name" type="text" name="name" maxlength="120" autocomplete="name" aria-describedby="contact-error-name" class="form-field mt-5 p-3 col-span-1" value={formData.name} required data-error-message={t('Please enter your name. ')} /><div class="md:col-span-2"></div>
             {errors.name && <p class="col-span-1 md:col-span-4 text-red-800">{errors.name}</p>}
-            <p id="contact-error-name" class="col-span-1 md:col-span-4 text-red-800" data-error-for="name" hidden></p>
-            <label class="p-3 mt-5 col-span-1">{t('Organization')}</label><input type="text" name="organization" maxlength="120" class="form-field mt-5 p-3 col-span-1" value={formData.organization} /><div class="md:col-span-2"></div>
+            <p id="contact-error-name" class="col-span-1 md:col-span-4 text-red-800" data-error-for="name" role="alert" hidden></p>
+            <label class="p-3 mt-5 col-span-1" for="contact-organization">{t('Organization')}</label><input id="contact-organization" type="text" name="organization" maxlength="120" autocomplete="organization" class="form-field mt-5 p-3 col-span-1" value={formData.organization} /><div class="md:col-span-2"></div>
             {errors.organization && <p class="col-span-1 md:col-span-4 text-red-800">{errors.organization}</p>}
-            <label class="p-3 mt-5 col-span-1">{t('E-mail')}</label><input type="email" name="email" maxlength="254" class="form-field mt-5 p-3 col-span-1" value={formData.email} required data-error-message={t('Please enter an email address. ')} /><div class="md:col-span-2"></div>
+            <label class="p-3 mt-5 col-span-1" for="contact-email">{t('E-mail')}</label><input id="contact-email" type="email" name="email" maxlength="254" autocomplete="email" aria-describedby="contact-error-email" class="form-field mt-5 p-3 col-span-1" value={formData.email} required data-error-message={t('Please enter an email address. ')} /><div class="md:col-span-2"></div>
             <!-- Bot trap: hidden from people and screen readers, but not from scripts. The name
                  and the label change with every page load (see `honeypotField`), so a script
                  that learned to leave one field name alone fills the field this one renders.
@@ -367,13 +367,13 @@ const honeypot = honeypotField(formToken);
               failure={t('Your browser could not complete the security check of this form. Please reload the page and try again, or contact us by post (our address is above).')}
             />
             {errors.email && <p class="col-span-1 md:col-span-4 text-red-800">{errors.email}</p>}
-            <p id="contact-error-email" class="col-span-1 md:col-span-4 text-red-800" data-error-for="email" hidden></p>
+            <p id="contact-error-email" class="col-span-1 md:col-span-4 text-red-800" data-error-for="email" role="alert" hidden></p>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
             <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
               <Badge variant="primary" class="px-4 py-1.5 font-bold shadow-sm">{t('How can we help you?')}</Badge> 
             </div>
-            <textarea name="content" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="form-field p-3 sm:col-span-1 col-span-2">{formData.content}</textarea>
+            <label class="sr-only" for="contact-content">{t('How can we help you?')}</label><textarea id="contact-content" name="content" rows="5" maxlength={MAX_MESSAGE_LENGTH} class="form-field p-3 sm:col-span-1 col-span-2">{formData.content}</textarea>
           </div>
           <div class="grid grid-cols-2 glass-panel border-2 border-primary-500 dark:border-primary-500 rounded-1xl p-8 flex flex-col relative transform mt-10" >
             <div class="absolute -top-4 inset-x-4 flex justify-center text-center" data-form-section>
