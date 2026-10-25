@@ -16,8 +16,8 @@ export const privacyPolicy: LegalDocument = {
     en: 'How Hypernova Oy processes personal data under the GDPR and the Finnish Data Protection Act.',
     fi: 'Miten Hypernova Oy käsittelee henkilötietoja EU:n yleisen tietosuoja-asetuksen ja tietosuojalain mukaisesti.',
   },
-  updated: '2026-09-21',
-  version: '2.0',
+  updated: '2026-10-25',
+  version: '2.1',
   sections: [
     {
       heading: { en: '1. Controller', fi: '1. Rekisterinpitäjä' },
@@ -117,13 +117,13 @@ export const privacyPolicy: LegalDocument = {
             {
               en: [
                 'Website statistics',
-                'Aggregated, de-identified usage data',
-                'Art. 6(1)(f) legitimate interest; consent where identifiers are stored on your device',
+                'Page address, the page you came from, browser and device type, language, and your IP address',
+                'Art. 6(1)(f) legitimate interest',
               ],
               fi: [
                 'Verkkosivuston käyttötilastot',
-                'Yhdistetty ja tunnistamaton käyttötieto',
-                '6(1)(f) oikeutettu etu; suostumus, jos laitteellesi tallennetaan tunnisteita',
+                'Sivun osoite, saapumissivu, selain- ja laitetiedot, kieli sekä IP-osoitteesi',
+                '6(1)(f) oikeutettu etu',
               ],
             },
             {
@@ -159,12 +159,14 @@ export const privacyPolicy: LegalDocument = {
               'Contact and quote requests: 24 months from the last contact, if no customer relationship is established.',
               'Customer agreements and support requests: for the duration of the customer relationship and 24 months after it ends.',
               'Server logs: 14 days, unless they are needed to investigate a security incident.',
+              'Website statistics: the raw visit data is deleted after 180 days; the aggregated page view counts remain.',
               'Language and theme preferences: the language cookie is a session cookie; the theme setting stays in your browser until you clear your browser data.',
             ],
             fi: [
               'Yhteydenotto- ja tarjouspyynnöt: 24 kuukautta viimeisestä yhteydenotosta, jos asiakassuhdetta ei synny.',
               'Asiakassopimukset ja tukipyynnöt: asiakassuhteen ajan ja 24 kuukautta sen päättymisestä.',
               'Palvelinlokit: 14 vuorokautta, ellei niitä tarvita tietoturvapoikkeaman selvittämiseen.',
+              'Verkkosivuston käyttötilastot: yksittäiset käyntitiedot poistetaan 180 vuorokauden jälkeen; koostetut sivulatausmäärät säilyvät.',
               'Kieli- ja teema-asetukset: kielieväste on istuntokohtainen, ja teema-asetus säilyy selaimessasi, kunnes tyhjennät selaimen tiedot.',
             ],
           },
@@ -186,13 +188,13 @@ export const privacyPolicy: LegalDocument = {
           items: {
             en: [
               'Data centre and hosting services: Hetzner Finland Oy (Tuusula, Finland). Our servers and backups are located in the EEA.',
-              'Our own systems: this website, our support and ticketing system (Redmine) and our email run on our own servers in Finland.',
+              'Our own systems: this website, our support and ticketing system (Redmine), our email and our web analytics (Matomo) run on our own servers in Finland.',
               'IT support and maintenance partners, bound by confidentiality and data processing agreements.',
               'Public authorities, such as the tax authority, where we are legally obliged to disclose data.',
             ],
             fi: [
               'Konesali- ja hostingpalvelut: Hetzner Finland Oy (Tuusula, Suomi). Palvelimemme ja varmuuskopiomme sijaitsevat ETA-alueella.',
-              'Omat järjestelmämme: tämä verkkosivusto, tuki- ja tikettijärjestelmämme (Redmine) sekä sähköpostimme toimivat omilla palvelimillamme Suomessa.',
+              'Omat järjestelmämme: tämä verkkosivusto, tuki- ja tikettijärjestelmämme (Redmine), sähköpostimme sekä verkkosivustomme käyttötilastointi (Matomo) toimivat omilla palvelimillamme Suomessa.',
               'IT-tuki- ja ylläpitokumppanit, joita sitovat salassapito- ja henkilötietojen käsittelysopimukset.',
               'Viranomaiset, kuten verohallinto, silloin kun lainsäädäntö velvoittaa meidät luovuttamaan tietoja.',
             ],
@@ -348,8 +350,15 @@ export const privacyPolicy: LegalDocument = {
         {
           kind: 'p',
           text: {
-            en: 'If we later introduce statistics or other cookies that are not strictly necessary, we will ask for your consent before setting them and provide an easy way to withdraw it at any time.',
-            fi: 'Jos otamme myöhemmin käyttöön tilastointia tai muita kuin välttämättömiä evästeitä, pyydämme suostumuksesi ennen niiden asettamista ja tarjoamme helpon tavan peruuttaa suostumuksen milloin tahansa.',
+            en: 'Page views are counted without cookies or any other identifier. Our own analytics system (Matomo, at analytics.hypernova.fi) records the page you read, the page you came from, your browser and device type, your language and your IP address. It runs on our own servers, stores nothing on your device and shares nothing with anyone; the purpose and the legal basis are the legitimate interest described in section 2.',
+            fi: 'Sivulataukset lasketaan ilman evästeitä tai muita tunnisteita. Oma tilastointijärjestelmämme (Matomo, osoitteessa analytics.hypernova.fi) tallentaa lukemasi sivun, saapumissivun, selain- ja laitetiedot, kielesi sekä IP-osoitteesi. Se toimii omilla palvelimillamme, ei tallenna laitteeseesi mitään eikä luovuta tietoja kenellekään; käyttötarkoitus ja oikeusperuste ovat kohdassa 2 kuvattu oikeutettu etu.',
+          },
+        },
+        {
+          kind: 'p',
+          text: {
+            en: 'If we later introduce cookies that are not strictly necessary, we will ask for your consent before setting them and provide an easy way to withdraw it at any time.',
+            fi: 'Jos otamme myöhemmin käyttöön muita kuin välttämättömiä evästeitä, pyydämme suostumuksesi ennen niiden asettamista ja tarjoamme helpon tavan peruuttaa suostumuksen milloin tahansa.',
           },
         },
       ],
