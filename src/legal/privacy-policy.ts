@@ -17,7 +17,7 @@ export const privacyPolicy: LegalDocument = {
     fi: 'Miten Hypernova Oy käsittelee henkilötietoja EU:n yleisen tietosuoja-asetuksen ja tietosuojalain mukaisesti.',
   },
   updated: '2026-10-25',
-  version: '2.1',
+  version: '2.2',
   sections: [
     {
       heading: { en: '1. Controller', fi: '1. Rekisterinpitäjä' },
@@ -117,12 +117,12 @@ export const privacyPolicy: LegalDocument = {
             {
               en: [
                 'Website statistics',
-                'Page address, the page you came from, browser and device type, language, and your IP address',
+                'Page address, the page you came from, browser and device type, language, and a shortened IP address',
                 'Art. 6(1)(f) legitimate interest',
               ],
               fi: [
                 'Verkkosivuston käyttötilastot',
-                'Sivun osoite, saapumissivu, selain- ja laitetiedot, kieli sekä IP-osoitteesi',
+                'Sivun osoite, saapumissivu, selain- ja laitetiedot, kieli sekä lyhennetty IP-osoitteesi',
                 '6(1)(f) oikeutettu etu',
               ],
             },
@@ -350,8 +350,8 @@ export const privacyPolicy: LegalDocument = {
         {
           kind: 'p',
           text: {
-            en: 'Page views are counted without cookies or any other identifier. Our own analytics system (Matomo, at analytics.hypernova.fi) records the page you read, the page you came from, your browser and device type, your language and your IP address. It runs on our own servers, stores nothing on your device and shares nothing with anyone; the purpose and the legal basis are the legitimate interest described in section 2.',
-            fi: 'Sivulataukset lasketaan ilman evästeitä tai muita tunnisteita. Oma tilastointijärjestelmämme (Matomo, osoitteessa analytics.hypernova.fi) tallentaa lukemasi sivun, saapumissivun, selain- ja laitetiedot, kielesi sekä IP-osoitteesi. Se toimii omilla palvelimillamme, ei tallenna laitteeseesi mitään eikä luovuta tietoja kenellekään; käyttötarkoitus ja oikeusperuste ovat kohdassa 2 kuvattu oikeutettu etu.',
+            en: 'Page views are counted without cookies or any other identifier. Our own analytics system (Matomo, at analytics.hypernova.fi) records the page you read, the page you came from, your browser and device type, your language and a shortened IP address. It runs on our own servers, stores nothing on your device and shares nothing with anyone; the purpose and the legal basis are the legitimate interest described in section 2.',
+            fi: 'Sivulataukset lasketaan ilman evästeitä tai muita tunnisteita. Oma tilastointijärjestelmämme (Matomo, osoitteessa analytics.hypernova.fi) tallentaa lukemasi sivun, saapumissivun, selain- ja laitetiedot, kielesi sekä lyhennetyn IP-osoitteesi. Se toimii omilla palvelimillamme, ei tallenna laitteeseesi mitään eikä luovuta tietoja kenellekään; käyttötarkoitus ja oikeusperuste ovat kohdassa 2 kuvattu oikeutettu etu.',
           },
         },
         {
